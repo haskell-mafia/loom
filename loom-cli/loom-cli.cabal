@@ -1,14 +1,14 @@
-name:                  ambiata-project
+name:                  ambiata-loom-cli
 version:               0.0.1
 license:               AllRightsReserved
 author:                Ambiata <info@ambiata.com>
 maintainer:            Ambiata <info@ambiata.com>
-copyright:             (c) 2015 Ambiata.
-synopsis:              project
+copyright:             (c) 2016 Ambiata.
+synopsis:              loom-cli
 category:              System
 cabal-version:         >= 1.8
 build-type:            Custom
-description:           project
+description:           loom-cli
 
 library
   build-depends:
@@ -23,25 +23,24 @@ library
                     src
 
   exposed-modules:
-                    Paths_ambiata_project
-                    Project
+                    Loom.Cli
 
-executable project
+executable loom
   ghc-options:
                     -Wall -threaded -O2
+                    -rtsopts -with-rtsopts "-T -N"
 
   hs-source-dirs:
-                    gen                    
+                    gen
 
   main-is:
-                    ../main/project.hs
+                    ../main/loom.hs
 
   build-depends:
                       base
-                    , ambiata-project
+                    , ambiata-loom-cli
                     , ambiata-p
                     , ambiata-x-optparse
-                    , optparse-applicative            == 0.11.*
                     , text
 
 
@@ -60,33 +59,10 @@ test-suite test
 
   build-depends:
                       base                            >= 3          && < 5
-                    , ambiata-project
+                    , ambiata-loom-cli
                     , ambiata-disorder-core
                     , ambiata-disorder-corpus
                     , ambiata-p
-                    , QuickCheck                      == 2.7.*
-                    , quickcheck-instances            == 0.3.*
-
-test-suite test-io
-  type:
-                    exitcode-stdio-1.0
-
-  main-is:
-                    test-io.hs
-
-  ghc-options:
-                    -Wall -threaded -O2
-
-  hs-source-dirs:
-                    test
-
-  build-depends:
-                      base                            >= 3          && < 5
-                    , ambiata-project
-                    , ambiata-disorder-core
-                    , ambiata-disorder-corpus
-                    , ambiata-p
-                    , text
                     , QuickCheck                      == 2.7.*
                     , quickcheck-instances            == 0.3.*
 
@@ -105,5 +81,5 @@ test-suite test-cli
 
   build-depends:
                       base                            >= 3          && < 5
-                    , ambiata-project
+                    , ambiata-loom-cli
                     , ambiata-disorder-core

@@ -1,22 +1,23 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import           BuildInfo_ambiata_project
-import           DependencyInfo_ambiata_project
+import           BuildInfo_ambiata_loom_cli
 
-import           Options.Applicative
+import           DependencyInfo_ambiata_loom_cli
 
 import           P
 
-import           System.IO
-import           System.Exit
-import           X.Options.Applicative
+import           System.Exit (exitFailure, exitSuccess)
+import           System.IO (BufferMode (..), IO, hSetBuffering, stderr, stdout, print, putStrLn)
+
+import           X.Options.Applicative (RunType (..), Parser (..), SafeCommand (..))
+import qualified X.Options.Applicative as OA
 
 main :: IO ()
 main = do
   hSetBuffering stdout LineBuffering
   hSetBuffering stderr LineBuffering
-  dispatch parser >>= \sc ->
+  OA.dispatch parser >>= \sc ->
     case sc of
       VersionCommand ->
         putStrLn buildInfoVersion >> exitSuccess
@@ -29,7 +30,7 @@ main = do
 
 parser :: Parser (SafeCommand Command)
 parser =
-  safeCommand $ pure Command
+  OA.safeCommand $ pure Command
 
 run :: Command -> IO ()
 run c = case c of
