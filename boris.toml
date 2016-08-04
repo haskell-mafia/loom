@@ -1,8 +1,18 @@
 [boris]
   version = 1
-[build.dist-7-8]
+
 [build.dist-7-10]
-[build.branches-7-8]
+  command = [
+      ["master", "build", "dist-7-10", "-C", "loom-cli"]
+    ]
+
 [build.branches-7-10]
+  command = [
+      ["master", "build", "branches-7-10", "-C", "loom-cli"]
+    ]
+
+[build.rebased]
+  command = [["rebased"]]
+
 [build.validate]
   command = [["validate-respect"]]
