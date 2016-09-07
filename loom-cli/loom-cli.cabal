@@ -13,8 +13,21 @@ description:           loom-cli
 library
   build-depends:
                       base                            >= 3          && < 5
+                    , aeson                           == 0.8.*
                     , ambiata-p
+                    , ambiata-x-eithert
+                    , bytestring                      == 0.10.*
+                    , containers                      == 0.5.*
+                    , cryptonite                      == 0.17.*
+                    , directory                       == 1.2.*
+                    , exceptions                      == 0.8.*
+                    , filepath                        == 1.4.*
+                    , Glob                            == 0.7.*
+                    , megaparsec                      == 5.0.*
+                    , process                         == 1.2.*
                     , text                            == 1.2.*
+                    , time                            == 1.5.*
+                    , transformers                    == 0.4.*
 
   ghc-options:
                     -Wall
@@ -24,6 +37,15 @@ library
 
   exposed-modules:
                     Loom.Cli
+                    Loom.Cli.Asset
+                    Loom.Cli.Build
+                    Loom.Cli.File
+                    Loom.Cli.Handlebars
+                    Loom.Cli.Javascript
+                    Loom.Cli.Manifest
+                    Loom.Cli.Process
+                    Loom.Cli.Purescript
+                    Loom.Cli.Sass
 
 executable loom
   ghc-options:
@@ -40,6 +62,7 @@ executable loom
                       base
                     , ambiata-loom-cli
                     , ambiata-p
+                    , ambiata-x-eithert
                     , ambiata-x-optparse
                     , text
 
