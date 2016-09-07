@@ -23,10 +23,11 @@ library
                     , exceptions                      == 0.8.*
                     , filepath                        == 1.4.*
                     , Glob                            == 0.7.*
+                    , megaparsec                      == 5.0.*
+                    , process                         == 1.2.*
                     , text                            == 1.2.*
                     , time                            == 1.5.*
                     , transformers                    == 0.4.*
-                    , process                         == 1.2.*
 
   ghc-options:
                     -Wall

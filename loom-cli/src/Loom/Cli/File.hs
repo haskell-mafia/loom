@@ -4,11 +4,17 @@ module Loom.Cli.File (
     FilePath
   , FilePattern
   , findFiles
+  , findFilesIn
+  , readUtf8
+  , writeUtf8
+  , readBytes
+  , writeBytes
   , takeDirectory
   , dropExtension
   , replaceExtension
   , getDirectoryContents
   , createDirectoryIfMissing
+  , doesFileExist
   , getModificationTime
   , renameFile
   , copyFile
@@ -16,7 +22,10 @@ module Loom.Cli.File (
 
 import           Control.Monad.IO.Class (MonadIO (..))
 
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString as B
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import           Data.Time (UTCTime)
 
 import           P
@@ -35,13 +44,39 @@ type FilePath = Text
 type FilePattern = Text
 
 findFiles :: MonadIO m => [FilePattern] -> m [FilePath]
-findFiles patterns =
+findFiles =
+  findFilesIn "."
+
+findFilesIn :: MonadIO m => FilePath -> [FilePattern] -> m [FilePath]
+findFilesIn dir patterns =
   liftIO $ fmap T.pack . join . fst
-    <$> G.globDir (fmap (G.compile . T.unpack) patterns) "."
+    <$> G.globDir (fmap (G.compile . T.unpack) patterns) (T.unpack dir)
 
 replaceExtension :: Text -> FilePath -> FilePath
 replaceExtension ext =
   (<> "." <> ext) . dropExtension
+
+readUtf8 :: MonadIO m => FilePath -> m (Maybe Text)
+readUtf8 path =
+  fmap T.decodeUtf8 <$> readBytes path
+
+writeUtf8 :: MonadIO m => FilePath -> Text -> m ()
+writeUtf8 path text =
+  writeBytes path (T.encodeUtf8 text)
+
+readBytes :: MonadIO m => FilePath -> m (Maybe ByteString)
+readBytes path =
+  liftIO $ do
+    exists <- doesFileExist path
+    case exists of
+      False ->
+        pure Nothing
+      True  ->
+        fmap Just . B.readFile $ T.unpack path
+
+writeBytes :: MonadIO m => FilePath -> ByteString -> m ()
+writeBytes path bytes =
+  liftIO $ B.writeFile (T.unpack path) bytes
 
 --
 -- Wrappers for the Directory and FilePath functions that are Text and MonadIO friendly
@@ -62,6 +97,10 @@ getDirectoryContents =
 createDirectoryIfMissing :: MonadIO m => Bool -> FilePath -> m ()
 createDirectoryIfMissing b =
   liftIO . D.createDirectoryIfMissing b . T.unpack
+
+doesFileExist :: MonadIO m => FilePath -> m Bool
+doesFileExist =
+  liftIO . D.doesFileExist . T.unpack
 
 getModificationTime :: MonadIO m => FilePath -> m UTCTime
 getModificationTime =

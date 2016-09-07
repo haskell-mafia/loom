@@ -1,7 +1,11 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Cli (
     loom
+
+  , LoomError (..)
+  , renderLoomError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -22,23 +26,43 @@ import           System.IO (IO)
 import           X.Control.Monad.Trans.Either (EitherT)
 
 
-loom :: EitherT ProcessError IO ()
+data LoomError =
+    LoomProcessError ProcessError
+  | LoomSassError SassError
+    deriving (Show)
+
+renderLoomError :: LoomError -> Text
+renderLoomError = \case
+  LoomProcessError err ->
+    renderProcessError err
+  LoomSassError err ->
+    renderSassError err
+
+loom :: EitherT LoomError IO ()
 loom = do
   loomBuild
-    (Sass "sass")
+    (Sass "sassc")
     (Purescript
       (Psc "psc")
       (PscBundle "psc-bundle")
       )
     (BrowserifyInc "node_modules/.bin/browserifyinc")
 
-loomBuild :: Sass -> Purescript -> BrowserifyInc -> EitherT ProcessError IO ()
+loomBuild :: Sass -> Purescript -> BrowserifyInc -> EitherT LoomError IO ()
 loomBuild sass ps bi = do
+  let
+    includes =
+      SassIncludes [".", "scss"]
+
+    bassets = do
+      am <- firstT LoomProcessError . withLogging "assets" $ liftIO buildAssets
+      firstT LoomSassError . withLogging "css" $ buildSass sass includes am
+
   -- FIX Run in Parallel
   (am, _tl, psm) <- (,,)
-    <$> (withLogging "assets" (liftIO buildAssets) >>= withLogging "css" . buildSass sass)
-    <*> withLogging "hbs" (liftIO buildTemplates)
-    <*> (withLogging "purs" $ buildPurescript ps)
-  js <- withLogging "js" $ buildJavascript bi
+    <$> bassets
+    <*> firstT LoomProcessError (withLogging "hbs" $ liftIO buildTemplates)
+    <*> firstT LoomProcessError (withLogging "purs" $ buildPurescript ps)
+  js <- firstT LoomProcessError . withLogging "js" $ buildJavascript bi
     (maybeToList . fmap purescriptRequire $ psm)
   liftIO $ combineManifests am js

@@ -6,7 +6,6 @@ import           BuildInfo_ambiata_loom_cli
 import           DependencyInfo_ambiata_loom_cli
 
 import           Loom.Cli
-import           Loom.Cli.Process
 
 import           P
 
@@ -40,7 +39,7 @@ parser =
 run :: Command -> IO ()
 run c = case c of
   Command ->
-    orDie renderProcessError loom
+    orDie renderLoomError loom
 
 data Command =
   Command
