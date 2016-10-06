@@ -1,0 +1,6 @@
+#!/bin/sh -eu
+
+LOOM="$PWD/dist/build/loom/loom"
+. test/cli/core/env.sh
+cd test/cli/example
+"${LOOM}"
