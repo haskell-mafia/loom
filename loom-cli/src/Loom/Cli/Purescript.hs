@@ -5,16 +5,20 @@ module Loom.Cli.Purescript (
   , Psc (..)
   , PscBundle (..)
   , PurescriptManifest (..)
+  , findPurescriptOnPath
   , buildPurescript
+  , buildPurescript'
   , purescriptRequire
   ) where
 
 import           Control.Monad.IO.Class (liftIO)
+import           Control.Monad.Trans.Maybe (MaybeT (..))
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import           Loom.Cli.Build
+import           Loom.Cli.Env
 import           Loom.Cli.File
 import           Loom.Cli.Javascript
 import           Loom.Cli.Process
@@ -45,10 +49,16 @@ data PurescriptManifest =
   PurescriptManifest {
       purescriptManifestPath :: FilePath
     , purescriptManifestFilesInput :: [FilePath]
-    }
+    } deriving (Eq, Show)
+
+findPurescriptOnPath :: IO (Maybe Purescript)
+findPurescriptOnPath =
+  runMaybeT $ Purescript
+    <$> (Psc <$> MaybeT (verifyExecutable "psc"))
+    <*> (PscBundle <$> MaybeT (verifyExecutable "psc-bundle"))
 
 buildPurescript :: Purescript -> EitherT ProcessError IO (Maybe PurescriptManifest)
-buildPurescript (Purescript psc pscb) = do
+buildPurescript ps = do
   purs <- findFiles [
       "bower_components/purescript-*/src/**/*.purs"
     , "app/purs/src/**/*.purs"
@@ -56,6 +66,10 @@ buildPurescript (Purescript psc pscb) = do
     , "modules/**/module.purs"
     , "components/**/component.purs"
     ]
+  buildPurescript' ps purs
+
+buildPurescript' :: Purescript -> [FilePath] -> EitherT ProcessError IO (Maybe PurescriptManifest)
+buildPurescript' (Purescript psc pscb) purs =
   case purs of
     [] ->
       pure Nothing
