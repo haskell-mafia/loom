@@ -110,6 +110,7 @@ test-suite test-io
                     , ambiata-loom-cli
                     , ambiata-p
                     , ambiata-x-eithert
+                    , directory                       == 1.2.*
                     , QuickCheck                      == 2.7.*
                     , temporary                       == 1.2.*
                     , text

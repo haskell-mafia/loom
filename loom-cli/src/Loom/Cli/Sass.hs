@@ -5,6 +5,7 @@
 module Loom.Cli.Sass (
     Sass (..)
   , SassIncludes (..)
+  , findSassOnPath
   , buildSass
 
   , SassError (..)
@@ -14,8 +15,8 @@ module Loom.Cli.Sass (
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 
-import           Loom.Cli.Asset
 import           Loom.Cli.Build
+import           Loom.Cli.Env
 import           Loom.Cli.File
 import           Loom.Cli.Process
 
@@ -34,9 +35,10 @@ newtype Sass =
       sassPath :: FilePath
     }
 
-newtype SassIncludes =
+data SassIncludes =
   SassIncludes {
-      sassIncludes :: [FilePath]
+      sassMain :: FilePath
+    , sassIncludes :: [FilePath]
     } deriving (Eq, Ord, Show)
 
 data SassError =
@@ -51,32 +53,39 @@ renderSassError = \case
   SassFileNotFound path ->
     "File not found: " <> path
 
-buildSass :: Sass -> SassIncludes -> AssetManifest -> EitherT SassError IO AssetManifest
-buildSass sass includes am =
-  writeToFile "tmp/main.scss" $ \scss -> do
-  writeToFile "tmp/main.css" $ \css -> do
-    -- FIX Check if modified
-    -- findFiles $ ["scss/**/*.scss"] <> modules ["scss"]
+findSassOnPath :: IO (Maybe Sass)
+findSassOnPath =
+  fmap Sass <$> verifyExecutable "sassc"
 
-    writeUtf8 scss . Lazy.toStrict =<< expand includes "scss/main.scss"
+buildSass :: Sass -> SassIncludes -> EitherT SassError IO (Maybe FilePath)
+buildSass sass (SassIncludes main includes) =
+  doesFileExist main >>= \x -> case x of
+    False ->
+      pure Nothing
+    True -> fmap Just $ do
+      writeToFile "tmp/main.scss" $ \scss -> do
+      writeToFile "tmp/main.css" $ \css -> do
+        -- FIX Check if modified
+        -- findFiles $ ["scss/**/*.scss"] <> modules ["scss"]
 
-    firstT SassProcessError . call (sassPath sass) . mconcat $ [
-        ["-t", "compressed"]
-      , [scss, css]
-      ]
+        writeUtf8 scss . Lazy.toStrict =<< expand includes main
 
-    -- FIX Autoprefix "last 2 version" "ie 10"
-    -- https://github.com/postcss/autoprefixer
-    -- FIX replaceAssetUrls
-    -- FIX Source maps
-    -- FIX We need an updated asset manifest here
-    pure am
+        firstT SassProcessError . call (sassPath sass) . mconcat $ [
+            ["-t", "compressed"]
+          , [scss, css]
+          ]
+
+        -- FIX Autoprefix "last 2 version" "ie 10"
+        -- https://github.com/postcss/autoprefixer
+        -- FIX replaceAssetUrls
+        -- FIX Source maps
+        pure css
 
 -- Sass doesn't support glob imports.
 --
 -- https://github.com/sass/sassc/issues/62
 -- https://github.com/britco/node-sass-globbing
-expand :: SassIncludes -> FilePath -> EitherT SassError IO Lazy.Text
+expand :: [FilePath] -> FilePath -> EitherT SassError IO Lazy.Text
 expand includes path = do
   msass <- readUtf8 path
   case msass of
@@ -85,13 +94,13 @@ expand includes path = do
     Just sass ->
       fmap Lazy.unlines $ traverse (expandLine includes path) $ T.lines sass
 
-expandLine :: SassIncludes -> FilePath -> Text -> EitherT SassError IO Lazy.Text
+expandLine :: [FilePath] -> FilePath -> Text -> EitherT SassError IO Lazy.Text
 expandLine includes path txt =
   case Mega.runParser pImport (T.unpack path) txt of
     Left _ ->
       pure $ Lazy.fromStrict txt
     Right glob -> do
-      xs <- fmap mconcat $ traverse (flip findFilesIn [glob]) (sassIncludes includes)
+      xs <- fmap mconcat $ traverse (flip findFilesIn [glob]) includes
       fmap Lazy.unlines $ traverse (expand includes) xs
 
 pImport :: Parser FilePath
