@@ -4,11 +4,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Loom.Cli.Build (
     Hash
+  , HashedFile (..)
+  , renderHash
+  , renderHashedFile
   , UnmodifiedFiles (..)
   , ModifiedFiles (..)
   , writeToFile
   , withLogging
   , hashFiles
+  , hashFile
   , modules
   , takeDirectory
   , dropExtension
@@ -36,6 +40,9 @@ import           System.IO.Error (isDoesNotExistError)
 
 type Hash = Digest MD5
 
+data HashedFile =
+  HashedFile FilePath Hash
+
 -- | Ensure that the file being written to has a parent directory
 -- In future this may also create a temporary file to be used during the write
 writeToFile :: MonadIO m => FilePath -> (FilePath -> m a) -> m a
@@ -61,13 +68,28 @@ withLogging out ma = do
 -- Modelled on the gulp library:
 --
 -- https://github.com/sindresorhus/gulp-rev
-hashFiles :: FilePath -> [FilePath] -> IO [(FilePath, Hash)]
-hashFiles dir fs =
-  for fs $ \f -> do
-    h <- hashlazy <$> BSL.readFile (T.unpack f)
-    let nf = dir <> "-" <> (T.pack . show) h
-    copyFile f nf
-    pure (nf, h)
+hashFiles :: FilePath -> FilePath -> [FilePath] -> IO [HashedFile]
+hashFiles from to =
+  mapM (hashFile from to)
+
+hashFile :: FilePath -> FilePath -> FilePath -> IO HashedFile
+hashFile from to f = do
+  h <- hashlazy <$> BSL.readFile (T.unpack f)
+  let
+    f' = fromMaybe f $ T.stripPrefix from f
+    hf = HashedFile f' h
+    nf = to <> "/" <> renderHashedFile hf
+  createDirectoryIfMissing True $ takeDirectory nf
+  copyFile f nf
+  pure hf
+
+renderHash :: Hash -> Text
+renderHash =
+  T.pack . show
+
+renderHashedFile :: HashedFile -> FilePath
+renderHashedFile (HashedFile f h) =
+  takeDirectory f <> "/" <> (takeFileName . dropExtension) f <> "-" <> renderHash h <> takeExtension f
 
 -- FIX This should be handled as configuration at the top-level, not here
 modules :: [Text] -> [FilePattern]

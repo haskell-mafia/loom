@@ -8,7 +8,11 @@ module Loom.Cli (
   , renderLoomError
   ) where
 
+import           Control.Monad.Trans.Class (lift)
+
+import           Loom.Cli.Asset
 import           Loom.Cli.Build
+import           Loom.Cli.Manifest
 import           Loom.Cli.Process
 import           Loom.Cli.Purescript
 import           Loom.Cli.Sass
@@ -44,8 +48,18 @@ loom = do
 loomBuild :: Sass -> Purescript -> EitherT LoomError IO ()
 loomBuild sass ps = do
   let
+    dist =
+      "dist"
+    distAssets =
+       dist <> "/assets"
     includes =
       SassIncludes "scss/main.scss" [".", "scss"]
-  _bas <- firstT LoomSassError . withLogging "css" $ buildSass sass includes
+  bas <- firstT LoomSassError . withLogging "css" $ buildSass sass includes distAssets
   _psm <- firstT LoomProcessError (withLogging "purs" $ buildPurescript ps)
+
+  -- FIX Currently using the same dist here, but we really should have two separate folders, dev and prod
+  bash <- lift $ mapM (hashFile distAssets distAssets) bas
+  lift $ writeManifest distAssets (Manifest . join $ [
+      maybeToList . fmap ((,) "css" . AssetManifest . pure) $ bash
+    ])
   pure ()

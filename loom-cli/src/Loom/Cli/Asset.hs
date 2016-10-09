@@ -15,7 +15,7 @@ import           System.IO (IO)
 
 
 data AssetManifest =
-  AssetManifest [(FilePath, Hash)]
+  AssetManifest [HashedFile]
 
 assetExtensions :: [Text]
 assetExtensions =
@@ -28,5 +28,6 @@ buildAssets :: IO AssetManifest
 buildAssets = do
   -- FIX Write to "tmp/assets-main-manifest.json" here?
   assets <- findFiles $ modules assetExtensions
-  assetsHashed <- hashFiles "tmp/assets" assets
+  -- FIX Still need to work out when to copy vs hash?
+  assetsHashed <- hashFiles "FIX" "tmp/assets" assets
   pure $ AssetManifest assetsHashed
