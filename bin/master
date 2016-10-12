@@ -1,0 +1,8 @@
+#!/bin/sh -eu
+
+# A shim around master setting extra paths
+
+# TODO Need to set this after loading master file, hmm
+# export PATH="${PATH}:$(purescript-path)"
+
+exec master "$@"

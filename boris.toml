@@ -3,12 +3,12 @@
 
 [build.dist-7-10]
   command = [
-      ["master", "build", "dist-7-10", "-C", "loom-cli"]
+      ["bin/master", "build", "dist-7-10", "-C", "loom-cli"]
     ]
 
 [build.branches-7-10]
   command = [
-      ["master", "build", "branches-7-10", "-C", "loom-cli"]
+      ["bin/master", "build", "branches-7-10", "-C", "loom-cli"]
     ]
 
 [build.rebased]
