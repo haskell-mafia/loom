@@ -8,5 +8,6 @@ cabal-dev
 .virthualenv
 .cabal-sandbox
 cabal.sandbox.config
-/tmp
+tmp/
 gen/
+output/

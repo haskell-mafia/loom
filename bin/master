@@ -1,0 +1,12 @@
+#!/bin/sh -eu
+
+# A shim around master setting extra paths
+
+# TODO Need to set this after loading master file, hmm
+# export PATH="${PATH}:$(purescript-path)"
+
+# FIX https://github.com/ambiata/xargs/pull/25
+# export PATH="${PATH}:$(sass-path)"
+export PATH="${PATH}:/usr/local/sass-3.3.6/bin"
+
+exec master "$@"
