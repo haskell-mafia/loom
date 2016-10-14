@@ -46,7 +46,7 @@ prop_purescript_ffi =
       , "foreign import foo :: String"
       ]
     lift $ T.writeFile (dir <> "/test1.js") . T.unlines $ [
-        "// module Bikeshed.Graph.Campaign"
+        "// module Test"
       , "\"use strict\";"
       , "exports.foo = ''"
       ]
