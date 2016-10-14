@@ -10,7 +10,9 @@ module Loom.Cli.File (
   , readBytes
   , writeBytes
   , takeDirectory
+  , takeFileName
   , dropExtension
+  , takeExtension
   , replaceExtension
   , getDirectoryContents
   , createDirectoryIfMissing
@@ -86,9 +88,17 @@ dropExtension :: FilePath -> FilePath
 dropExtension =
   T.pack . F.dropExtension . T.unpack
 
+takeExtension :: FilePath -> FilePath
+takeExtension =
+  T.pack . F.takeExtension . T.unpack
+
 takeDirectory :: FilePath -> FilePath
 takeDirectory =
   T.pack . F.takeDirectory . T.unpack
+
+takeFileName :: FilePath -> FilePath
+takeFileName =
+  T.pack . F.takeFileName . T.unpack
 
 getDirectoryContents :: FilePath -> IO [FilePath]
 getDirectoryContents =

@@ -57,14 +57,14 @@ findSassOnPath :: IO (Maybe Sass)
 findSassOnPath =
   fmap Sass <$> verifyExecutable "sassc"
 
-buildSass :: Sass -> SassIncludes -> EitherT SassError IO (Maybe FilePath)
-buildSass sass (SassIncludes main includes) =
+buildSass :: Sass -> SassIncludes -> FilePath -> EitherT SassError IO (Maybe FilePath)
+buildSass sass (SassIncludes main includes) dist =
   doesFileExist main >>= \x -> case x of
     False ->
       pure Nothing
     True -> fmap Just $ do
       writeToFile "tmp/main.scss" $ \scss -> do
-      writeToFile "tmp/main.css" $ \css -> do
+      writeToFile (dist <> "/main.css") $ \css -> do
         -- FIX Check if modified
         -- findFiles $ ["scss/**/*.scss"] <> modules ["scss"]
 

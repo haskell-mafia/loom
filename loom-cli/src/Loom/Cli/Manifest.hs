@@ -1,27 +1,33 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Cli.Manifest (
-    combineManifests
+    Manifest (..)
+  , writeManifest
   ) where
 
-import           Data.Aeson ((.=))
+import           Data.Aeson (Value, (.=))
 import qualified Data.Aeson as A
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as T
 
 import           Loom.Cli.Asset
 import           Loom.Cli.Build
-import           Loom.Cli.Javascript
+import           Loom.Cli.File
 
 import           P
 
 import           System.IO (IO)
 
 
-combineManifests :: AssetManifest -> [JavascriptManifest] -> IO ()
-combineManifests (AssetManifest _ams) js =
-  writeToFile "dest/all-manifest.json" $ \out ->
-    BSL.writeFile (T.unpack out) . A.encode $ A.object [
-        "assets" .= ()
-      , "js" .= (A.object . flip fmap js $ \(JavascriptManifest _n _jm) -> "" .= ())
-      ]
+newtype Manifest =
+  Manifest [(Text, AssetManifest)]
+
+writeManifest :: FilePath -> Manifest -> IO ()
+writeManifest dist m =
+  writeToFile (dist <> "/all-manifest.json") $ \out ->
+    BSL.writeFile (T.unpack out) . A.encode $ manifestToJson m
+
+manifestToJson :: Manifest -> Value
+manifestToJson (Manifest ams) =
+  A.object . flip fmap ams $ \(n, AssetManifest am) ->
+    n .= (A.object . flip fmap am $ \hf@(HashedFile f _) -> f .= renderHashedFile hf)
