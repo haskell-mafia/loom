@@ -76,6 +76,11 @@
       ["bin/master", "build", "branches-7-10", "-C", "loom-build"]
     ]
 
+[build.dist-7-10-purescript]
+  command = [
+      ["master", "build", "dist-7-10", "-C", "loom-purescript"]
+    ]
+
 [build.branches-7-10-cli]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-cli"]
@@ -129,6 +134,11 @@
 [build.branches-7-10-runtime]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-runtime"]
+    ]
+
+[build.branches-7-10-purescript]
+  command = [
+      ["master", "build", "branches-7-10", "-C", "loom-purescript"]
     ]
 
 [build.dist-validate]
