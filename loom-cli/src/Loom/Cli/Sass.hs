@@ -16,7 +16,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 
 import           Loom.Cli.Build
-import           Loom.Cli.Env
 import           Loom.Cli.File
 import           Loom.Process
 

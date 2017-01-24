@@ -15,7 +15,7 @@ import           P
 
 import           System.IO (IO)
 
-import           Test.QuickCheck (once)
+import           Test.QuickCheck ((===), once)
 import           Test.QuickCheck.Instances ()
 
 import           X.Control.Monad.Trans.Either (runEitherT)
@@ -34,6 +34,16 @@ prop_process_fail =
   once . testIO $ do
     m <- runEitherT $ call "cat" ["missing_file"]
     pure $ isLeft m
+
+prop_env_verify_good =
+  once . testIO $ do
+    e <- verifyExecutable "cat"
+    pure $ e === Just "cat"
+
+prop_env_verify_bad =
+  once . testIO $ do
+    e <- verifyExecutable "NOT_FOUND"
+    pure $ e === Nothing
 
 return []
 tests :: IO Bool

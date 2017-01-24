@@ -1,14 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Loom.Process (
     ProcessError (..)
   , renderProcessError
   , call
   , call'
+  , verifyExecutable
   ) where
 
 import           Control.Exception (IOException)
-import           Control.Monad.Catch (MonadCatch, SomeException, handle, toException)
+import           Control.Monad.Catch (MonadCatch, SomeException, handle, toException, try)
 import           Control.Monad.IO.Class (MonadIO (..))
 
 import           Data.Map (Map)
@@ -20,7 +22,7 @@ import           P
 import           System.Directory (setCurrentDirectory)
 import           System.Environment (getEnvironment)
 import           System.Exit (ExitCode (..))
-import           System.IO (stderr)
+import           System.IO (IO, stderr)
 import qualified System.Process as Process
 
 import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT)
@@ -113,3 +115,18 @@ handleIO p =
     fromIO = toException :: IOException -> SomeException
   in
      handle (hoistEither . Left . ProcessException p . fromIO)
+
+verifyExecutable :: Text -> IO (Maybe FilePath)
+verifyExecutable name = do
+  x <- try $ do
+    (_, _, _, pid) <- Process.createProcess $ (Process.proc (T.unpack name) []) {
+        Process.std_in = Process.NoStream
+      , Process.std_out = Process.NoStream
+      , Process.std_err = Process.NoStream
+      }
+    Process.waitForProcess pid
+  case x of
+    Left (_ :: IOException) ->
+      pure Nothing
+    Right _ ->
+      pure $ Just name
