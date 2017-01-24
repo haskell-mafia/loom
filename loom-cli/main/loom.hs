@@ -5,42 +5,41 @@ import           BuildInfo_ambiata_loom_cli
 
 import           DependencyInfo_ambiata_loom_cli
 
-import           Loom.Cli
+import           Loom.Build
 
 import           P
 
-import           System.Exit (exitSuccess)
-import           System.IO (BufferMode (..), IO, hSetBuffering, stderr, stdout, print, putStrLn)
+import           System.Directory (getCurrentDirectory)
+import           System.IO (BufferMode (..), IO, hSetBuffering, stderr, stdout)
 
-import           X.Options.Applicative (RunType (..), Parser (..), SafeCommand (..))
+import           X.Options.Applicative (Parser (..))
 import qualified X.Options.Applicative as OA
 
 import           X.Control.Monad.Trans.Either.Exit (orDie)
+
+data Command =
+    Build
+  deriving (Eq, Show)
 
 main :: IO ()
 main = do
   hSetBuffering stdout LineBuffering
   hSetBuffering stderr LineBuffering
-  OA.dispatch parser >>= \sc ->
-    case sc of
-      VersionCommand ->
-        putStrLn buildInfoVersion >> exitSuccess
-      DependencyCommand ->
-        mapM_ putStrLn dependencyInfo
-      RunCommand DryRun c ->
-        print c >> exitSuccess
-      RunCommand RealRun c ->
-        run c
+  OA.cli "loom" buildInfoVersion dependencyInfo parser $ \c ->
+    case c of
+      Build -> do
+        cwd <- getCurrentDirectory
+        orDie renderLoomError $ buildLoom cwd
 
-parser :: Parser (SafeCommand Command)
+parser :: Parser Command
 parser =
-  OA.safeCommand $ pure Command
+  OA.subparser . mconcat $ [
+      OA.command' "build" "Build a loom project from the current working directory" $
+        pure Build
+    ]
 
-run :: Command -> IO ()
-run c = case c of
-  Command ->
-    orDie renderLoomError loom
-
-data Command =
-  Command
-  deriving (Eq, Show)
+renderLoomError :: LoomError -> Text
+renderLoomError le =
+  case le of
+    LoomError ->
+      "The impossible happened!"
