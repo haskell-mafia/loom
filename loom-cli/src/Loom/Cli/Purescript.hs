@@ -18,10 +18,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import           Loom.Cli.Build
-import           Loom.Cli.Env
 import           Loom.Cli.File
 import           Loom.Cli.Javascript
-import           Loom.Cli.Process
+import           Loom.Process
 
 import           P
 

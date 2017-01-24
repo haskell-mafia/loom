@@ -15,7 +15,7 @@ import qualified Data.Text as T
 
 import           Loom.Cli.Build
 import           Loom.Cli.File
-import           Loom.Cli.Process
+import           Loom.Process
 
 import           P
 
