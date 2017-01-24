@@ -11,8 +11,11 @@
       ["bin/master", "build", "branches-7-10", "-C", "loom-cli"]
     ]
 
-[build.rebased]
+[build.dist-validate]
+  command = [["validate-respect"]]
+
+[build.all-rebased]
   command = [["rebased"]]
 
-[build.validate]
-  command = [["validate-respect"]]
+[build.all-submodules]
+  command = [["dangling-refs"]]
