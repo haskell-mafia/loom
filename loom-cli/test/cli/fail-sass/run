@@ -1,9 +1,0 @@
-#!/bin/sh -eu
-
-LOOM="$PWD/dist/build/loom/loom"
-. test/cli/core/env.sh
-cd test/cli/fail-sass
-if "${LOOM}"; then
-  echo "Loom didn't fail on invalid sass"
-  exit 1
-fi

@@ -1,9 +1,0 @@
-#!/bin/sh -eu
-
-LOOM="$PWD/dist/build/loom/loom"
-. test/cli/core/env.sh
-cd test/cli/fail-purescript
-if "${LOOM}"; then
-  echo "Loom didn't fail on invalid purescript"
-  exit 1
-fi

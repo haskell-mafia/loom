@@ -1,6 +1,11 @@
 [boris]
   version = 1
 
+[build.dist-7-10-build]
+  command = [
+      ["bin/master", "build", "dist-7-10", "-C", "loom-build"]
+    ]
+
 [build.dist-7-10-cli]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-cli"]
@@ -14,6 +19,11 @@
 [build.dist-7-10-sass]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-sass"]
+    ]
+
+[build.branches-7-10-build]
+  command = [
+      ["bin/master", "build", "branches-7-10", "-C", "loom-build"]
     ]
 
 [build.branches-7-10-cli]
