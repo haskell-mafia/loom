@@ -9,9 +9,9 @@ module Loom.Cli (
   ) where
 
 import           Loom.Cli.Build
-import           Loom.Cli.Process
 import           Loom.Cli.Purescript
 import           Loom.Cli.Sass
+import           Loom.Process
 
 import           P
 

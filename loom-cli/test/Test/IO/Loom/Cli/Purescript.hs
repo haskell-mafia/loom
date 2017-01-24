@@ -7,8 +7,8 @@ module Test.IO.Loom.Cli.Purescript where
 
 import           Control.Monad.Trans.Class (lift)
 
-import           Loom.Cli.Process
 import           Loom.Cli.Purescript
+import           Loom.Process
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T

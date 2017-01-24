@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Loom.Cli.Process (
+module Loom.Process (
     ProcessError (..)
   , renderProcessError
   , call
@@ -15,8 +15,6 @@ import           Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Text as T
 
-import           Loom.Cli.File
-
 import           P
 
 import           System.Directory (setCurrentDirectory)
@@ -27,6 +25,9 @@ import qualified System.Process as Process
 
 import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT)
 
+
+-- FIX Extract out loom-file, or alternative just switch back to the normal FilePath
+type FilePath = T.Text
 
 data Process =
   Process {

@@ -6,9 +6,19 @@
       ["bin/master", "build", "dist-7-10", "-C", "loom-cli"]
     ]
 
+[build.dist-7-10-process]
+  command = [
+      ["bin/master", "build", "dist-7-10", "-C", "loom-process"]
+    ]
+
 [build.branches-7-10-cli]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-cli"]
+    ]
+
+[build.branches-7-10-process]
+  command = [
+      ["bin/master", "build", "branches-7-10", "-C", "loom-process"]
     ]
 
 [build.dist-validate]
