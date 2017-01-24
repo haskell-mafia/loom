@@ -1,0 +1,9 @@
+[loom]
+  version = 1
+  dependencies = ["missing.toml"]
+
+[component]
+  paths = ["components/*"]
+
+[sass]
+  paths = ["scss/*"]
