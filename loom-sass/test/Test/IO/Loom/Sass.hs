@@ -8,7 +8,6 @@ import           Control.Monad.Trans.Class (lift)
 
 import           Loom.Sass
 
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)
@@ -36,7 +35,7 @@ prop_sass_success =
     lift $ writeFile f1 "$test: #ffffff;"
     lift $ writeFile f2 "@import \"test1.scss\";\n .foo { color: $test; }"
     firstT renderSassError $ compileSass ps ss f1 f3
-    lift $ doesFileExist (T.unpack f3)
+    lift $ doesFileExist f3
 
 prop_sass_missing =
   QC.forAll genSassStyle $ \ss ->
@@ -65,10 +64,10 @@ withSass f =
   withTempDirectory "dist" "loom-sass" $ \dir ->
     testEitherT id $ do
       ps <- eitherTFromMaybe "Missing sass" $ findSassOnPath
-      f (T.pack dir) ps
+      f dir ps
 
-writeFile f =
-  T.writeFile (T.unpack f)
+writeFile =
+  T.writeFile
 
 return []
 tests :: IO Bool

@@ -17,14 +17,11 @@ import           Loom.Process
 
 import           P
 
-import           System.FilePath (takeDirectory)
+import           System.FilePath (FilePath, takeDirectory)
 import           System.Directory (createDirectoryIfMissing)
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT)
-
--- FIX Extract out loom-file, or alternative just switch back to the normal FilePath
-type FilePath = T.Text
 
 newtype Sass =
   Sass {
@@ -48,11 +45,11 @@ findSassOnPath =
 
 compileSass :: Sass -> SassStyle -> FilePath -> FilePath -> EitherT SassError IO ()
 compileSass sass style input outFile = do
-  liftIO . createDirectoryIfMissing True . takeDirectory . T.unpack $ outFile
+  liftIO . createDirectoryIfMissing True . takeDirectory $ outFile
   firstT SassProcessError . call (sassPath sass) . mconcat $ [
-      [input]
+      [T.pack input]
     , ["--style", renderSassStyle style]
-    , [outFile]
+    , [T.pack outFile]
     ]
 
 renderSassError :: SassError -> Text

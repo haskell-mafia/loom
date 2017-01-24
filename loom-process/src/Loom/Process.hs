@@ -22,14 +22,12 @@ import           P
 import           System.Directory (setCurrentDirectory)
 import           System.Environment (getEnvironment)
 import           System.Exit (ExitCode (..))
+import           System.FilePath (FilePath)
 import           System.IO (IO, stderr)
 import qualified System.Process as Process
 
 import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT)
 
-
--- FIX Extract out loom-file, or alternative just switch back to the normal FilePath
-type FilePath = T.Text
 
 data Process =
   Process {
@@ -50,11 +48,11 @@ renderProcessError :: ProcessError -> Text
 renderProcessError e =
   case e of
     ProcessFailure p code ->
-      "Process failed: " <> T.intercalate " " (processCommand p : processArguments p)
+      "Process failed: " <> T.intercalate " " ((T.pack . processCommand) p : processArguments p)
         <> " (exit code: " <> T.pack (show code) <> ")"
 
     ProcessException p ex ->
-      "Process failed: " <> T.intercalate " " (processCommand p : processArguments p)
+      "Process failed: " <> T.intercalate " " ((T.pack . processCommand) p : processArguments p)
         <> "\n" <> T.pack (show ex)
 
 call :: (MonadIO m, MonadCatch m) => FilePath -> [Text] -> EitherT ProcessError m ()
@@ -84,7 +82,7 @@ callProcess p@(Process cmd args d env) =
       Nothing ->
         return ()
       Just dir ->
-        setCurrentDirectory (T.unpack dir)
+        setCurrentDirectory dir
     env' <- case env of
       Nothing ->
         return Nothing
@@ -96,7 +94,7 @@ callProcess p@(Process cmd args d env) =
             -- Yes we're reading in the environment variables here, but it's purely to pass through
             <*> (M.fromList <$> getEnvironment)
     (_stdin, _stdout, _stderr, pid) <- Process.createProcess
-      (Process.proc (T.unpack cmd) (fmap T.unpack args)) {
+      (Process.proc cmd (fmap T.unpack args)) {
         Process.env = env'
       , Process.std_out = Process.CreatePipe
       , Process.std_err = Process.UseHandle stderr
@@ -129,4 +127,4 @@ verifyExecutable name = do
     Left (_ :: IOException) ->
       pure Nothing
     Right _ ->
-      pure $ Just name
+      pure . Just . T.unpack $ name
