@@ -27,7 +27,7 @@ library
                     src
 
   exposed-modules:
-                    Loom.Build
+                    Loom.Build.Core
 
 test-suite test
   type:
