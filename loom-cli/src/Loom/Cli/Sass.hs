@@ -60,7 +60,7 @@ buildSass sass (SassIncludes main includes) =
 
         writeUtf8 scss . Lazy.toStrict =<< expand includes main
 
-        firstT SassError $ compileSass sass scss css
+        firstT SassError $ compileSass sass SassCompressed scss css
 
         -- FIX Autoprefix "last 2 version" "ie 10"
         -- https://github.com/postcss/autoprefixer
