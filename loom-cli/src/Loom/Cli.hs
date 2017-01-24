@@ -23,7 +23,7 @@ import           X.Control.Monad.Trans.Either (EitherT, eitherTFromMaybe)
 data LoomError =
     LoomProcessError ProcessError
   | LoomMissingExecutable Text
-  | LoomSassError SassError
+  | LoomSassBuildError SassBuildError
     deriving (Show)
 
 renderLoomError :: LoomError -> Text
@@ -32,8 +32,8 @@ renderLoomError = \case
     renderProcessError err
   LoomMissingExecutable e ->
     "Could not find executable " <> e
-  LoomSassError e ->
-    renderSassError e
+  LoomSassBuildError e ->
+    renderSassBuildError e
 
 loom :: EitherT LoomError IO ()
 loom = do
@@ -46,6 +46,6 @@ loomBuild sass ps = do
   let
     includes =
       SassIncludes "scss/main.scss" [".", "scss"]
-  _bas <- firstT LoomSassError . withLogging "css" $ buildSass sass includes
+  _bas <- firstT LoomSassBuildError . withLogging "css" $ buildSass sass includes
   _psm <- firstT LoomProcessError (withLogging "purs" $ buildPurescript ps)
   pure ()

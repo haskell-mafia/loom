@@ -37,7 +37,7 @@ prop_sass =
     lift $ T.writeFile f2 "@import \"test1.scss\";\n .foo { color: $test; }"
     let
       si = SassIncludes (T.pack f2) [T.pack dir]
-    m <- firstT renderSassError $ buildSass ps si
+    m <- firstT renderSassBuildError $ buildSass ps si
     lift . fmap (=== Just True) $ mapM (doesFileExist . T.unpack) m
 
 prop_sass_missing =
@@ -45,7 +45,7 @@ prop_sass_missing =
     ps <- eitherTFromMaybe "Missing sass" $ findSassOnPath
     let
       si = SassIncludes (T.pack "missing.scss") []
-    m <- firstT renderSassError $ buildSass ps si
+    m <- firstT renderSassBuildError $ buildSass ps si
     pure $ m === Nothing
 
 prop_sass_fail =

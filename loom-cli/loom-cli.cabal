@@ -15,6 +15,7 @@ library
                       base                            >= 3          && < 5
                     , aeson                           == 0.8.*
                     , ambiata-loom-process
+                    , ambiata-loom-sass
                     , ambiata-p
                     , ambiata-x-eithert
                     , bytestring                      == 0.10.*
