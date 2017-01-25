@@ -5,7 +5,7 @@ import           BuildInfo_ambiata_loom_cli
 
 import           DependencyInfo_ambiata_loom_cli
 
-import           Loom.Build
+import           Loom.Build.Core
 
 import           P
 

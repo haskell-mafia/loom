@@ -1,5 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-module Loom.Build (
+module Loom.Build.Core (
     LoomError (..)
   , buildLoom
   ) where
