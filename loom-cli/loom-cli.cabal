@@ -24,6 +24,7 @@ executable loom
   build-depends:
                       base
                     , ambiata-loom-build
+                    , ambiata-loom-config-toml
                     , ambiata-p
                     , ambiata-x-eithert
                     , ambiata-x-optparse
