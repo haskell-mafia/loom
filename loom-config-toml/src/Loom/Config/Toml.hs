@@ -7,6 +7,7 @@ module Loom.Config.Toml (
   ) where
 
 import           Control.Lens ((^?), preview)
+import           Control.Monad.IO.Class (liftIO)
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -64,17 +65,15 @@ resolveConfig :: FilePath -> EitherT LoomConfigTomlError IO LoomConfig
 resolveConfig path = do
   let
     read' path' =
-      ifM
+      newEitherT $ ifM
         (doesFileExist path')
         (pure <$> T.readFile path')
         (pure . Left . ConfigFileNotFound $ path')
-  t <- newEitherT $ ifM
-    (doesDirectoryExist path)
-    (read' $ path </> defaultLoomFile)
-    (read' path)
+  (dir, t) <- ifM
+    (liftIO . doesDirectoryExist $ path)
+    (fmap ((,) path) . read' $ path </> defaultLoomFile)
+    (fmap ((,) (takeDirectory path)) . read' $ path)
   c <- hoistEither . parseConfig $ t
-  let
-    dir = takeDirectory path
   ds <- mapM (resolveConfig . (</>) dir) . loomConfigRawDependencies $ c
   fp <- hoistEither . first ConfigInvalidPattern . compileFilePattern . T.pack $ dir
   hoistEither . first ConfigInvalidPattern $
