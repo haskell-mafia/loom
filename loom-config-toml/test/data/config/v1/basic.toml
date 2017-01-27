@@ -1,0 +1,8 @@
+[loom]
+  version = 1
+
+[component]
+  paths = ["components/*"]
+
+[sass]
+  paths = ["scss/*"]

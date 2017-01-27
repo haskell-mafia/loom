@@ -1,0 +1,9 @@
+[loom]
+  version = 1
+  dependencies = ["subdir/basic.toml"]
+
+[component]
+  paths = ["components/*"]
+
+[sass]
+  paths = ["scss/*"]
