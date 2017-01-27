@@ -1,0 +1,6 @@
+#!/bin/sh -eu
+
+. test/cli/core/env.sh
+
+cd test/cli/build
+$LOOM build

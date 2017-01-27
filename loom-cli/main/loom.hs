@@ -6,6 +6,7 @@ import           BuildInfo_ambiata_loom_cli
 import           DependencyInfo_ambiata_loom_cli
 
 import           Loom.Build.Core
+import           Loom.Config.Toml
 
 import           P
 
@@ -29,7 +30,8 @@ main = do
     case c of
       Build -> do
         cwd <- getCurrentDirectory
-        orDie renderLoomError $ buildLoom cwd
+        config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
+        orDie renderLoomError $ buildLoom config
 
 parser :: Parser Command
 parser =

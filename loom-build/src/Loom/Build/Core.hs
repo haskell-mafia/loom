@@ -4,9 +4,10 @@ module Loom.Build.Core (
   , buildLoom
   ) where
 
+import           Loom.Build.Data
+
 import           P
 
-import           System.FilePath (FilePath)
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT)
@@ -15,6 +16,6 @@ data LoomError =
     LoomError
   deriving (Eq, Show)
 
-buildLoom :: FilePath -> EitherT LoomError IO ()
+buildLoom :: LoomConfig -> EitherT LoomError IO ()
 buildLoom _ =
   pure ()
