@@ -17,7 +17,7 @@ import           Loom.Build.Data
 import           P
 
 import           System.Directory (doesDirectoryExist, doesFileExist)
-import           System.FilePath ((</>), FilePath, takeDirectory)
+import           System.FilePath ((</>), FilePath, makeRelative, takeDirectory)
 import           System.IO (IO)
 
 import           Text.Parsec.Error (ParseError)
@@ -81,9 +81,9 @@ resolveConfig root = do
       c <- hoistEither . parseConfig $ t
       ds <- mapM (parse' . (</>) dir) . loomConfigRawDependencies $ c
       pure $ ((dir, c), bind (uncurry (:)) ds)
-  (rc1@(_, c), rcs) <- parse' root
+  (rc1@(dir1, c), rcs) <- parse' root
   pure . Loom (loomConfigRawOutput c) . flip fmap (rc1 : rcs) $ \(dir, rc) ->
-    LoomConfig dir (loomConfigRawName rc) (loomConfigRawComponents rc) (loomConfigRawSass rc)
+    LoomConfig (makeRelative dir1 dir) (loomConfigRawName rc) (loomConfigRawComponents rc) (loomConfigRawSass rc)
 
 parseConfig :: Text -> Either LoomConfigTomlError LoomConfigRaw
 parseConfig t =
