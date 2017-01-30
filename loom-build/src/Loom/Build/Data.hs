@@ -3,6 +3,7 @@
 module Loom.Build.Data (
     FilePattern (..)
   , Loom (..)
+  , LoomResolved (..)
   , LoomName (..)
   , LoomConfig (..)
   , LoomConfigResolved (..)
@@ -30,6 +31,12 @@ data Loom =
     , loomConfigs :: [LoomConfig]
     } deriving (Eq, Show)
 
+data LoomResolved =
+  LoomResolved {
+      loomResolvedOutput :: FilePath
+    , loomResolvedConfigs :: [LoomConfigResolved]
+    } deriving (Eq, Show)
+
 newtype LoomName =
   LoomName {
       renderLoomName :: Text
@@ -45,7 +52,8 @@ data LoomConfig =
 
 data LoomConfigResolved =
   LoomConfigResolved {
-      loomConfigResolvedName :: LoomName
+      loomConfigResolvedRoot :: FilePath
+    , loomConfigResolvedName :: LoomName
     , loomConfigResolvedComponents :: [FilePath]
     , loomConfigResolvedSass :: [FilePath]
     } deriving (Eq, Show)
