@@ -23,18 +23,32 @@ import           X.Control.Monad.Trans.Either (runEitherT)
 
 prop_loom_config_toml_parse_ok =
   QC.once . QC.conjoin $ [
-      check "test/data/config/v1/empty.toml" . Right $
+      check "test/data/config/v1/empty.toml" . Right $ Loom "dist" [
         LoomConfig
+          "test/data/config/v1"
+          (LoomName "empty")
           []
           []
-    , check "test/data/config/v1/basic.toml" . Right $
+      ]
+    , check "test/data/config/v1/basic.toml" . Right $ Loom "dist" [
         LoomConfig
-          [p "test/data/config/v1/components/*"]
-          [p "test/data/config/v1/scss/*"]
-    , check "test/data/config/v1/dependencies.toml" . Right $
+          "test/data/config/v1"
+          (LoomName "basic")
+          [p "components/*"]
+          [p "scss/*"]
+      ]
+    , check "test/data/config/v1/dependencies.toml" . Right $ Loom "dist" [
         LoomConfig
-          [p "test/data/config/v1/components/*", p "test/data/config/v1/subdir/components/*"]
-          [p "test/data/config/v1/scss/*", p "test/data/config/v1/subdir/scss/*"]
+          "test/data/config/v1"
+          (LoomName "dependencies_1")
+          [p "components/*"]
+          [p "scss/*"]
+     ,  LoomConfig
+          "test/data/config/v1/subdir"
+          (LoomName "dependencies_2")
+          [p "components/*"]
+          [p "scss/*"]
+      ]
     ]
 
 prop_loom_config_toml_parse_error =
@@ -43,6 +57,8 @@ prop_loom_config_toml_parse_error =
         ConfigMissingVersionError
     , check "test/data/config/v1/invalid.unknown-version.toml" . Left $
         ConfigUnknownVersionError 2
+    , check "test/data/config/v1/invalid.missing-name.toml" . Left $
+        ConfigInvalidField "loom.name"
     , check "test/data/config/v1/invalid.paths-field.toml" . Left $
         ConfigInvalidField "component.paths"
     , check "test/data/config/v1/invalid.dependencies.toml" . Left $

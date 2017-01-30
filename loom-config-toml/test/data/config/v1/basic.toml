@@ -1,5 +1,7 @@
 [loom]
   version = 1
+  name = "basic"
+  output = "dist"
 
 [component]
   paths = ["components/*"]

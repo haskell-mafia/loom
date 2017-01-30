@@ -1,5 +1,7 @@
 [loom]
   version = 1
+  name = "invalid.paths-field"
+  output = "dist"
 
 [component]
   paths = [[]]
