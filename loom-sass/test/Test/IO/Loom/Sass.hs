@@ -17,11 +17,11 @@ import           Disorder.Either (testEitherT)
 import           P
 
 import           System.Directory (createDirectoryIfMissing, doesFileExist)
-import           System.FilePath (takeDirectory)
+import           System.FilePath (FilePath, (</>), joinPath, takeDirectory)
 import           System.IO (IO)
 import           System.IO.Temp (withTempDirectory)
 
-import           Test.QuickCheck (Gen, once)
+import           Test.QuickCheck (Gen, (===), (==>), once)
 import qualified Test.QuickCheck as QC
 
 import           X.Control.Monad.Trans.Either (eitherTFromMaybe, runEitherT)
@@ -34,7 +34,8 @@ prop_sass_files =
     lift $ createDirectoryIfMissing True (takeDirectory f1)
     lift $ writeFile f1 "$test: #ffffff;"
     out <- firstT renderSassError $ compileSass ps ss [f1] dir
-    lift . fmap QC.conjoin . for out $ doesFileExist
+    lift . fmap QC.conjoin . for out $ \o ->
+      doesFileExist (dir </> o)
 
 prop_sass_success =
   QC.forAll genSassStyle $ \ss ->
@@ -63,11 +64,32 @@ prop_sass_fail =
     m <- lift . runEitherT $ compileSassFile ps ss f1 (dir <> "/test.css")
     pure $ isLeft m
 
+prop_common_prefix =
+  QC.forAll (joinPath <$> QC.listOf1 genSegment) $ \p ->
+  QC.forAll genSegment $ \p1 ->
+  QC.forAll genSegment $ \p2 ->
+  not (isPrefixOf p1 p2 || isPrefixOf p2 p1) ==>
+  QC.forAll (joinPath <$> QC.listOf genSegment) $ \s1 ->
+  QC.forAll (joinPath <$> QC.listOf genSegment) $ \s2 ->
+    commonPrefix (p </> p1 </> s1) (p </> p2 </> s2) === (Just p, p1 </> s1, p2 </> s2)
+
+prop_common_prefix_none =
+  QC.forAll genSegment $ \p1 ->
+  QC.forAll genSegment $ \p2 ->
+  not (isPrefixOf p1 p2 || isPrefixOf p2 p1) ==>
+  QC.forAll (joinPath <$> QC.listOf genSegment) $ \s1 ->
+  QC.forAll (joinPath <$> QC.listOf genSegment) $ \s2 ->
+    commonPrefix (p1 </> s1) (p2 </> s2) === (Nothing, p1 </> s1, p2 </> s2)
+
 -------------
 
 genSassStyle :: Gen SassStyle
 genSassStyle =
   QC.arbitraryBoundedEnum
+
+genSegment :: Gen FilePath
+genSegment =
+  QC.listOf1 (QC.choose ('a', 'z'))
 
 -------------
 
