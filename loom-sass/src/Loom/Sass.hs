@@ -6,6 +6,7 @@ module Loom.Sass (
   , SassStyle (..)
   , findSassOnPath
   , compileSass
+  , compileSassFile
   , renderSassError
   ) where
 
@@ -17,7 +18,7 @@ import           Loom.Process
 
 import           P
 
-import           System.FilePath (FilePath, takeDirectory)
+import           System.FilePath ((</>), FilePath, takeDirectory, takeBaseName)
 import           System.Directory (createDirectoryIfMissing)
 import           System.IO (IO)
 
@@ -43,8 +44,16 @@ findSassOnPath :: IO (Maybe Sass)
 findSassOnPath =
   fmap Sass <$> verifyExecutable "sassc"
 
-compileSass :: Sass -> SassStyle -> FilePath -> FilePath -> EitherT SassError IO ()
-compileSass sass style input outFile = do
+compileSass :: Sass -> SassStyle -> [FilePath] -> FilePath -> EitherT SassError IO [FilePath]
+compileSass sass style inputs outDir = do
+  for inputs $ \input -> do
+    let
+      outputFile = outDir </> takeDirectory input </> takeBaseName input <> ".css"
+    compileSassFile sass style input outputFile
+    pure outputFile
+
+compileSassFile :: Sass -> SassStyle -> FilePath -> FilePath -> EitherT SassError IO ()
+compileSassFile sass style input outFile = do
   liftIO . createDirectoryIfMissing True . takeDirectory $ outFile
   firstT SassProcessError . call (sassPath sass) . mconcat $ [
       [T.pack input]
