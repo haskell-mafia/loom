@@ -1,2 +1,4 @@
 [loom]
   version = 1
+  name = "test_build"
+  output = "dist"

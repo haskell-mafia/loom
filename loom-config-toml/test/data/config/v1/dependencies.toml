@@ -1,6 +1,8 @@
 [loom]
   version = 1
   dependencies = ["subdir/basic.toml"]
+  name = "dependencies_1"
+  output = "dist"
 
 [component]
   paths = ["components/*"]

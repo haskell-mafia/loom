@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Build.Data (
     FilePattern (..)
+  , Loom (..)
+  , LoomName (..)
   , LoomConfig (..)
   , LoomConfigResolved (..)
   , compileFilePattern
@@ -20,15 +22,29 @@ newtype FilePattern =
   FilePattern G.Pattern
     deriving (Eq, Show)
 
+data Loom =
+  Loom {
+      loomOutput :: FilePath
+    , loomConfigs :: [LoomConfig]
+    } deriving (Eq, Show)
+
+newtype LoomName =
+  LoomName {
+      renderLoomName :: Text
+    } deriving (Eq, Show)
+
 data LoomConfig =
   LoomConfig {
-      loomConfigComponents :: [FilePattern]
+      loomConfigRoot :: FilePath
+    , loomConfigName :: LoomName
+    , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
     } deriving (Eq, Show)
 
 data LoomConfigResolved =
   LoomConfigResolved {
-      loomConfigResolvedComponents :: [FilePath]
+      loomConfigResolvedName :: LoomName
+    , loomConfigResolvedComponents :: [FilePath]
     , loomConfigResolvedSass :: [FilePath]
     } deriving (Eq, Show)
 

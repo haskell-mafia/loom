@@ -1,6 +1,8 @@
 [loom]
   version = 1
   dependencies = ["missing.toml"]
+  name = "invalid.dependencies"
+  output = "dist"
 
 [component]
   paths = ["components/*"]

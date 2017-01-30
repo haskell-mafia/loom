@@ -16,6 +16,6 @@ data LoomError =
     LoomError
   deriving (Eq, Show)
 
-buildLoom :: LoomConfig -> EitherT LoomError IO ()
+buildLoom :: Loom -> EitherT LoomError IO ()
 buildLoom _ =
   pure ()

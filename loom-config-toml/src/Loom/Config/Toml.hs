@@ -33,6 +33,8 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
 [loom]
   version = 1
   dependencies = ["lib/bikeshed"]
+  name = "my_project"
+  output = "dist"
 
 [components]
   paths = ["components/*"]
@@ -52,7 +54,9 @@ data LoomConfigTomlError =
 
 data LoomConfigRaw =
   LoomConfigRaw {
-      loomConfigRawDependencies :: [FilePath]
+      loomConfigRawName :: LoomName
+    , loomConfigRawOutput :: FilePath
+    , loomConfigRawDependencies :: [FilePath]
     , loomConfigRawComponents :: [FilePattern]
     , loomConfigRawSass :: [FilePattern]
     } deriving (Eq, Show)
@@ -61,31 +65,25 @@ defaultLoomFile :: FilePath
 defaultLoomFile =
   "loom.toml"
 
-resolveConfig :: FilePath -> EitherT LoomConfigTomlError IO LoomConfig
-resolveConfig path = do
+resolveConfig :: FilePath -> EitherT LoomConfigTomlError IO Loom
+resolveConfig root = do
   let
     read' path' =
       newEitherT $ ifM
         (doesFileExist path')
         (pure <$> T.readFile path')
         (pure . Left . ConfigFileNotFound $ path')
-  (dir, t) <- ifM
-    (liftIO . doesDirectoryExist $ path)
-    (fmap ((,) path) . read' $ path </> defaultLoomFile)
-    (fmap ((,) (takeDirectory path)) . read' $ path)
-  c <- hoistEither . parseConfig $ t
-  ds <- mapM (resolveConfig . (</>) dir) . loomConfigRawDependencies $ c
-  fp <- hoistEither . first ConfigInvalidPattern . compileFilePattern . T.pack $ dir
-  hoistEither . first ConfigInvalidPattern $
-    LoomConfig
-      <$> ((<>)
-        <$> mapM (appendFilePattern fp) (loomConfigRawComponents c)
-        <*> (pure . bind loomConfigComponents) ds
-        )
-      <*> ((<>)
-        <$> mapM (appendFilePattern fp) (loomConfigRawSass c)
-        <*> (pure . bind loomConfigSass) ds
-        )
+    parse' path = do
+      (dir, t) <- ifM
+        (liftIO . doesDirectoryExist $ path)
+        (fmap ((,) path) . read' $ path </> defaultLoomFile)
+        (fmap ((,) (takeDirectory path)) . read' $ path)
+      c <- hoistEither . parseConfig $ t
+      ds <- mapM (parse' . (</>) dir) . loomConfigRawDependencies $ c
+      pure $ ((dir, c), bind (uncurry (:)) ds)
+  (rc1@(_, c), rcs) <- parse' root
+  pure . Loom (loomConfigRawOutput c) . flip fmap (rc1 : rcs) $ \(dir, rc) ->
+    LoomConfig dir (loomConfigRawName rc) (loomConfigRawComponents rc) (loomConfigRawSass rc)
 
 parseConfig :: Text -> Either LoomConfigTomlError LoomConfigRaw
 parseConfig t =
@@ -104,7 +102,13 @@ parseTomlConfig t =
 parseTomlConfigV1 :: Table -> Either LoomConfigTomlError LoomConfigRaw
 parseTomlConfigV1 t =
   LoomConfigRaw
-    <$> (maybe (pure []) (fmap (fmap T.unpack) . maybeToRight (ConfigInvalidField "loom.dependencies") . mapM (preview _VString)) $
+    <$> (fmap LoomName . maybeToRight (ConfigInvalidField "loom.name") $
+      t ^? key "loom" . _NTable . key "name" . _NTValue . _VString
+      )
+    <*> (fmap T.unpack . maybeToRight (ConfigInvalidField "loom.output") $
+      t ^? key "loom" . _NTable . key "output" . _NTValue . _VString
+      )
+    <*> (maybe (pure []) (fmap (fmap T.unpack) . maybeToRight (ConfigInvalidField "loom.dependencies") . mapM (preview _VString)) $
       t ^? key "loom" . _NTable . key "dependencies" . _NTValue . _VArray
       )
     <*> (maybe (pure []) (parseFilePatterns "component.paths") $

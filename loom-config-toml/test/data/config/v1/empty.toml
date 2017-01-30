@@ -1,2 +1,4 @@
 [loom]
   version = 1
+  name = "empty"
+  output = "dist"
