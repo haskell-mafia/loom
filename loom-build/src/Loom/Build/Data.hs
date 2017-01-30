@@ -9,14 +9,16 @@ module Loom.Build.Data (
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
+  , findFiles
   ) where
 
 import qualified Data.Text as T
 
 import           P
 
-import           System.FilePath (FilePath)
+import           System.FilePath (FilePath, makeRelative)
 import qualified System.FilePath.Glob as G
+import           System.IO (IO)
 
 newtype FilePattern =
   FilePattern G.Pattern
@@ -72,3 +74,8 @@ appendFilePattern :: FilePattern -> FilePattern -> Either Text FilePattern
 appendFilePattern f1 f2 =
   compileFilePattern $
     renderFilePattern f1 <> "/" <> renderFilePattern f2
+
+findFiles :: FilePath -> [FilePattern] -> IO [[FilePath]]
+findFiles root fps =
+  fmap (fmap (makeRelative root)) . fst <$>
+     G.globDir (fmap (\(FilePattern g) -> g) fps) root
