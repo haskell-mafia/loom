@@ -16,6 +16,8 @@ import qualified Data.Text as T
 
 import           Loom.Build.Component
 import           Loom.Build.Data
+import           Loom.Projector (ProjectorError)
+import qualified Loom.Projector as Projector
 import           Loom.Sass (Sass, SassError)
 import qualified Loom.Sass as Sass
 
@@ -36,11 +38,13 @@ data LoomBuildInitialiseError =
 data LoomError =
     LoomSassError SassError
   | LoomComponentError ComponentError
+  | LoomProjectorError ProjectorError
   deriving (Show)
 
 data LoomResult =
   LoomResult {
       loomResultSass :: [FilePath]
+    , loomResultProjector :: [FilePath]
     , loomResultComponents :: [Component]
     } deriving (Eq, Show)
 
@@ -71,18 +75,26 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output configs) = do
       output </> (T.unpack . renderLoomName . loomConfigResolvedName) c
     input c =
       fmap (loomConfigResolvedRoot c </>)
-    buildSass output' inputs =
-      Sass.compileSass sass Sass.SassCompressed inputs output'
-    buildSassy fc f =
-      mapM (\c -> buildSass (outputName . fc $ c) . input (fc c) . f $ c)
+    buildSass c inputs =
+      Sass.compileSass sass Sass.SassCompressed (input c inputs) (outputName c)
+    buildProjector c inputs =
+      Projector.compileProjector
+        (Projector.ModuleName . renderLoomName . loomConfigResolvedName $ c)
+        (input c inputs)
+        (output </> "src")
+    mapJoin f =
+      fmap join . mapM f
   components <- fmap join . firstT LoomComponentError . for configs $ \c ->
     fmap (fmap ((,) c)) . resolveComponents . loomConfigResolvedComponents $ c
   LoomResult
-    <$> (firstT LoomSassError . fmap join $
+    <$> (firstT LoomSassError $
       (<>)
-        <$> buildSassy id loomConfigResolvedSass configs
-        <*> buildSassy fst (\(_, c) -> fmap (componentFilePath c) . componentSassFiles $ c) components
+        <$> mapJoin (\c -> buildSass c . loomConfigResolvedSass $ c) configs
+        <*> mapJoin (\(c', c) -> buildSass c' . fmap (componentFilePath c) . componentSassFiles $ c) components
       )
+    <*> (firstT LoomProjectorError . mapJoin (\(c', c) ->
+      buildProjector c' . fmap (componentFilePath c) . componentProjectorFiles $ c
+      )) components
     <*> (pure . fmap snd) components
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
@@ -98,3 +110,5 @@ renderLoomError le =
       Sass.renderSassError se
     LoomComponentError e ->
       renderComponentError e
+    LoomProjectorError e ->
+      Projector.renderProjectorError e
