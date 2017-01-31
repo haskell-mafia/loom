@@ -4,6 +4,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Test.IO.Loom.Build.Data where
 
+import           Data.List (sort)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -34,7 +35,7 @@ prop_build_find =
         createDirectoryIfMissing True . takeDirectory $ dir </> f
         T.writeFile (dir </> f) ""
       fsz <- findFiles dir [p]
-      pure $ fsz === [fsx]
+      pure $ fmap sort fsz === [sort fsx]
 
 return []
 tests :: IO Bool
