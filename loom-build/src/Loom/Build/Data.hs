@@ -3,20 +3,23 @@
 module Loom.Build.Data (
     FilePattern (..)
   , Loom (..)
+  , LoomResolved (..)
   , LoomName (..)
   , LoomConfig (..)
   , LoomConfigResolved (..)
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
+  , findFiles
   ) where
 
 import qualified Data.Text as T
 
 import           P
 
-import           System.FilePath (FilePath)
+import           System.FilePath (FilePath, makeRelative)
 import qualified System.FilePath.Glob as G
+import           System.IO (IO)
 
 newtype FilePattern =
   FilePattern G.Pattern
@@ -26,6 +29,12 @@ data Loom =
   Loom {
       loomOutput :: FilePath
     , loomConfigs :: [LoomConfig]
+    } deriving (Eq, Show)
+
+data LoomResolved =
+  LoomResolved {
+      loomResolvedOutput :: FilePath
+    , loomResolvedConfigs :: [LoomConfigResolved]
     } deriving (Eq, Show)
 
 newtype LoomName =
@@ -43,7 +52,8 @@ data LoomConfig =
 
 data LoomConfigResolved =
   LoomConfigResolved {
-      loomConfigResolvedName :: LoomName
+      loomConfigResolvedRoot :: FilePath
+    , loomConfigResolvedName :: LoomName
     , loomConfigResolvedComponents :: [FilePath]
     , loomConfigResolvedSass :: [FilePath]
     } deriving (Eq, Show)
@@ -72,3 +82,8 @@ appendFilePattern :: FilePattern -> FilePattern -> Either Text FilePattern
 appendFilePattern f1 f2 =
   compileFilePattern $
     renderFilePattern f1 <> "/" <> renderFilePattern f2
+
+findFiles :: FilePath -> [FilePattern] -> IO [[FilePath]]
+findFiles root fps =
+  fmap (fmap (makeRelative root)) . fst <$>
+     G.globDir (fmap (\(FilePattern g) -> g) fps) root

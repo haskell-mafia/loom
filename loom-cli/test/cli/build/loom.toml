@@ -2,3 +2,6 @@
   version = 1
   name = "test_build"
   output = "dist"
+
+[sass]
+  paths = ["scss/*"]

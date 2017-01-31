@@ -3,4 +3,9 @@
 . test/cli/core/env.sh
 
 cd test/cli/build
+rm -rf dist
 $LOOM build
+
+if [ ! -e dist/test_build/scss/build.css ]; then
+  "Could not find dist/test_build/scss/build.css"
+fi

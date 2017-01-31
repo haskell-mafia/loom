@@ -29,9 +29,10 @@ main = do
   OA.cli "loom" buildInfoVersion dependencyInfo parser $ \c ->
     case c of
       Build -> do
+        buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
         cwd <- getCurrentDirectory
         config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
-        orDie renderLoomError $ buildLoom config
+        orDie renderLoomError $ buildLoom buildConfig config
 
 parser :: Parser Command
 parser =
@@ -39,9 +40,3 @@ parser =
       OA.command' "build" "Build a loom project from the current working directory" $
         pure Build
     ]
-
-renderLoomError :: LoomError -> Text
-renderLoomError le =
-  case le of
-    LoomError ->
-      "The impossible happened!"

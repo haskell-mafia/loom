@@ -72,6 +72,7 @@ test-suite test-io
                     , ambiata-p
                     , ambiata-x-eithert
                     , directory
+                    , filepath
                     , QuickCheck                      == 2.8.*
                     , quickcheck-instances            == 0.3.*
                     , temporary                       == 1.2.*
