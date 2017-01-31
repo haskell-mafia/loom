@@ -19,6 +19,7 @@ import           P
 
 import           System.FilePath (FilePath, makeRelative)
 import qualified System.FilePath.Glob as G
+import qualified System.FilePath.Glob.Primitive as G
 import           System.IO (IO)
 
 newtype FilePattern =
@@ -78,10 +79,10 @@ renderFilePattern :: FilePattern -> Text
 renderFilePattern (FilePattern t) =
   T.pack . G.decompile $ t
 
-appendFilePattern :: FilePattern -> FilePattern -> Either Text FilePattern
-appendFilePattern f1 f2 =
-  compileFilePattern $
-    renderFilePattern f1 <> "/" <> renderFilePattern f2
+appendFilePattern :: FilePattern -> FilePattern -> FilePattern
+appendFilePattern (FilePattern f1) (FilePattern f2) =
+  FilePattern $
+    f1 <> G.literal "/" <> f2
 
 findFiles :: FilePath -> [FilePattern] -> IO [[FilePath]]
 findFiles root fps =
