@@ -14,6 +14,7 @@ import           Control.Monad.IO.Class (liftIO)
 
 import qualified Data.Text as T
 
+import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Sass (Sass, SassError)
 import qualified Loom.Sass as Sass
@@ -34,11 +35,13 @@ data LoomBuildInitialiseError =
 
 data LoomError =
     LoomSassError SassError
+  | LoomComponentError ComponentError
   deriving (Show)
 
 data LoomResult =
   LoomResult {
       loomResultSass :: [FilePath]
+    , loomResultComponents :: [Component]
     } deriving (Eq, Show)
 
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
@@ -62,7 +65,7 @@ resolveLoom config =
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
 buildLoomResolved :: LoomBuildConfig -> LoomResolved -> EitherT LoomError IO LoomResult
-buildLoomResolved (LoomBuildConfig sass) (LoomResolved output configs) =
+buildLoomResolved (LoomBuildConfig sass) (LoomResolved output configs) = do
   let
     outputName c =
       output </> (T.unpack . renderLoomName . loomConfigResolvedName) c
@@ -70,9 +73,17 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output configs) =
       fmap (loomConfigResolvedRoot c </>)
     buildSass output' inputs =
       Sass.compileSass sass Sass.SassCompressed inputs output'
-  in
-    LoomResult
-      <$> (firstT LoomSassError . fmap join . mapM (\c -> buildSass (outputName c) . input c . loomConfigResolvedSass $ c)) configs
+    buildSassy fc f =
+      mapM (\c -> buildSass (outputName . fc $ c) . input (fc c) . f $ c)
+  components <- fmap join . firstT LoomComponentError . for configs $ \c ->
+    fmap (fmap ((,) c)) . resolveComponents . loomConfigResolvedComponents $ c
+  LoomResult
+    <$> (firstT LoomSassError . fmap join $
+      (<>)
+        <$> buildSassy id loomConfigResolvedSass configs
+        <*> buildSassy fst (\(_, c) -> fmap (componentFilePath c) . componentSassFiles $ c) components
+      )
+    <*> (pure . fmap snd) components
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
@@ -85,3 +96,5 @@ renderLoomError le =
   case le of
     LoomSassError se ->
       Sass.renderSassError se
+    LoomComponentError e ->
+      renderComponentError e

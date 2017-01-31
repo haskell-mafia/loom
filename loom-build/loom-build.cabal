@@ -29,6 +29,7 @@ library
                     src
 
   exposed-modules:
+                    Loom.Build.Component
                     Loom.Build.Core
                     Loom.Build.Data
 

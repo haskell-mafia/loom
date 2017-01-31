@@ -3,5 +3,8 @@
   name = "test_build"
   output = "dist"
 
+[component]
+  paths = ["components/*"]
+
 [sass]
   paths = ["scss/*"]
