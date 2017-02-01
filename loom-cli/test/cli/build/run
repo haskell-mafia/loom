@@ -6,6 +6,11 @@ cd test/cli/build
 rm -rf dist
 $LOOM build
 
-if [ ! -e dist/test_build/scss/build.css ]; then
-  "Could not find dist/test_build/scss/build.css"
-fi
+file_exists() {
+  if [ ! -e "$1" ]; then
+    "Could not find $1"
+  fi
+}
+
+file_exists "dist/test_build/scss/build.css"
+file_exists "dist/test_build/components/c1/component.css"

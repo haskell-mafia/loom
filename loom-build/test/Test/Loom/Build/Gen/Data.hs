@@ -15,7 +15,7 @@ genFilePattern :: Gen FilePattern
 genFilePattern =
   J.oneOfRec
     [genFilePatternSegment]
-    [J.justOf . fmap rightToMaybe $ appendFilePattern <$> genFilePatternSegment <*> genFilePattern]
+    [appendFilePattern <$> genFilePatternSegment <*> genFilePattern]
 
 genFilePatternSegment :: Gen FilePattern
 genFilePatternSegment =
