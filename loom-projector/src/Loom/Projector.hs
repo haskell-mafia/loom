@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Projector (
     ProjectorError (..)
+  , ModuleName (..)
   , compileProjector
   , renderProjectorError
   ) where
@@ -15,6 +16,7 @@ import qualified Data.Text.IO as T
 
 import           P
 
+import           Projector.Html (ModuleName (..))
 import qualified Projector.Html as Projector
 
 import           System.Directory (createDirectoryIfMissing)
@@ -28,14 +30,14 @@ data ProjectorError =
     ProjectorFileMissing FilePath
   | ProjectorError [Projector.HtmlError]
 
-compileProjector :: [FilePath] -> FilePath -> EitherT ProjectorError IO [FilePath]
-compileProjector inputs output = do
+compileProjector :: ModuleName -> [FilePath] -> FilePath -> EitherT ProjectorError IO [FilePath]
+compileProjector prefix inputs output = do
   templates <- for inputs $ \input ->
     fmap ((,) input) . newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $ input
   outputs <- firstT ProjectorError . hoistEither $
     Projector.runBuild
       -- FIX List of backends to include purescript??
-      (Projector.Build (Just Projector.Haskell) (Projector.ModulePrefix (Projector.ModuleName "")))
+      (Projector.Build (Just Projector.Haskell) (Projector.ModulePrefix prefix))
       (Projector.RawTemplates templates)
   liftIO . for (Projector.unBuildArtefacts outputs) $ \(f', t) -> do
     let
