@@ -14,6 +14,7 @@ library
   build-depends:
                       base                            >= 3          && < 5
                     , ambiata-p
+                    , ambiata-loom-projector
                     , ambiata-loom-sass
                     , ambiata-x-eithert
                     , directory                       == 1.2.*

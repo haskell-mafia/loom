@@ -34,9 +34,15 @@ prop_build_component =
     testEitherT renderComponentError $ do
       liftIO . for_ fs $ \f ->
         T.writeFile (dir </> f <> ".scss") ""
+      liftIO . for_ fs $ \f ->
+        T.writeFile (dir </> f <> ".prj") ""
       c <- resolveComponent dir
-      liftIO . fmap J.conjoin . for (componentSassFiles c) $
-        doesFileExist . componentFilePath c
+      fmap (J.conjoin . join) . liftIO . sequence $ [
+          for (componentSassFiles c) $
+            doesFileExist . componentFilePath c
+        , for (componentProjectorFiles c) $
+            doesFileExist . componentFilePath c
+        ]
 
 prop_build_component_missing =
   J.once . testIO $ do

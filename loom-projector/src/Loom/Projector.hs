@@ -10,6 +10,7 @@ module Loom.Projector (
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
+import qualified Data.Char as Char
 import           Data.List (stripPrefix)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -29,6 +30,7 @@ import           X.Control.Monad.Trans.Either (EitherT, newEitherT, hoistEither)
 data ProjectorError =
     ProjectorFileMissing FilePath
   | ProjectorError [Projector.HtmlError]
+    deriving (Eq, Show)
 
 compileProjector :: ModuleName -> [FilePath] -> FilePath -> EitherT ProjectorError IO [FilePath]
 compileProjector prefix inputs output = do
@@ -37,7 +39,7 @@ compileProjector prefix inputs output = do
   outputs <- firstT ProjectorError . hoistEither $
     Projector.runBuild
       -- FIX List of backends to include purescript??
-      (Projector.Build (Just Projector.Haskell) (Projector.ModulePrefix prefix))
+      (Projector.Build (Just Projector.Haskell) (Projector.ModulePrefix . fixModuleName $ prefix))
       (Projector.RawTemplates templates)
   liftIO . for (Projector.unBuildArtefacts outputs) $ \(f', t) -> do
     let
@@ -45,6 +47,11 @@ compileProjector prefix inputs output = do
     createDirectoryIfMissing True (output </> takeDirectory f)
     T.writeFile (output </> f) t
     pure f
+
+-- FIX Projector should be doing this for us?
+fixModuleName :: ModuleName -> ModuleName
+fixModuleName (ModuleName m) =
+  ModuleName . T.filter Char.isAlphaNum . T.toTitle $ m
 
 renderProjectorError :: ProjectorError -> Text
 renderProjectorError pe =
