@@ -57,8 +57,8 @@ resolveLoom config =
   LoomConfigResolved
     <$> (pure . loomConfigRoot) config
     <*> (pure . loomConfigName) config
-    <*> (fmap join . (findFiles (loomConfigRoot config)) . loomConfigComponents) config
-    <*> (fmap join . (findFiles (loomConfigRoot config)) . loomConfigSass) config
+    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
+    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
 buildLoomResolved :: LoomBuildConfig -> LoomResolved -> EitherT LoomError IO LoomResult

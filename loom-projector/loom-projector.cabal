@@ -1,0 +1,82 @@
+name:                  ambiata-loom-projector
+version:               0.0.1
+license:               AllRightsReserved
+author:                Ambiata <info@ambiata.com>
+maintainer:            Ambiata <info@ambiata.com>
+copyright:             (c) 2016 Ambiata.
+synopsis:              loom-projector
+category:              System
+cabal-version:         >= 1.8
+build-type:            Simple
+description:           loom-projector
+
+library
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-p
+                    , ambiata-projector-html
+                    , ambiata-loom-process
+                    , ambiata-x-eithert
+                    , directory                       == 1.2.*
+                    , exceptions                      == 0.8.*
+                    , filepath                        >= 1.4        && < 1.6
+                    , text                            >= 1.1        && < 1.3
+                    , transformers                    >= 0.4        && < 0.6
+
+  ghc-options:
+                    -Wall
+
+  hs-source-dirs:
+                    src
+
+  exposed-modules:
+                    Loom.Projector
+
+test-suite test
+  type:
+                    exitcode-stdio-1.0
+
+  main-is:
+                    test.hs
+
+  ghc-options:
+                    -Wall -threaded -O2
+
+  hs-source-dirs:
+                    test
+
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-loom-projector
+                    , ambiata-disorder-core
+                    , ambiata-p
+                    , QuickCheck                      == 2.8.*
+                    , quickcheck-instances            == 0.3.*
+
+test-suite test-io
+  type:
+                    exitcode-stdio-1.0
+
+  main-is:
+                    test-io.hs
+
+  ghc-options:
+                    -Wall -threaded -O2
+
+  hs-source-dirs:
+                    test
+
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-disorder-core
+                    , ambiata-disorder-eithert
+                    , ambiata-loom-projector
+                    , ambiata-p
+                    , ambiata-x-eithert
+                    , directory
+                    , filepath
+                    , QuickCheck                      == 2.8.*
+                    , quickcheck-instances            == 0.3.*
+                    , temporary                       == 1.2.*
+                    , text
+                    , transformers

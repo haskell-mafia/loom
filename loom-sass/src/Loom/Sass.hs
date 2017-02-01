@@ -48,7 +48,7 @@ findSassOnPath =
 
 -- Returns the generated files _relative_ path from the output directory
 compileSass :: Sass -> SassStyle -> [FilePath] -> FilePath -> EitherT SassError IO [FilePath]
-compileSass sass style inputs outDir = do
+compileSass sass style inputs outDir =
   for inputs $ \input -> do
     let
       (base, dist, rest) = commonPrefix outDir input
