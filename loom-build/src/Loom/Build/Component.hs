@@ -30,6 +30,7 @@ data Component =
       componentPath :: FilePath
     , componentSassFiles :: [ComponentFile]
     , componentProjectorFiles :: [ComponentFile]
+    , componentMachinatorFiles :: [ComponentFile]
     } deriving (Eq, Show)
 
 data ComponentError =
@@ -70,7 +71,8 @@ resolveComponent dir = do
   fs <- liftIO . fmap (filter (flip notElem [".", ".."])) . getDirectoryContents $ dir
   let
     (sass, r1) = partition (hasExtension "scss") fs
-    (proj, los) = partition (hasExtension "prj") r1
+    (proj, r2) = partition (hasExtension "prj") r1
+    (mach, los) = partition (hasExtension "mcn") r2
   unless (null los) $
     left $ ComponentUnknownFiles los
   pure $
@@ -78,6 +80,7 @@ resolveComponent dir = do
       dir
       (fmap ComponentFile sass)
       (fmap ComponentFile proj)
+      (fmap ComponentFile mach)
 
 -------------
 

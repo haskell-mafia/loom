@@ -1,0 +1,4 @@
+-- machinator @ v1
+
+data Foo =
+    Bar

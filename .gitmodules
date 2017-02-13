@@ -13,3 +13,6 @@
 [submodule "lib/umami"]
 	path = lib/umami
 	url = git@github.com:ambiata/umami.git
+[submodule "lib/machinator"]
+	path = lib/machinator
+	url = git@github.com:ambiata/machinator.git

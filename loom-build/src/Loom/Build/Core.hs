@@ -18,6 +18,8 @@ import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
+import           Loom.Machinator (MachinatorInput (..), MachinatorOutput (..), MachinatorError)
+import qualified Loom.Machinator as Machinator
 import           Loom.Sass (Sass, SassError)
 import qualified Loom.Sass as Sass
 
@@ -39,12 +41,12 @@ data LoomError =
     LoomSassError SassError
   | LoomComponentError ComponentError
   | LoomProjectorError ProjectorError
+  | LoomMachinatorError MachinatorError
   deriving (Show)
 
 data LoomResult =
   LoomResult {
       loomResultCss :: [FilePath]
-    , loomResultProjector :: [FilePath]
     , loomResultComponents :: [Component]
     } deriving (Eq, Show)
 
@@ -74,18 +76,12 @@ buildLoomResolved :: LoomBuildConfig -> LoomResolved -> EitherT LoomError IO Loo
 buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = do
   let
     configs =
-      config : others
+      -- Need to make sure the dependencies are in reverse order
+      reverse $ config : others
     input c =
       fmap (loomConfigResolvedRoot c </>)
-    buildProjector c inputs =
-      Projector.compileProjector
-        (Projector.ModuleName . renderLoomName . loomConfigResolvedName $ c)
-        (input c inputs)
-        (output </> "src")
-    mapJoin f =
-      fmap join . mapM f
   components <- fmap join . firstT LoomComponentError . for configs $ \c ->
-    fmap (fmap ((,) c)) . resolveComponents . loomConfigResolvedComponents $ c
+    fmap (fmap ((,) c)) . resolveComponents . fmap (loomConfigResolvedRoot c </>) . loomConfigResolvedComponents $ c
 
   --- SASS ---
   let
@@ -93,17 +89,36 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
     inputs =
       mconcat . mconcat $ [
           fmap (\c -> input c . loomConfigResolvedSass $ c) configs
-        , fmap (\(c', c) -> input c' . fmap (componentFilePath c) . componentSassFiles $ c) components
+        , fmap (\(_, c) -> fmap (componentFilePath c) . componentSassFiles $ c) components
         ]
   firstT LoomSassError $
     Sass.compileSass sass Sass.SassCompressed inputs outputCss
 
-  LoomResult
-    <$> pure [outputCss]
-    <*> (firstT LoomProjectorError . mapJoin (\(c', c) ->
-      buildProjector c' . fmap (componentFilePath c) . componentProjectorFiles $ c
-      )) components
-    <*> (pure . fmap snd) components
+  --- Machinator ---
+  let
+    mms = with components $ \(cr, c) ->
+      MachinatorInput
+        (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
+        (loomConfigResolvedRoot cr)
+        (fmap (componentFilePath c) . componentMachinatorFiles $ c)
+  mo <- firstT LoomMachinatorError $
+    Machinator.compileMachinator (output </> "src") mms
+
+  --- Projector ---
+  let
+    pms = with components $ \(cr, c) ->
+      Projector.ProjectorInput
+        (Projector.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
+        (loomConfigResolvedRoot cr)
+        (fmap (componentFilePath c) . componentProjectorFiles $ c)
+  _po <- firstT LoomProjectorError $
+    Projector.compileProjector
+      (machinatorOutputDefinitions mo)
+      (fmap (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName) . machinatorOutputModules $ mo)
+      (output </> "src")
+      pms
+
+  pure $ LoomResult [outputCss] (fmap snd components)
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
@@ -120,3 +135,5 @@ renderLoomError le =
       renderComponentError e
     LoomProjectorError e ->
       Projector.renderProjectorError e
+    LoomMachinatorError e ->
+      Machinator.renderMachinatorError e

@@ -2,11 +2,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-module Test.IO.Loom.Projector where
+module Test.IO.Loom.Machinator where
 
 import           Control.Monad.Trans.Class (lift)
 
-import           Loom.Projector
+import           Loom.Machinator
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -17,7 +17,7 @@ import           Disorder.Either (testEitherT)
 
 import           P
 
-import           System.Directory (createDirectoryIfMissing, doesFileExist)
+import           System.Directory (createDirectoryIfMissing)
 import           System.FilePath ((</>))
 import           System.IO (IO)
 import           System.IO.Temp (withTempDirectory)
@@ -27,37 +27,37 @@ import qualified Test.QuickCheck as QC
 
 import           X.Control.Monad.Trans.Either (runEitherT)
 
-prop_projector_success =
+prop_machinator_success =
   QC.forAll genModuleName $ \name ->
-  testIO . withProjector $ \dir -> do
+  testIO . withMachinator $ \dir -> do
     let
        dir1 = dir </> "dir1"
        dir2 = dir </> "dir2"
-       f1 = dir1 <> "/test1.pjr"
-       f2 = dir2 <> "/test2.pjr"
+       d1 = dir1 <> "/test1.mcn"
+       d2 = dir2 <> "/test2.mcn"
     lift $ createDirectoryIfMissing True dir1
     lift $ createDirectoryIfMissing True dir2
-    lift $ writeFile f1 "\\foo : Foo ->\n<a>b</a>"
-    lift $ writeFile f2 "\\bar : Bar\nfoo : Foo ->\n { test1 foo }"
-    f3 <- compileProjector [] [] dir2 [
-        ProjectorInput name dir1 [f1]
-      , ProjectorInput name dir2 [f2]
+    lift $ T.writeFile d1 "-- machinator @ v1\ndata Foo = Foo"
+    lift $ T.writeFile d2 "-- machinator @ v1\ndata Bar = Bar"
+    _ <- compileMachinator dir2 [
+        MachinatorInput name dir1 [d1]
+      , MachinatorInput name dir2 [d2]
       ]
-    lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir2) . projectorOutputModules $ f3
+    pure True
 
-prop_projector_missing =
+prop_machinator_missing =
   QC.forAll genModuleName $ \name ->
-  QC.once . testIO . withProjector $ \dir -> do
-    m <- lift . runEitherT $ compileProjector [] [] dir [ProjectorInput name dir ["missing.scss"]]
+  QC.once . testIO . withMachinator $ \dir -> do
+    m <- lift . runEitherT $ compileMachinator dir [MachinatorInput name dir ["missing.scss"]]
     pure $ isLeft m
 
-prop_projector_fail =
+prop_machinator_fail =
   QC.forAll genModuleName $ \name ->
-  QC.once . testIO . withProjector $ \dir -> do
+  QC.once . testIO . withMachinator $ \dir -> do
     let
        f1 = dir <> "/test1.prj"
-    lift $ writeFile f1 "\\x"
-    m <- lift . runEitherT $ compileProjector [] [] dir [ProjectorInput name dir [f1]]
+    lift $ T.writeFile f1 "\\x"
+    m <- lift . runEitherT $ compileMachinator dir [MachinatorInput name dir [f1]]
     pure $ isLeft m
 
 -------------
@@ -66,13 +66,10 @@ genModuleName :: Gen ModuleName
 genModuleName =
   fmap (ModuleName . T.pack) . QC.listOf1 . QC.choose $ ('a', 'z')
 
-withProjector f =
-  withTempDirectory "dist" "loom-projector" $ \dir ->
-    testEitherT renderProjectorError $
+withMachinator f =
+  withTempDirectory "dist" "loom-machinator" $ \dir ->
+    testEitherT renderMachinatorError $
       f dir
-
-writeFile =
-  T.writeFile
 
 return []
 tests :: IO Bool
