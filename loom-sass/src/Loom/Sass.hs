@@ -8,23 +8,23 @@ module Loom.Sass (
   , compileSass
   , compileSassFile
   , renderSassError
-  , commonPrefix
   ) where
 
 import           Control.Monad.IO.Class (liftIO)
 
-import           Data.List (stripPrefix)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 import           Loom.Process
 
 import           P
 
-import           System.FilePath ((</>), FilePath, takeDirectory, takeBaseName, takeFileName)
+import           System.FilePath ((</>), FilePath, takeDirectory, takeBaseName)
 import           System.Directory (createDirectoryIfMissing)
 import           System.IO (IO)
+import qualified System.IO.Temp as Temp
 
-import           X.Control.Monad.Trans.Either (EitherT)
+import           X.Control.Monad.Trans.Either (EitherT, newEitherT, runEitherT)
 
 newtype Sass =
   Sass {
@@ -46,17 +46,18 @@ findSassOnPath :: IO (Maybe Sass)
 findSassOnPath =
   fmap Sass <$> verifyExecutable "sassc"
 
--- Returns the generated files _relative_ path from the output directory
-compileSass :: Sass -> SassStyle -> [FilePath] -> FilePath -> EitherT SassError IO [FilePath]
-compileSass sass style inputs outDir =
-  for inputs $ \input -> do
-    let
-      (base, dist, rest) = commonPrefix outDir input
-      file = takeDirectory rest </> takeBaseName input <> ".css"
-      fileD = dist </> file
-      outputFile = maybe fileD (</> fileD) base
-    compileSassFile sass style input outputFile
-    pure file
+-- NOTE: `sassc` only expects a single input file, which in turn depends on other sass files.
+-- For multiple inputs we write out a single sass with those inports and use that instead.
+-- This is far less than ideal, but is forced upon us by sass.
+compileSass :: Sass -> SassStyle -> [FilePath] -> FilePath -> EitherT SassError IO ()
+compileSass sass style inputs outFile = do
+  liftIO . createDirectoryIfMissing True . takeDirectory $ outFile
+  newEitherT . Temp.withTempDirectory (takeDirectory outFile) "loom-tmp" $ \tempDir ->
+    runEitherT $ do
+      let
+        inputFile = tempDir </> takeBaseName outFile <> ".scss"
+      liftIO . T.writeFile inputFile . generateSassFile $ inputs
+      compileSassFile sass style inputFile outFile
 
 compileSassFile :: Sass -> SassStyle -> FilePath -> FilePath -> EitherT SassError IO ()
 compileSassFile sass style input outFile = do
@@ -66,6 +67,16 @@ compileSassFile sass style input outFile = do
     , ["--style", renderSassStyle style]
     , [T.pack outFile]
     ]
+
+generateSassFile :: [FilePath] -> Text
+generateSassFile inputs =
+  T.unlines . with inputs $ \f ->
+    mconcat [
+        "@import "
+      , "'"
+      , T.pack f
+      , "';"
+      ]
 
 renderSassError :: SassError -> Text
 renderSassError se =
@@ -84,24 +95,3 @@ renderSassStyle ss =
       "compact"
     SassCompressed ->
       "compressed"
-
--- | Takes two paths and calculates the longest common prefix
---
--- @
--- commonPrefix "a/b/c" "a/b/d" == (Just "a/b", "c", "d")
--- commonPrefix "a/b/c" "a/d/e" == (Just "a", "b/c", "d/e")
--- commonPrefix "x/b/c" "y/d/e" == (Nothing, "x/b/c", "y/d/e")
--- @
-commonPrefix :: FilePath -> FilePath -> (Maybe FilePath, FilePath, FilePath)
-commonPrefix orig =
-  let
-    go kk ff pk =
-      if takeDirectory kk == kk then
-        (Nothing, orig, pk)
-      else case stripPrefix (kk <> "/") pk of
-        Just p ->
-         (Just kk, ff, p)
-        Nothing ->
-          go (takeDirectory kk) (takeFileName kk </> ff) pk
-  in
-    go orig ""

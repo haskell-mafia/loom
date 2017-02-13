@@ -12,6 +12,5 @@ file_exists() {
   fi
 }
 
-file_exists "dist/test_build/scss/build.css"
-file_exists "dist/test_build/components/c1/component.css"
+file_exists "dist/test_build.css"
 file_exists "dist/src/TestBuild/Components/C1/Component.hs"
