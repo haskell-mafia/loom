@@ -23,32 +23,36 @@ import           X.Control.Monad.Trans.Either (runEitherT)
 
 prop_loom_config_toml_parse_ok =
   QC.once . QC.conjoin $ [
-      check "test/data/config/v1/empty.toml" . Right $ Loom "dist" [
-        LoomConfig
+      check "test/data/config/v1/empty.toml" . Right $ Loom "dist"
+        (LoomConfig
           "."
           (LoomName "empty")
           []
           []
-      ]
-    , check "test/data/config/v1/basic.toml" . Right $ Loom "dist" [
-        LoomConfig
+          )
+        []
+    , check "test/data/config/v1/basic.toml" . Right $ Loom "dist"
+        (LoomConfig
           "."
           (LoomName "basic")
           [p "components/*"]
           [p "scss/*"]
-      ]
-    , check "test/data/config/v1/dependencies.toml" . Right $ Loom "dist" [
-        LoomConfig
+          )
+        []
+    , check "test/data/config/v1/dependencies.toml" . Right $ Loom "dist"
+        (LoomConfig
           "."
           (LoomName "dependencies_1")
           [p "components/*"]
           [p "scss/*"]
-     ,  LoomConfig
+          )
+      [
+        LoomConfig
           "subdir"
           (LoomName "dependencies_2")
           [p "components/*"]
           [p "scss/*"]
-      ]
+        ]
     ]
 
 prop_loom_config_toml_parse_error =

@@ -82,8 +82,14 @@ resolveConfig root = do
       ds <- mapM (parse' . (</>) dir) . loomConfigRawDependencies $ c
       pure $ ((dir, c), bind (uncurry (:)) ds)
   (rc1@(dir1, c), rcs) <- parse' root
-  pure . Loom (loomConfigRawOutput c) . flip fmap (rc1 : rcs) $ \(dir, rc) ->
-    LoomConfig (makeRelative dir1 dir) (loomConfigRawName rc) (loomConfigRawComponents rc) (loomConfigRawSass rc)
+  let
+    config' (dir, rc) =
+      LoomConfig
+        (makeRelative dir1 dir)
+        (loomConfigRawName rc)
+        (loomConfigRawComponents rc)
+        (loomConfigRawSass rc)
+  pure . Loom (loomConfigRawOutput c) (config' rc1) . fmap config' $ rcs
 
 parseConfig :: Text -> Either LoomConfigTomlError LoomConfigRaw
 parseConfig t =

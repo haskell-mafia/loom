@@ -43,7 +43,7 @@ data LoomError =
 
 data LoomResult =
   LoomResult {
-      loomResultSass :: [FilePath]
+      loomResultCss :: [FilePath]
     , loomResultProjector :: [FilePath]
     , loomResultComponents :: [Component]
     } deriving (Eq, Show)
@@ -54,9 +54,11 @@ initialiseBuild =
     <$> (newEitherT . fmap (maybeToRight LoomMissingSassExecutable)) Sass.findSassOnPath
 
 buildLoom :: LoomBuildConfig -> Loom -> EitherT LoomError IO ()
-buildLoom buildConfig loom = do
+buildLoom buildConfig (Loom loomOutput' loomConfig' loomConfigs') = do
   resolved <- liftIO $
-    LoomResolved (loomOutput loom) <$> mapM resolveLoom (loomConfigs loom)
+    LoomResolved loomOutput'
+      <$> resolveLoom loomConfig'
+      <*> mapM resolveLoom loomConfigs'
   void $ buildLoomResolved buildConfig resolved
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
@@ -69,14 +71,12 @@ resolveLoom config =
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
 buildLoomResolved :: LoomBuildConfig -> LoomResolved -> EitherT LoomError IO LoomResult
-buildLoomResolved (LoomBuildConfig sass) (LoomResolved output configs) = do
+buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = do
   let
-    outputName c =
-      output </> (T.unpack . renderLoomName . loomConfigResolvedName) c
+    configs =
+      config : others
     input c =
       fmap (loomConfigResolvedRoot c </>)
-    buildSass c inputs =
-      Sass.compileSass sass Sass.SassCompressed (input c inputs) (outputName c)
     buildProjector c inputs =
       Projector.compileProjector
         (Projector.ModuleName . renderLoomName . loomConfigResolvedName $ c)
@@ -86,12 +86,20 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output configs) = do
       fmap join . mapM f
   components <- fmap join . firstT LoomComponentError . for configs $ \c ->
     fmap (fmap ((,) c)) . resolveComponents . loomConfigResolvedComponents $ c
+
+  --- SASS ---
+  let
+    outputCss = output </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
+    inputs =
+      mconcat . mconcat $ [
+          fmap (\c -> input c . loomConfigResolvedSass $ c) configs
+        , fmap (\(c', c) -> input c' . fmap (componentFilePath c) . componentSassFiles $ c) components
+        ]
+  firstT LoomSassError $
+    Sass.compileSass sass Sass.SassCompressed inputs outputCss
+
   LoomResult
-    <$> (firstT LoomSassError $
-      (<>)
-        <$> mapJoin (\c -> buildSass c . loomConfigResolvedSass $ c) configs
-        <*> mapJoin (\(c', c) -> buildSass c' . fmap (componentFilePath c) . componentSassFiles $ c) components
-      )
+    <$> pure [outputCss]
     <*> (firstT LoomProjectorError . mapJoin (\(c', c) ->
       buildProjector c' . fmap (componentFilePath c) . componentProjectorFiles $ c
       )) components

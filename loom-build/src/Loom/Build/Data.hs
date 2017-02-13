@@ -29,12 +29,14 @@ newtype FilePattern =
 data Loom =
   Loom {
       loomOutput :: FilePath
+    , loomConfig :: LoomConfig
     , loomConfigs :: [LoomConfig]
     } deriving (Eq, Show)
 
 data LoomResolved =
   LoomResolved {
       loomResolvedOutput :: FilePath
+    , loomResolvedConfig :: LoomConfigResolved
     , loomResolvedConfigs :: [LoomConfigResolved]
     } deriving (Eq, Show)
 
