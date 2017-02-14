@@ -36,11 +36,15 @@ prop_build_component =
         T.writeFile (dir </> f <> ".scss") ""
       liftIO . for_ fs $ \f ->
         T.writeFile (dir </> f <> ".prj") ""
+      liftIO . for_ fs $ \f ->
+        T.writeFile (dir </> f <> ".mcn") ""
       c <- resolveComponent dir
       fmap (J.conjoin . join) . liftIO . sequence $ [
           for (componentSassFiles c) $
             doesFileExist . componentFilePath c
         , for (componentProjectorFiles c) $
+            doesFileExist . componentFilePath c
+        , for (componentMachinatorFiles c) $
             doesFileExist . componentFilePath c
         ]
 

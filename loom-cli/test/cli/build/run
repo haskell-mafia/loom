@@ -13,4 +13,7 @@ file_exists() {
 }
 
 file_exists "dist/test_build.css"
-file_exists "dist/src/TestBuild/Components/C1/Component.hs"
+file_exists "dist/src/Library/Components/C1/Component.hs"
+file_exists "dist/src/Library/Components/C1/Data.hs"
+file_exists "dist/src/TestBuild/Components/C2/Component.hs"
+file_exists "dist/src/TestBuild/Components/C2/Data.hs"

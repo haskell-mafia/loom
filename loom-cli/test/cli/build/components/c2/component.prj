@@ -1,0 +1,10 @@
+\foo : Foo
+ test : Test ->
+
+{ componentsC1Component test }
+
+{
+  case foo of
+    Bar ->
+      <span>Hello world</span>
+}

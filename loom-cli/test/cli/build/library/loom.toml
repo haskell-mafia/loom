@@ -1,8 +1,7 @@
 [loom]
   version = 1
-  name = "test_build"
+  name = "library"
   output = "dist"
-  dependencies = ["library"]
 
 [component]
   paths = ["components/*"]

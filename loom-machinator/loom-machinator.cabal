@@ -1,14 +1,14 @@
-name:                  ambiata-loom-projector
+name:                  ambiata-loom-machinator
 version:               0.0.1
 license:               AllRightsReserved
 author:                Ambiata <info@ambiata.com>
 maintainer:            Ambiata <info@ambiata.com>
 copyright:             (c) 2016 Ambiata.
-synopsis:              loom-projector
+synopsis:              loom-machinator
 category:              System
 cabal-version:         >= 1.8
 build-type:            Simple
-description:           loom-projector
+description:           loom-machinator
 
 library
   build-depends:
@@ -16,7 +16,6 @@ library
                     , ambiata-machinator-core
                     , ambiata-machinator-haskell
                     , ambiata-p
-                    , ambiata-projector-html
                     , ambiata-loom-process
                     , ambiata-x-eithert
                     , directory                       == 1.2.*
@@ -32,7 +31,7 @@ library
                     src
 
   exposed-modules:
-                    Loom.Projector
+                    Loom.Machinator
 
 test-suite test
   type:
@@ -49,7 +48,7 @@ test-suite test
 
   build-depends:
                       base                            >= 3          && < 5
-                    , ambiata-loom-projector
+                    , ambiata-loom-machinator
                     , ambiata-disorder-core
                     , ambiata-p
                     , QuickCheck                      == 2.8.*
@@ -72,7 +71,7 @@ test-suite test-io
                       base                            >= 3          && < 5
                     , ambiata-disorder-core
                     , ambiata-disorder-eithert
-                    , ambiata-loom-projector
+                    , ambiata-loom-machinator
                     , ambiata-p
                     , ambiata-x-eithert
                     , directory

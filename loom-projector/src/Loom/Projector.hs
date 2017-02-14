@@ -2,6 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Projector (
     ProjectorError (..)
+  , ProjectorInput (..)
+  , ProjectorOutput (..)
+  , DataModuleName (..)
   , ModuleName (..)
   , compileProjector
   , renderProjectorError
@@ -15,9 +18,11 @@ import           Data.List (stripPrefix)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
+import qualified Machinator.Core as MC
+
 import           P
 
-import           Projector.Html (ModuleName (..))
+import           Projector.Html (DataModuleName (..), ModuleName (..))
 import qualified Projector.Html as Projector
 
 import           System.Directory (createDirectoryIfMissing)
@@ -32,21 +37,78 @@ data ProjectorError =
   | ProjectorError [Projector.HtmlError]
     deriving (Eq, Show)
 
-compileProjector :: ModuleName -> [FilePath] -> FilePath -> EitherT ProjectorError IO [FilePath]
-compileProjector prefix inputs output = do
+data ProjectorInput =
+  ProjectorInput {
+      projectorModuleName :: ModuleName
+    , projectorModuleRoot :: FilePath
+    , projectorModuleTemplates :: [FilePath]
+    } deriving (Show)
+
+data ProjectorOutput =
+  ProjectorOutput {
+      projectorOutputModules :: [FilePath]
+    }
+
+data ProjectorOutputTemp =
+  ProjectorOutputTemp {
+      projectorOutputTemp :: ProjectorOutput
+    -- FIX Expose the correct HtmlModules type
+    , _projectorOutputTempBuild :: Projector.BuildArtefacts
+    }
+
+instance Monoid ProjectorOutput where
+  mempty =
+    ProjectorOutput mempty
+  mappend (ProjectorOutput d1) (ProjectorOutput d2) =
+    ProjectorOutput (d1 <> d2)
+
+compileProjector ::
+  [MC.Definition] ->
+  [Projector.DataModuleName] ->
+  FilePath ->
+  [ProjectorInput] ->
+  EitherT ProjectorError IO ProjectorOutput
+compileProjector udts dns output =
+  fmap projectorOutputTemp .
+    foldM
+      (compileProjectorIncremental udts dns output)
+      (ProjectorOutputTemp mempty (Projector.BuildArtefacts mempty mempty))
+
+compileProjectorIncremental ::
+  [MC.Definition] ->
+  [Projector.DataModuleName] ->
+  FilePath ->
+  ProjectorOutputTemp ->
+  ProjectorInput ->
+  EitherT ProjectorError IO ProjectorOutputTemp
+compileProjectorIncremental
+  udts
+  dns
+  output
+  (ProjectorOutputTemp (ProjectorOutput ot1) (Projector.BuildArtefacts _ oh1))
+  (ProjectorInput prefix root inputs) = do
   templates <- for inputs $ \input ->
-    fmap ((,) input) . newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $ input
-  outputs <- firstT ProjectorError . hoistEither $
-    Projector.runBuild
-      -- FIX List of backends to include purescript??
-      (Projector.Build (Just Projector.Haskell) (Projector.ModulePrefix . fixModuleName $ prefix))
+    fmap ((,) (fromMaybe input . stripPrefix root $ input)) .
+      newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
+        input
+  Projector.BuildArtefacts ot2 oh2 <- firstT ProjectorError . hoistEither $
+    Projector.runBuildIncremental
+      (Projector.Build
+        -- FIX List of backends to include purescript??
+        (Just Projector.Haskell)
+        (Projector.moduleNamerSimple (Just . fixModuleName $ prefix))
+        dns
+        )
+      (Projector.UserDataTypes udts)
+      oh1
       (Projector.RawTemplates templates)
-  liftIO . for (Projector.unBuildArtefacts outputs) $ \(f', t) -> do
+  ot3 <- liftIO . for ot2 $ \(f', t) -> do
     let
       f = fromMaybe f' . stripPrefix "/" $ f'
     createDirectoryIfMissing True (output </> takeDirectory f)
     T.writeFile (output </> f) t
     pure f
+  pure $ ProjectorOutputTemp (ProjectorOutput $ ot1 <> ot3) (Projector.BuildArtefacts mempty (oh1 <> oh2))
 
 -- FIX Projector should be doing this for us?
 fixModuleName :: ModuleName -> ModuleName
@@ -59,7 +121,7 @@ renderProjectorError pe =
     ProjectorFileMissing f ->
       "Could not find file: " <> T.pack f
     ProjectorError es ->
-      "Build errors:\n" <> T.unlines (fmap Projector.renderHtmlError es)
+      "Projector build errors:\n" <> T.unlines (fmap Projector.renderHtmlError es)
 
 -- FIX Common module?
 readFileSafe :: MonadIO m => FilePath -> m (Maybe Text)
