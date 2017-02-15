@@ -58,7 +58,9 @@ buildLoom buildConfig (Loom loomOutput' loomConfig' loomConfigs') = do
     LoomResolved loomOutput'
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  void $ buildLoomResolved buildConfig resolved
+  result <- buildLoomResolved buildConfig resolved
+  firstT LoomHaskellError $
+    generateHaskell (loomResolvedOutput resolved) result
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -121,19 +123,14 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
     images = components >>= \(_, cs) ->
       bind (\c -> fmap (ImageFile . componentFilePath c) . componentImageFiles $ c) cs
 
-  let
-    result =
-      LoomResult
-        (loomConfigResolvedName config)
-        (bind snd components)
-        mo
-        po
-        outputCss
-        images
-
-  firstT LoomHaskellError $ generateHaskell output result
-
-  pure result
+  pure $
+    LoomResult
+      (loomConfigResolvedName config)
+      (bind snd components)
+      mo
+      po
+      outputCss
+      images
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
