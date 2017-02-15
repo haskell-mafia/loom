@@ -35,7 +35,7 @@ prop_sass_files =
     lift $ writeFile f1 "$test: #ffffff;"
     let
       out = dir </> "out.css"
-    firstT renderSassError $ compileSass ps ss [f1] out
+    firstT renderSassError $ compileSass ps ss (CssFile out) [f1]
     lift $ doesFileExist out
 
 prop_sass_success =
@@ -47,13 +47,13 @@ prop_sass_success =
        f3 = dir <> "/test3.css"
     lift $ writeFile f1 "$test: #ffffff;"
     lift $ writeFile f2 "@import \"test1.scss\";\n .foo { color: $test; }"
-    firstT renderSassError $ compileSassFile ps ss f1 f3
+    firstT renderSassError $ compileSassFile ps ss (CssFile f3) f1
     lift $ doesFileExist f3
 
 prop_sass_missing =
   QC.forAll genSassStyle $ \ss ->
   once . testIO . withSass $ \dir ps -> do
-    m <- lift . runEitherT $ compileSassFile ps ss "missing.scss" (dir <> "/test.css")
+    m <- lift . runEitherT $ compileSassFile ps ss (CssFile $ dir <> "/test.css") "missing.scss"
     pure $ isLeft m
 
 prop_sass_fail =
@@ -62,7 +62,7 @@ prop_sass_fail =
     let
        f1 = dir <> "/test1.scss"
     lift $ writeFile f1 ".foo { color: $test; }"
-    m <- lift . runEitherT $ compileSassFile ps ss f1 (dir <> "/test.css")
+    m <- lift . runEitherT $ compileSassFile ps ss (CssFile $ dir <> "/test.css") f1
     pure $ isLeft m
 
 -------------

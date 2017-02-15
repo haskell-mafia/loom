@@ -16,3 +16,6 @@
 [submodule "lib/machinator"]
 	path = lib/machinator
 	url = git@github.com:ambiata/machinator.git
+[submodule "lib/hydrant"]
+	path = lib/hydrant
+	url = git@github.com:ambiata/hydrant.git

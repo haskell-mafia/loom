@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Machinator (
     MachinatorError (..)
+  , MachinatorHaskellError (..)
   , MachinatorInput (..)
   , MachinatorOutput (..)
   , ModuleName (..)
@@ -9,6 +10,7 @@ module Loom.Machinator (
   , compileMachinator
   , generateMachinatorHaskell
   , renderMachinatorError
+  , renderMachinatorHaskellError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
@@ -36,7 +38,10 @@ import           X.Control.Monad.Trans.Either (EitherT, newEitherT, hoistEither)
 data MachinatorError =
     MachinatorFileMissing FilePath
   | MachinatorError MC.MachinatorError
-  | MachinatorHaskellError MH.HaskellTypesError
+    deriving (Eq, Show)
+
+data MachinatorHaskellError =
+    MachinatorHaskellError MH.HaskellTypesError
     deriving (Eq, Show)
 
 -- FIX Should come from Machinator
@@ -85,14 +90,22 @@ compileMachinatorIncremental (MachinatorOutput d1) (MachinatorInput name root in
 
   pure $ MachinatorOutput (d1 <> Map.fromList ds)
 
-generateMachinatorHaskell :: FilePath -> MachinatorOutput -> EitherT MachinatorError IO [FilePath]
-generateMachinatorHaskell output (MachinatorOutput ds) = do
+generateMachinatorHaskell :: FilePath -> [ModuleName] -> MachinatorOutput -> EitherT MachinatorHaskellError IO [FilePath]
+generateMachinatorHaskell output imports (MachinatorOutput ds) = do
   hs <- hoistEither . first MachinatorHaskellError . MH.types MH.HaskellTypesV1 . with (Map.toList ds) $ \(n, d) ->
     (MC.DefinitionFile (moduleNameToFile "hs" n) d)
   liftIO . for hs $ \(f, t) -> do
     createDirectoryIfMissing True (output </> takeDirectory f)
-    T.writeFile (output </> f) t
+    T.writeFile (output </> f) . hackImports imports $ t
     pure f
+
+-- FIX Machinator needs to support his natively
+-- https://github.com/ambiata/machinator/issues/12
+hackImports :: [ModuleName] -> Text -> Text
+hackImports imports =
+  T.replace
+    "where\n"
+    ("where\n" <> (T.unlines . fmap (mappend "import " . renderModuleName)) imports)
 
 machinatorOutputModules  :: MachinatorOutput -> [ModuleName]
 machinatorOutputModules =
@@ -109,6 +122,10 @@ renderMachinatorError pe =
       "Could not find file: " <> T.pack f
     MachinatorError me ->
       "Machinator build errors:\n" <> MC.renderMachinatorError me
+
+renderMachinatorHaskellError :: MachinatorHaskellError -> Text
+renderMachinatorHaskellError pe =
+  case pe of
     MachinatorHaskellError me ->
       "Machinator haskell errors:\n" <> MH.renderHaskellTypesError me
 
