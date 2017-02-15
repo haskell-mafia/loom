@@ -8,7 +8,6 @@ import           Control.Monad.Trans.Class (lift)
 
 import           Loom.Projector
 
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)
@@ -39,16 +38,17 @@ prop_projector_success =
     lift $ createDirectoryIfMissing True dir2
     lift $ writeFile f1 "\\foo : Foo ->\n<a>b</a>"
     lift $ writeFile f2 "\\bar : Bar\nfoo : Foo ->\n { test1 foo }"
-    f3 <- compileProjector [] [] dir2 [
+    out <- compileProjector mempty [
         ProjectorInput name dir1 [f1]
       , ProjectorInput name dir2 [f2]
       ]
-    lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir2) . projectorOutputModules $ f3
+    f3 <- lift $ generateProjectorHaskell dir out
+    lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir) $ f3
 
 prop_projector_missing =
   QC.forAll genModuleName $ \name ->
   QC.once . testIO . withProjector $ \dir -> do
-    m <- lift . runEitherT $ compileProjector [] [] dir [ProjectorInput name dir ["missing.scss"]]
+    m <- lift . runEitherT $ compileProjector mempty [ProjectorInput name dir ["missing.scss"]]
     pure $ isLeft m
 
 prop_projector_fail =
@@ -57,14 +57,14 @@ prop_projector_fail =
     let
        f1 = dir <> "/test1.prj"
     lift $ writeFile f1 "\\x"
-    m <- lift . runEitherT $ compileProjector [] [] dir [ProjectorInput name dir [f1]]
+    m <- lift . runEitherT $ compileProjector mempty [ProjectorInput name dir [f1]]
     pure $ isLeft m
 
 -------------
 
 genModuleName :: Gen ModuleName
 genModuleName =
-  fmap (ModuleName . T.pack) . QC.listOf1 . QC.choose $ ('a', 'z')
+  fmap moduleNameFromFile . QC.listOf1 . QC.choose $ ('a', 'z')
 
 withProjector f =
   withTempDirectory "dist" "loom-projector" $ \dir ->
