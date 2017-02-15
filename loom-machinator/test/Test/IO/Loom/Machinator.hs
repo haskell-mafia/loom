@@ -17,7 +17,7 @@ import           Disorder.Either (testEitherT)
 
 import           P
 
-import           System.Directory (createDirectoryIfMissing)
+import           System.Directory (createDirectoryIfMissing, doesFileExist)
 import           System.FilePath ((</>))
 import           System.IO (IO)
 import           System.IO.Temp (withTempDirectory)
@@ -39,16 +39,17 @@ prop_machinator_success =
     lift $ createDirectoryIfMissing True dir2
     lift $ T.writeFile d1 "-- machinator @ v1\ndata Foo = Foo"
     lift $ T.writeFile d2 "-- machinator @ v1\ndata Bar = Bar"
-    _ <- compileMachinator dir2 [
+    out <- compileMachinator [
         MachinatorInput name dir1 [d1]
       , MachinatorInput name dir2 [d2]
       ]
-    pure True
+    f3 <- generateMachinatorHaskell dir out
+    lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir) $ f3
 
 prop_machinator_missing =
   QC.forAll genModuleName $ \name ->
   QC.once . testIO . withMachinator $ \dir -> do
-    m <- lift . runEitherT $ compileMachinator dir [MachinatorInput name dir ["missing.scss"]]
+    m <- lift . runEitherT $ compileMachinator [MachinatorInput name dir ["missing.scss"]]
     pure $ isLeft m
 
 prop_machinator_fail =
@@ -57,7 +58,7 @@ prop_machinator_fail =
     let
        f1 = dir <> "/test1.prj"
     lift $ T.writeFile f1 "\\x"
-    m <- lift . runEitherT $ compileMachinator dir [MachinatorInput name dir [f1]]
+    m <- lift . runEitherT $ compileMachinator [MachinatorInput name dir [f1]]
     pure $ isLeft m
 
 -------------

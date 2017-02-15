@@ -3,18 +3,23 @@
 module Loom.Projector (
     ProjectorError (..)
   , ProjectorInput (..)
-  , ProjectorOutput (..)
+  , ProjectorOutput
+  , MachinatorModules
+  , projectorOutputModules
   , DataModuleName (..)
-  , ModuleName (..)
+  , ModuleName
+  , unModuleName
   , compileProjector
+  , generateProjectorHaskell
+  , moduleNameFromFile
   , renderProjectorError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
-import qualified Data.Char as Char
 import           Data.List (stripPrefix)
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -26,7 +31,7 @@ import           Projector.Html (DataModuleName (..), ModuleName (..))
 import qualified Projector.Html as Projector
 
 import           System.Directory (createDirectoryIfMissing)
-import           System.FilePath (FilePath, (</>), takeDirectory)
+import           System.FilePath (FilePath, (</>), takeDirectory, joinPath)
 import           System.IO (IO)
 import           System.IO.Error (isDoesNotExistError)
 
@@ -46,74 +51,76 @@ data ProjectorInput =
 
 data ProjectorOutput =
   ProjectorOutput {
-      projectorOutputModules :: [FilePath]
-    }
-
-data ProjectorOutputTemp =
-  ProjectorOutputTemp {
-      projectorOutputTemp :: ProjectorOutput
-    -- FIX Expose the correct HtmlModules type
-    , _projectorOutputTempBuild :: Projector.BuildArtefacts
+      -- FIX Expose the correct HtmlModules type
+      _projectorOutputArtefacts :: Projector.BuildArtefacts
     }
 
 instance Monoid ProjectorOutput where
   mempty =
-    ProjectorOutput mempty
-  mappend (ProjectorOutput d1) (ProjectorOutput d2) =
-    ProjectorOutput (d1 <> d2)
+    ProjectorOutput (Projector.BuildArtefacts mempty mempty)
+  mappend (ProjectorOutput (Projector.BuildArtefacts _ d1)) (ProjectorOutput (Projector.BuildArtefacts _ d2)) =
+    ProjectorOutput (Projector.BuildArtefacts mempty (d1 <> d2))
+
+projectorOutputModules :: ProjectorOutput -> [ModuleName]
+projectorOutputModules (ProjectorOutput (Projector.BuildArtefacts _ ms)) =
+  Map.keys ms
+
+-- FIX Should be in machinator
+type MachinatorModules = Map.Map Projector.DataModuleName [MC.Definition]
 
 compileProjector ::
-  [MC.Definition] ->
-  [Projector.DataModuleName] ->
-  FilePath ->
+  MachinatorModules ->
   [ProjectorInput] ->
   EitherT ProjectorError IO ProjectorOutput
-compileProjector udts dns output =
-  fmap projectorOutputTemp .
-    foldM
-      (compileProjectorIncremental udts dns output)
-      (ProjectorOutputTemp mempty (Projector.BuildArtefacts mempty mempty))
+compileProjector udts =
+  foldM (compileProjectorIncremental udts) mempty
 
 compileProjectorIncremental ::
-  [MC.Definition] ->
-  [Projector.DataModuleName] ->
-  FilePath ->
-  ProjectorOutputTemp ->
+  MachinatorModules ->
+  ProjectorOutput ->
   ProjectorInput ->
-  EitherT ProjectorError IO ProjectorOutputTemp
+  EitherT ProjectorError IO ProjectorOutput
 compileProjectorIncremental
   udts
-  dns
-  output
-  (ProjectorOutputTemp (ProjectorOutput ot1) (Projector.BuildArtefacts _ oh1))
+  (ProjectorOutput (Projector.BuildArtefacts _ oh1))
   (ProjectorInput prefix root inputs) = do
+
   templates <- for inputs $ \input ->
-    fmap ((,) (fromMaybe input . stripPrefix root $ input)) .
+    fmap ((,) (moduleNameFromFile . fromMaybe input . stripPrefix root $ input)) .
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
         input
-  Projector.BuildArtefacts ot2 oh2 <- firstT ProjectorError . hoistEither $
+  Projector.BuildArtefacts _ oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
       (Projector.Build
-        -- FIX List of backends to include purescript??
-        (Just Projector.Haskell)
-        (Projector.moduleNamerSimple (Just . fixModuleName $ prefix))
-        dns
+        -- FIX Remove backend compiling from runBuildIncremental
+        Nothing
+        (Projector.moduleNamerSimple (Just prefix))
+        (Map.keys udts)
         )
-      (Projector.UserDataTypes udts)
+      (Projector.UserDataTypes . join . Map.elems $ udts)
       oh1
-      (Projector.RawTemplates templates)
-  ot3 <- liftIO . for ot2 $ \(f', t) -> do
+      (Projector.RawTemplates . fmap (first (moduleNameToFile "prj")) $ templates)
+  pure $ ProjectorOutput (Projector.BuildArtefacts mempty (oh1 <> oh2))
+
+generateProjectorHaskell :: FilePath -> ProjectorOutput -> IO [FilePath]
+generateProjectorHaskell output (ProjectorOutput (Projector.BuildArtefacts _ oh2)) =
+  for (Map.toList oh2) $ \(n, m) -> do
     let
-      f = fromMaybe f' . stripPrefix "/" $ f'
+      -- TODO validateModules
+      -- https://github.com/ambiata/projector/blob/master/projector-html/src/Projector/Html.hs#L216
+      (_, t) = Projector.codeGenModule Projector.Haskell n m
+      f = moduleNameToFile "hs" n
     createDirectoryIfMissing True (output </> takeDirectory f)
     T.writeFile (output </> f) t
     pure f
-  pure $ ProjectorOutputTemp (ProjectorOutput $ ot1 <> ot3) (Projector.BuildArtefacts mempty (oh1 <> oh2))
 
--- FIX Projector should be doing this for us?
-fixModuleName :: ModuleName -> ModuleName
-fixModuleName (ModuleName m) =
-  ModuleName . T.filter Char.isAlphaNum . T.toTitle $ m
+moduleNameFromFile :: FilePath -> ModuleName
+moduleNameFromFile =
+  Projector.pathToModuleName (Projector.moduleNamerSimple Nothing)
+
+moduleNameToFile :: FilePath -> ModuleName -> FilePath
+moduleNameToFile ext (ModuleName n) =
+  (joinPath . fmap T.unpack . T.splitOn ".") n <> "." <> ext
 
 renderProjectorError :: ProjectorError -> Text
 renderProjectorError pe =

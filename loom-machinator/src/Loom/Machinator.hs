@@ -5,7 +5,9 @@ module Loom.Machinator (
   , MachinatorInput (..)
   , MachinatorOutput (..)
   , ModuleName (..)
+  , machinatorOutputModules
   , compileMachinator
+  , generateMachinatorHaskell
   , renderMachinatorError
   ) where
 
@@ -14,6 +16,7 @@ import           Control.Monad.Catch (handleIf)
 
 import qualified Data.Char as Char
 import           Data.List (stripPrefix)
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -24,7 +27,7 @@ import qualified Machinator.Haskell.Data.Types as MH
 import           P
 
 import           System.Directory (createDirectoryIfMissing)
-import           System.FilePath (FilePath, (</>), takeDirectory, dropExtension)
+import           System.FilePath (FilePath, (</>), takeDirectory, dropExtension, joinPath)
 import           System.IO (IO)
 import           System.IO.Error (isDoesNotExistError)
 
@@ -52,46 +55,52 @@ data MachinatorInput =
 
 data MachinatorOutput =
   MachinatorOutput {
-      machinatorOutputDefinitions :: [MC.Definition]
-    , machinatorOutputModules :: [ModuleName]
+      machinatorOutputDefinitions :: Map.Map ModuleName [MC.Definition]
     }
 
 instance Monoid MachinatorOutput where
   mempty =
-    MachinatorOutput mempty mempty
-  mappend (MachinatorOutput d1 m1) (MachinatorOutput d2 m2) =
-    MachinatorOutput (d1 <> d2) (m1 <> m2)
+    MachinatorOutput mempty
+  mappend (MachinatorOutput d1) (MachinatorOutput d2) =
+    MachinatorOutput (d1 <> d2)
 
-compileMachinator :: FilePath -> [MachinatorInput] -> EitherT MachinatorError IO MachinatorOutput
-compileMachinator output =
-  foldM (compileMachinatorIncremental output) mempty
+compileMachinator :: [MachinatorInput] -> EitherT MachinatorError IO MachinatorOutput
+compileMachinator =
+  foldM compileMachinatorIncremental mempty
 
 compileMachinatorIncremental ::
-  FilePath ->
   MachinatorOutput ->
   MachinatorInput ->
   EitherT MachinatorError IO MachinatorOutput
-compileMachinatorIncremental output (MachinatorOutput d1 ms) (MachinatorInput name root inputs) = do
+compileMachinatorIncremental (MachinatorOutput d1) (MachinatorInput name root inputs) = do
   ds <- for inputs $ \f -> do
     m <- newEitherT . fmap (maybeToRight (MachinatorFileMissing f)) . readFileSafe $ f
     let
       n =
         (T.unpack . renderModuleName $ name) <> (fromMaybe f . stripPrefix root) f
-    MC.Versioned _ df <-
+    MC.Versioned _ (MC.DefinitionFile _ df) <-
       -- FIX We should be controlling the module name properly here
       hoistEither . first MachinatorError . MC.parseDefinitionFile n $ m
-    pure (df, filePathToModuleName n)
+    pure (filePathToModuleName n, df)
 
-  hs <- hoistEither . first MachinatorHaskellError . MH.types MH.HaskellTypesV1 . fmap fst $ ds
-  liftIO . for_ hs $ \(f, t) -> do
+  pure $ MachinatorOutput (d1 <> Map.fromList ds)
+
+generateMachinatorHaskell :: FilePath -> MachinatorOutput -> EitherT MachinatorError IO [FilePath]
+generateMachinatorHaskell output (MachinatorOutput ds) = do
+  hs <- hoistEither . first MachinatorHaskellError . MH.types MH.HaskellTypesV1 . with (Map.toList ds) $ \(n, d) ->
+    (MC.DefinitionFile (moduleNameToFile "hs" n) d)
+  liftIO . for hs $ \(f, t) -> do
     createDirectoryIfMissing True (output </> takeDirectory f)
     T.writeFile (output </> f) t
+    pure f
 
-  pure $ MachinatorOutput (d1 <> bind (definitionFileDefinitions . fst) ds) (ms <> fmap snd ds)
+machinatorOutputModules  :: MachinatorOutput -> [ModuleName]
+machinatorOutputModules =
+  Map.keys . machinatorOutputDefinitions
 
-definitionFileDefinitions :: MC.DefinitionFile -> [MC.Definition]
-definitionFileDefinitions (MC.DefinitionFile _ ds) =
-  ds
+moduleNameToFile :: FilePath -> ModuleName -> FilePath
+moduleNameToFile ext (ModuleName n) =
+  (joinPath . fmap T.unpack . T.splitOn ".") n <> "." <> ext
 
 renderMachinatorError :: MachinatorError -> Text
 renderMachinatorError pe =

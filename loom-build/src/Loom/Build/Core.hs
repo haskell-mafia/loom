@@ -12,13 +12,14 @@ module Loom.Build.Core (
 
 import           Control.Monad.IO.Class (liftIO)
 
+import qualified Data.Map as Map
 import qualified Data.Text as T
 
 import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
-import           Loom.Machinator (MachinatorInput (..), MachinatorOutput (..), MachinatorError)
+import           Loom.Machinator (MachinatorInput (..), MachinatorError)
 import qualified Loom.Machinator as Machinator
 import           Loom.Sass (Sass, SassError)
 import qualified Loom.Sass as Sass
@@ -102,21 +103,28 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
         (loomConfigResolvedRoot cr)
         (fmap (componentFilePath c) . componentMachinatorFiles $ c)
   mo <- firstT LoomMachinatorError $
-    Machinator.compileMachinator (output </> "src") mms
+    Machinator.compileMachinator mms
 
   --- Projector ---
   let
     pms = with components $ \(cr, c) ->
       Projector.ProjectorInput
-        (Projector.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
+        (Projector.moduleNameFromFile . T.unpack . renderLoomName . loomConfigResolvedName $ cr)
         (loomConfigResolvedRoot cr)
         (fmap (componentFilePath c) . componentProjectorFiles $ c)
-  _po <- firstT LoomProjectorError $
+  po <- firstT LoomProjectorError $
     Projector.compileProjector
-      (machinatorOutputDefinitions mo)
-      (fmap (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName) . machinatorOutputModules $ mo)
-      (output </> "src")
+      (Map.fromList .
+        fmap (first (Projector.DataModuleName . Projector.moduleNameFromFile . T.unpack . Machinator.renderModuleName)) .
+        Map.toList . Machinator.machinatorOutputDefinitions $ mo
+        )
       pms
+
+  --- Haskell ---
+  void . firstT LoomMachinatorError $
+    Machinator.generateMachinatorHaskell (output </> "src") mo
+  void . liftIO $
+    Projector.generateProjectorHaskell (output </> "src") po
 
   pure $ LoomResult [outputCss] (fmap snd components)
 
