@@ -7,6 +7,7 @@ module Loom.Build.Data (
   , LoomName (..)
   , LoomConfig (..)
   , LoomConfigResolved (..)
+  , ImageFile (..)
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
@@ -59,6 +60,21 @@ data LoomConfigResolved =
     , loomConfigResolvedName :: LoomName
     , loomConfigResolvedComponents :: [FilePath]
     , loomConfigResolvedSass :: [FilePath]
+    } deriving (Eq, Show)
+
+data LoomResult =
+  LoomResult {
+      loomResultName :: LoomName
+    , loomResultComponents :: [Component]
+    , loomResultMachinatorOutput :: MachinatorOutput
+    , loomResultProjectorOutput :: ProjectorOutput
+    , loomResultCss :: CssFile
+    , loomResultImages :: [ImageFile]
+    }
+
+newtype ImageFile =
+  ImageFile {
+      imageFilePath :: FilePath
     } deriving (Eq, Show)
 
 compileFilePattern :: Text -> Either Text FilePattern

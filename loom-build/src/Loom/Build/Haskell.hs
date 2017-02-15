@@ -39,8 +39,9 @@ generateHaskell ::
   CssFile ->
   ProjectorOutput ->
   MachinatorOutput ->
+  [ImageFile] ->
   EitherT LoomHaskellError IO ()
-generateHaskell output name outputCss po mo = do
+generateHaskell output name outputCss po mo images = do
   void . firstT LoomHaskellMachinatorError $
     Machinator.generateMachinatorHaskell
       (output </> "src")
@@ -49,14 +50,15 @@ generateHaskell output name outputCss po mo = do
   void . liftIO $
     Projector.generateProjectorHaskell (output </> "src") po
   liftIO $
-    generateAssetHaskell name output outputCss
+    generateAssetHaskell name output outputCss images
   liftIO $
     generateCabal name output mo po
 
-generateAssetHaskell :: LoomName -> FilePath -> CssFile -> IO ()
-generateAssetHaskell name output css = do
+generateAssetHaskell :: LoomName -> FilePath -> CssFile -> [ImageFile] -> IO ()
+generateAssetHaskell name output css images = do
   let
     f = output </> "src" </> assetModulePath name
+    q t = "\"" <> t <> "\""
   createDirectoryIfMissing True . takeDirectory $ f
   T.writeFile f $
     T.unlines [
@@ -67,7 +69,12 @@ generateAssetHaskell name output css = do
       , "import           Data.Text (Text)"
       , ""
       , "css :: [Text]"
-      , "css = [\"" <> (T.pack . renderCssFile) css <> "\"]"
+      , "css = [" <> (q . T.pack . renderCssFile) css <> "]"
+      , ""
+      , "images :: [Text]"
+      , "images ="
+      , "  [  " <> (T.intercalate "\n    , " . fmap (q . T.pack . imageFilePath)) images
+      , "    ]"
       ]
 
 generateCabal ::

@@ -121,8 +121,13 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
         )
       pms
 
+  --- Images ---
+  let
+    images = components >>= \(_, cs) ->
+      bind (\c -> fmap (ImageFile . componentFilePath c) . componentImageFiles $ c) cs
+
   firstT LoomHaskellError $
-    generateHaskell output (loomConfigResolvedName config) outputCss po mo
+    generateHaskell output (loomConfigResolvedName config) outputCss po mo images
 
   pure $ LoomResult (bind snd components)
 

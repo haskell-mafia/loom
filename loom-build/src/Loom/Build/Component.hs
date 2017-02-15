@@ -31,6 +31,7 @@ data Component =
     , componentSassFiles :: [ComponentFile]
     , componentProjectorFiles :: [ComponentFile]
     , componentMachinatorFiles :: [ComponentFile]
+    , componentImageFiles :: [ComponentFile]
     } deriving (Eq, Show)
 
 data ComponentError =
@@ -69,7 +70,10 @@ resolveComponent dir = do
   let
     (sass, r1) = partition (hasExtension "scss") fs
     (proj, r2) = partition (hasExtension "prj") r1
-    (mach, _los) = partition (hasExtension "mcn") r2
+    (mach, r3) = partition (hasExtension "mcn") r2
+    (svg, r4) = partition (hasExtension "svg") r3
+    (png, r5) = partition (hasExtension "png") r4
+    (jpg, _los) = partition (hasExtension "jpg") r5
   -- FIX More validation?
   pure $
     Component
@@ -77,6 +81,7 @@ resolveComponent dir = do
       (fmap ComponentFile sass)
       (fmap ComponentFile proj)
       (fmap ComponentFile mach)
+      (fmap ComponentFile $ svg <> png <> jpg)
 
 -------------
 
