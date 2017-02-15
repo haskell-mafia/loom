@@ -6,7 +6,7 @@ module Test.IO.Loom.Build.Component where
 
 import           Control.Monad.IO.Class (liftIO)
 
-import           Data.List (nub, sort)
+import           Data.List (nub)
 import qualified Data.Text.IO as T
 
 import           Loom.Build.Component
@@ -65,11 +65,7 @@ prop_build_component_unknown =
       for_ gs $ \f ->
         T.writeFile (dir </> f) ""
       c <- runEitherT . resolveComponent $ dir
-      pure $ case c of
-        Left (ComponentUnknownFiles gs') ->
-          sort gs' === sort gs
-        _ ->
-          J.counterexample (show c) False
+      pure $ isRight c
 
 genFileNameNoExt :: J.Gen FilePath
 genFileNameNoExt =

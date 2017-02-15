@@ -35,7 +35,6 @@ data Component =
 
 data ComponentError =
     ComponentMissing FilePath
-  | ComponentUnknownFiles [FilePath]
   deriving (Eq, Show)
 
 newtype ComponentFile =
@@ -55,8 +54,6 @@ renderComponentError ce =
   case ce of
     ComponentMissing f ->
       "Could not find component directory: " <> T.pack f
-    ComponentUnknownFiles fs ->
-      "Unsupported files found in component:\n" <> T.unlines (fmap T.pack fs)
 
 -------------
 
@@ -72,9 +69,8 @@ resolveComponent dir = do
   let
     (sass, r1) = partition (hasExtension "scss") fs
     (proj, r2) = partition (hasExtension "prj") r1
-    (mach, los) = partition (hasExtension "mcn") r2
-  unless (null los) $
-    left $ ComponentUnknownFiles los
+    (mach, _los) = partition (hasExtension "mcn") r2
+  -- FIX More validation?
   pure $
     Component
       dir
