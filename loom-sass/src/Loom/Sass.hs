@@ -4,6 +4,7 @@ module Loom.Sass (
     Sass
   , SassError (..)
   , SassStyle (..)
+  , CssFile (..)
   , findSassOnPath
   , compileSass
   , compileSassFile
@@ -42,6 +43,11 @@ data SassStyle =
   | SassCompressed
   deriving (Bounded, Enum, Eq, Show)
 
+newtype CssFile =
+  CssFile {
+      renderCssFile :: FilePath
+    } deriving (Eq, Show)
+
 findSassOnPath :: IO (Maybe Sass)
 findSassOnPath =
   fmap Sass <$> verifyExecutable "sassc"
@@ -49,18 +55,18 @@ findSassOnPath =
 -- NOTE: `sassc` only expects a single input file, which in turn depends on other sass files.
 -- For multiple inputs we write out a single sass with those inports and use that instead.
 -- This is far less than ideal, but is forced upon us by sass.
-compileSass :: Sass -> SassStyle -> [FilePath] -> FilePath -> EitherT SassError IO ()
-compileSass sass style inputs outFile = do
+compileSass :: Sass -> SassStyle -> CssFile -> [FilePath] -> EitherT SassError IO ()
+compileSass sass style (CssFile outFile) inputs = do
   liftIO . createDirectoryIfMissing True . takeDirectory $ outFile
   newEitherT . Temp.withTempDirectory (takeDirectory outFile) "loom-tmp" $ \tempDir ->
     runEitherT $ do
       let
         inputFile = tempDir </> takeBaseName outFile <> ".scss"
       liftIO . T.writeFile inputFile . generateSassFile $ inputs
-      compileSassFile sass style inputFile outFile
+      compileSassFile sass style (CssFile outFile) inputFile
 
-compileSassFile :: Sass -> SassStyle -> FilePath -> FilePath -> EitherT SassError IO ()
-compileSassFile sass style input outFile = do
+compileSassFile :: Sass -> SassStyle -> CssFile -> FilePath -> EitherT SassError IO ()
+compileSassFile sass style (CssFile outFile) input = do
   liftIO . createDirectoryIfMissing True . takeDirectory $ outFile
   firstT SassProcessError . call (sassPath sass) . mconcat $ [
       [T.pack input]

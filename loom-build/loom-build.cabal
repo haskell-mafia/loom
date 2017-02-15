@@ -35,6 +35,7 @@ library
                     Loom.Build.Component
                     Loom.Build.Core
                     Loom.Build.Data
+                    Loom.Build.Haskell
 
 test-suite test
   type:

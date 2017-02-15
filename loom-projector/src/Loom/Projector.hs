@@ -7,11 +7,11 @@ module Loom.Projector (
   , MachinatorModules
   , projectorOutputModules
   , DataModuleName (..)
-  , ModuleName
-  , unModuleName
+  , ModuleName (..)
   , compileProjector
   , generateProjectorHaskell
   , moduleNameFromFile
+  , requiredProjectorHaskellImports
   , renderProjectorError
   ) where
 
@@ -29,6 +29,7 @@ import           P
 
 import           Projector.Html (DataModuleName (..), ModuleName (..))
 import qualified Projector.Html as Projector
+import qualified Projector.Html.Data.Backend as Projector
 
 import           System.Directory (createDirectoryIfMissing)
 import           System.FilePath (FilePath, (</>), takeDirectory, joinPath)
@@ -121,6 +122,12 @@ moduleNameFromFile =
 moduleNameToFile :: FilePath -> ModuleName -> FilePath
 moduleNameToFile ext (ModuleName n) =
   (joinPath . fmap T.unpack . T.splitOn ".") n <> "." <> ext
+
+requiredProjectorHaskellImports :: [ModuleName]
+requiredProjectorHaskellImports =
+  [
+      Projector.htmlRuntime
+    ]
 
 renderProjectorError :: ProjectorError -> Text
 renderProjectorError pe =

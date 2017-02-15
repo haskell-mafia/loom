@@ -17,6 +17,7 @@ import qualified Data.Text as T
 
 import           Loom.Build.Component
 import           Loom.Build.Data
+import           Loom.Build.Haskell
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
@@ -26,7 +27,7 @@ import qualified Loom.Sass as Sass
 
 import           P
 
-import           System.FilePath ((</>), FilePath)
+import           System.FilePath ((</>))
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
@@ -43,12 +44,12 @@ data LoomError =
   | LoomComponentError ComponentError
   | LoomProjectorError ProjectorError
   | LoomMachinatorError MachinatorError
+  | LoomHaskellError LoomHaskellError
   deriving (Show)
 
 data LoomResult =
   LoomResult {
-      loomResultCss :: [FilePath]
-    , loomResultComponents :: [Component]
+      loomResultComponents :: [Component]
     } deriving (Eq, Show)
 
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
@@ -81,52 +82,49 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
       reverse $ config : others
     input c =
       fmap (loomConfigResolvedRoot c </>)
-  components <- fmap join . firstT LoomComponentError . for configs $ \c ->
-    fmap (fmap ((,) c)) . resolveComponents . fmap (loomConfigResolvedRoot c </>) . loomConfigResolvedComponents $ c
+  components <- firstT LoomComponentError . for configs $ \c ->
+    fmap ((,) c) . resolveComponents . fmap (loomConfigResolvedRoot c </>) . loomConfigResolvedComponents $ c
 
   --- SASS ---
   let
-    outputCss = output </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
+    outputCss = Sass.CssFile $ (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
     inputs =
       mconcat . mconcat $ [
           fmap (\c -> input c . loomConfigResolvedSass $ c) configs
-        , fmap (\(_, c) -> fmap (componentFilePath c) . componentSassFiles $ c) components
+        , fmap (\c -> fmap (componentFilePath c) . componentSassFiles $ c) . bind snd $ components
         ]
   firstT LoomSassError $
-    Sass.compileSass sass Sass.SassCompressed inputs outputCss
+    Sass.compileSass sass Sass.SassCompressed (Sass.CssFile $ output </> Sass.renderCssFile outputCss) inputs
 
   --- Machinator ---
   let
-    mms = with components $ \(cr, c) ->
+    mms = with components $ \(cr, cs) ->
       MachinatorInput
         (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
         (loomConfigResolvedRoot cr)
-        (fmap (componentFilePath c) . componentMachinatorFiles $ c)
+        (bind (\c -> fmap (componentFilePath c) . componentMachinatorFiles $ c) cs)
   mo <- firstT LoomMachinatorError $
     Machinator.compileMachinator mms
 
   --- Projector ---
   let
-    pms = with components $ \(cr, c) ->
+    pms = with components $ \(cr, cs) ->
       Projector.ProjectorInput
         (Projector.moduleNameFromFile . T.unpack . renderLoomName . loomConfigResolvedName $ cr)
         (loomConfigResolvedRoot cr)
-        (fmap (componentFilePath c) . componentProjectorFiles $ c)
+        (bind (\c -> fmap (componentFilePath c) . componentProjectorFiles $ c) cs)
   po <- firstT LoomProjectorError $
     Projector.compileProjector
       (Map.fromList .
-        fmap (first (Projector.DataModuleName . Projector.moduleNameFromFile . T.unpack . Machinator.renderModuleName)) .
+        fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
         Map.toList . Machinator.machinatorOutputDefinitions $ mo
         )
       pms
 
-  --- Haskell ---
-  void . firstT LoomMachinatorError $
-    Machinator.generateMachinatorHaskell (output </> "src") mo
-  void . liftIO $
-    Projector.generateProjectorHaskell (output </> "src") po
+  firstT LoomHaskellError $
+    generateHaskell output (loomConfigResolvedName config) outputCss po mo
 
-  pure $ LoomResult [outputCss] (fmap snd components)
+  pure $ LoomResult (bind snd components)
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
@@ -145,3 +143,5 @@ renderLoomError le =
       Projector.renderProjectorError e
     LoomMachinatorError e ->
       Machinator.renderMachinatorError e
+    LoomHaskellError e ->
+      renderLoomHaskellError e

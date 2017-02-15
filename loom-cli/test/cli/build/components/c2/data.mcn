@@ -1,4 +1,4 @@
 -- machinator @ v1
 
 data Foo =
-    Bar
+    Bar Html

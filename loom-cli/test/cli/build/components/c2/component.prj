@@ -5,6 +5,6 @@
 
 {
   case foo of
-    Bar ->
-      <span>Hello world</span>
+    Bar c ->
+      <span>{ c }</span>
 }

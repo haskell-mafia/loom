@@ -39,11 +39,11 @@ prop_machinator_success =
     lift $ createDirectoryIfMissing True dir2
     lift $ T.writeFile d1 "-- machinator @ v1\ndata Foo = Foo"
     lift $ T.writeFile d2 "-- machinator @ v1\ndata Bar = Bar"
-    out <- compileMachinator [
+    out <- firstT renderMachinatorError $ compileMachinator [
         MachinatorInput name dir1 [d1]
       , MachinatorInput name dir2 [d2]
       ]
-    f3 <- generateMachinatorHaskell dir out
+    f3 <- firstT renderMachinatorHaskellError $ generateMachinatorHaskell dir [] out
     lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir) $ f3
 
 prop_machinator_missing =
@@ -69,7 +69,7 @@ genModuleName =
 
 withMachinator f =
   withTempDirectory "dist" "loom-machinator" $ \dir ->
-    testEitherT renderMachinatorError $
+    testEitherT id $
       f dir
 
 return []
