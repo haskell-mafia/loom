@@ -7,6 +7,7 @@ module Loom.Build.Data (
   , LoomName (..)
   , LoomConfig (..)
   , LoomConfigResolved (..)
+  , LoomResult (..)
   , ImageFile (..)
   , compileFilePattern
   , renderFilePattern
@@ -15,6 +16,11 @@ module Loom.Build.Data (
   ) where
 
 import qualified Data.Text as T
+
+import           Loom.Build.Component
+import           Loom.Machinator (MachinatorOutput)
+import           Loom.Projector (ProjectorOutput)
+import           Loom.Sass (CssFile)
 
 import           P
 

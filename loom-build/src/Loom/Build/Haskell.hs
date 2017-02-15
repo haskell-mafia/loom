@@ -33,15 +33,8 @@ data LoomHaskellError =
     LoomHaskellMachinatorError MachinatorHaskellError
   deriving (Show)
 
-generateHaskell ::
-  FilePath ->
-  LoomName ->
-  CssFile ->
-  ProjectorOutput ->
-  MachinatorOutput ->
-  [ImageFile] ->
-  EitherT LoomHaskellError IO ()
-generateHaskell output name outputCss po mo images = do
+generateHaskell :: FilePath -> LoomResult -> EitherT LoomHaskellError IO ()
+generateHaskell output (LoomResult name _ mo po outputCss images) = do
   void . firstT LoomHaskellMachinatorError $
     Machinator.generateMachinatorHaskell
       (output </> "src")
