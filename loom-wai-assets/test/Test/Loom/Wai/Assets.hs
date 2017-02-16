@@ -22,13 +22,14 @@ import           P
 
 import           System.IO (IO)
 
-import           Test.QuickCheck.Jack (Gen, (===))
+import           Test.QuickCheck.Jack (Gen, (===), (==>))
 import qualified Test.QuickCheck.Jack as J
 import           Test.QuickCheck.Instances ()
 
 prop_wai_assets =
   J.forAll genFile $ \f1 ->
   J.forAll genFile $ \f2 ->
+  fst f1 /= fst f2 ==>
   J.forAll (J.listOf genFile) $ \files ->
   testIO $ do
     let
