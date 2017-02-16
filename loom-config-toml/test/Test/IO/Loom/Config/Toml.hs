@@ -27,6 +27,7 @@ prop_loom_config_toml_parse_ok =
         (LoomConfig
           "."
           (LoomName "empty")
+          (AssetsPrefix "assets")
           []
           []
           )
@@ -35,6 +36,7 @@ prop_loom_config_toml_parse_ok =
         (LoomConfig
           "."
           (LoomName "basic")
+          (AssetsPrefix "assets")
           [p "components/*"]
           [p "scss/*"]
           )
@@ -43,6 +45,7 @@ prop_loom_config_toml_parse_ok =
         (LoomConfig
           "."
           (LoomName "dependencies_1")
+          (AssetsPrefix "assets")
           [p "components/*"]
           [p "scss/*"]
           )
@@ -50,6 +53,7 @@ prop_loom_config_toml_parse_ok =
         LoomConfig
           "subdir"
           (LoomName "dependencies_2")
+          (AssetsPrefix "assets")
           [p "components/*"]
           [p "scss/*"]
         ]

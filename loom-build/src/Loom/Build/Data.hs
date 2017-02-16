@@ -9,6 +9,7 @@ module Loom.Build.Data (
   , LoomConfigResolved (..)
   , LoomResult (..)
   , ImageFile (..)
+  , AssetsPrefix (..)
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
@@ -56,6 +57,7 @@ data LoomConfig =
   LoomConfig {
       loomConfigRoot :: FilePath
     , loomConfigName :: LoomName
+    , loomConfigAssetsPreix :: AssetsPrefix
     , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
     } deriving (Eq, Show)
@@ -64,6 +66,7 @@ data LoomConfigResolved =
   LoomConfigResolved {
       loomConfigResolvedRoot :: FilePath
     , loomConfigResolvedName :: LoomName
+    , loomConfigResolvedAssetsPrefix :: AssetsPrefix
     , loomConfigResolvedComponents :: [FilePath]
     , loomConfigResolvedSass :: [FilePath]
     } deriving (Eq, Show)
@@ -81,6 +84,11 @@ data LoomResult =
 newtype ImageFile =
   ImageFile {
       imageFilePath :: FilePath
+    } deriving (Eq, Show)
+
+newtype AssetsPrefix =
+  AssetsPrefix {
+      assetsPrefix :: FilePath
     } deriving (Eq, Show)
 
 compileFilePattern :: Text -> Either Text FilePattern

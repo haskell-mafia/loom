@@ -2,6 +2,7 @@
   version = 1
   name = "dependencies_2"
   output = "dist"
+  assetsPrefix = "assets"
 
 [component]
   paths = ["components/*"]

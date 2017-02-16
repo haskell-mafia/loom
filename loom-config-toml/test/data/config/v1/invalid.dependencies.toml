@@ -3,6 +3,7 @@
   dependencies = ["missing.toml"]
   name = "invalid.dependencies"
   output = "dist"
+  assetsPrefix = "assets"
 
 [component]
   paths = ["components/*"]

@@ -2,6 +2,7 @@
   version = 1
   name = "invalid.paths-field"
   output = "dist"
+  assetsPrefix = "assets"
 
 [component]
   paths = [[]]

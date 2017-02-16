@@ -3,6 +3,7 @@
   dependencies = ["subdir/basic.toml"]
   name = "dependencies_1"
   output = "dist"
+  assetsPrefix = "assets"
 
 [component]
   paths = ["components/*"]
