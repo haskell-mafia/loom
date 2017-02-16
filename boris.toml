@@ -36,6 +36,11 @@
       ["bin/master", "build", "dist-7-10", "-C", "loom-sass"]
     ]
 
+[build.dist-7-10-wai-assets]
+  command = [
+      ["bin/master", "build", "dist-7-10", "-C", "loom-wai-assets"]
+    ]
+
 [build.branches-7-10-build]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-build"]
@@ -69,6 +74,11 @@
 [build.branches-7-10-sass]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-sass"]
+    ]
+
+[build.branches-7-10-wai-assets]
+  command = [
+      ["bin/master", "build", "branches-7-10", "-C", "loom-wai-assets"]
     ]
 
 [build.dist-validate]

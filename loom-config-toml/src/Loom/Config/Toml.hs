@@ -35,6 +35,7 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
   dependencies = ["lib/bikeshed"]
   name = "my_project"
   output = "dist"
+  assetsPrefix = "assets"
 
 [components]
   paths = ["components/*"]
@@ -56,6 +57,7 @@ data LoomConfigRaw =
   LoomConfigRaw {
       loomConfigRawName :: LoomName
     , loomConfigRawOutput :: FilePath
+    , loomConfigRawAssetsPrefix :: AssetsPrefix
     , loomConfigRawDependencies :: [FilePath]
     , loomConfigRawComponents :: [FilePattern]
     , loomConfigRawSass :: [FilePattern]
@@ -87,6 +89,7 @@ resolveConfig root = do
       LoomConfig
         (makeRelative dir1 dir)
         (loomConfigRawName rc)
+        (loomConfigRawAssetsPrefix rc)
         (loomConfigRawComponents rc)
         (loomConfigRawSass rc)
   pure . Loom (loomConfigRawOutput c) (config' rc1) . fmap config' $ rcs
@@ -113,6 +116,9 @@ parseTomlConfigV1 t =
       )
     <*> (fmap T.unpack . maybeToRight (ConfigInvalidField "loom.output") $
       t ^? key "loom" . _NTable . key "output" . _NTValue . _VString
+      )
+    <*> (fmap (AssetsPrefix . T.unpack) . maybeToRight (ConfigInvalidField "loom.assetsPrefix") $
+      t ^? key "loom" . _NTable . key "assetsPrefix" . _NTValue . _VString
       )
     <*> (maybe (pure []) (fmap (fmap T.unpack) . maybeToRight (ConfigInvalidField "loom.dependencies") . mapM (preview _VString)) $
       t ^? key "loom" . _NTable . key "dependencies" . _NTValue . _VArray

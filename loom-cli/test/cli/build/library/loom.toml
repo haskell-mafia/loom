@@ -2,6 +2,7 @@
   version = 1
   name = "library"
   output = "dist"
+  assetsPrefix = "assets"
 
 [component]
   paths = ["components/*"]

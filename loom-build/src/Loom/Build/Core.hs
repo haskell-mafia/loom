@@ -60,13 +60,17 @@ buildLoom buildConfig (Loom loomOutput' loomConfig' loomConfigs') = do
       <*> mapM resolveLoom loomConfigs'
   result <- buildLoomResolved buildConfig resolved
   firstT LoomHaskellError $
-    generateHaskell (loomResolvedOutput resolved) result
+    generateHaskell
+      (loomResolvedOutput resolved)
+      (loomConfigResolvedAssetsPrefix . loomResolvedConfig $ resolved)
+      result
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
   LoomConfigResolved
     <$> (pure . loomConfigRoot) config
     <*> (pure . loomConfigName) config
+    <*> (pure . loomConfigAssetsPreix) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
 

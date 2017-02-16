@@ -23,8 +23,8 @@ import           Loom.Sass (CssFile (..))
 
 import           P
 
-import           System.Directory (createDirectoryIfMissing)
-import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory)
+import           System.Directory (canonicalizePath, createDirectoryIfMissing)
+import           System.FilePath ((</>), FilePath, dropExtension, joinPath, normalise, takeDirectory)
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT)
@@ -33,8 +33,8 @@ data LoomHaskellError =
     LoomHaskellMachinatorError MachinatorHaskellError
   deriving (Show)
 
-generateHaskell :: FilePath -> LoomResult -> EitherT LoomHaskellError IO ()
-generateHaskell output (LoomResult name _ mo po outputCss images) = do
+generateHaskell :: FilePath -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
+generateHaskell output apx (LoomResult name _ mo po outputCss images) = do
   void . firstT LoomHaskellMachinatorError $
     Machinator.generateMachinatorHaskell
       (output </> "src")
@@ -43,31 +43,46 @@ generateHaskell output (LoomResult name _ mo po outputCss images) = do
   void . liftIO $
     Projector.generateProjectorHaskell (output </> "src") po
   liftIO $
-    generateAssetHaskell name output outputCss images
+    generateAssetHaskell name output apx outputCss images
   liftIO $
     generateCabal name output mo po
 
-generateAssetHaskell :: LoomName -> FilePath -> CssFile -> [ImageFile] -> IO ()
-generateAssetHaskell name output css images = do
+generateAssetHaskell :: LoomName -> FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
+generateAssetHaskell name output apx css images = do
   let
     f = output </> "src" </> assetModulePath name
-    q t = "\"" <> t <> "\""
+    q p t = "(\"" <> T.pack (assetsPrefix apx </> normalise p) <> "\", $(embedFile \"" <> T.pack t <> "\"))"
   createDirectoryIfMissing True . takeDirectory $ f
+  css' <- fmap ((,) (renderCssFile css)) . canonicalizePath $ output </> renderCssFile css
+  images' <- for images $ \(ImageFile t) -> (,) t <$> canonicalizePath t
   T.writeFile f $
     T.unlines [
         "{-# LANGUAGE NoImplicitPrelude #-}"
       , "{-# LANGUAGE OverloadedStrings #-}"
+      , "{-# LANGUAGE TemplateHaskell #-}"
       , "module " <> renderAssetModuleName name <> " where"
       , ""
+      , "import           Data.Monoid ((<>))"
       , "import           Data.Text (Text)"
       , ""
-      , "css :: [Text]"
-      , "css = [" <> (q . T.pack . renderCssFile) css <> "]"
+      , "import           Loom.Wai.Assets"
       , ""
-      , "images :: [Text]"
-      , "images ="
-      , "  [  " <> (T.intercalate "\n    , " . fmap (q . T.pack . imageFilePath)) images
+      , "cssAssets :: Assets"
+      , "cssAssets ="
+      , "  fromList [" <> uncurry q css' <> "]"
+      , ""
+      , "css :: [Text]"
+      , "css ="
+      , "  assetPaths cssAssets"
+      , ""
+      , "imagesAssets :: Assets"
+      , "imagesAssets ="
+      , "  fromList [  " <> (T.intercalate "\n    , " . fmap(uncurry q)) images'
       , "    ]"
+      , ""
+      , "assetMiddleware :: Middleware"
+      , "assetMiddleware ="
+      , "  assetsMiddleware (cssAssets <> imagesAssets)"
       ]
 
 generateCabal ::
@@ -98,6 +113,7 @@ generateCabal name output mo po = do
       , "      base                        >= 3          && < 5"
       , "    , transformers                >= 0.4        && < 6"
       , "    , text                        >= 1.1        && < 1.3"
+      , "    , ambiata-loom-wai-assets"
       , "    , ambiata-projector-html-runtime"
       , ""
       , "  ghc-options: -Wall -O2"

@@ -3,6 +3,7 @@
   name = "test_build"
   output = "dist"
   dependencies = ["library"]
+  assetsPrefix = "assets"
 
 [component]
   paths = ["components/*"]
