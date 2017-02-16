@@ -21,6 +21,7 @@ import qualified Data.List as List
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 import qualified Network.HTTP.Types as HTTP
 import           Network.Mime (MimeType)
@@ -29,8 +30,6 @@ import           Network.Wai (Middleware)
 import qualified Network.Wai as Wai
 
 import           P
-
-import           System.FilePath (FilePath, normalise, splitDirectories)
 
 data Asset =
   Asset {
@@ -63,12 +62,12 @@ assetPaths :: Assets -> [Text]
 assetPaths =
   fmap (mappend "/" . T.intercalate "/") . Map.keys
 
-fromList :: [(FilePath, ByteString)] -> Assets
+fromList :: [(Text, ByteString)] -> Assets
 fromList fs =
   Map.fromList . flip fmap fs $ \(fp, bs) ->
     (,)
-      (fmap T.pack . splitDirectories . normalise $ fp)
-      (Asset bs (Mime.defaultMimeLookup . T.pack $ fp) (calculateETag bs))
+      (HTTP.decodePathSegments . T.encodeUtf8 $ fp)
+      (Asset bs (Mime.defaultMimeLookup fp) (calculateETag bs))
 
 calculateETag :: ByteString -> ByteString
 calculateETag b =
