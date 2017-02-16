@@ -25,7 +25,7 @@ prop_loom_config_toml_parse_ok =
   QC.once . QC.conjoin $ [
       check "test/data/config/v1/empty.toml" . Right $ Loom "dist"
         (LoomConfig
-          "."
+          (LoomRoot ".")
           (LoomName "empty")
           (AssetsPrefix "assets")
           []
@@ -34,7 +34,7 @@ prop_loom_config_toml_parse_ok =
         []
     , check "test/data/config/v1/basic.toml" . Right $ Loom "dist"
         (LoomConfig
-          "."
+          (LoomRoot ".")
           (LoomName "basic")
           (AssetsPrefix "assets")
           [p "components/*"]
@@ -43,7 +43,7 @@ prop_loom_config_toml_parse_ok =
         []
     , check "test/data/config/v1/dependencies.toml" . Right $ Loom "dist"
         (LoomConfig
-          "."
+          (LoomRoot ".")
           (LoomName "dependencies_1")
           (AssetsPrefix "assets")
           [p "components/*"]
@@ -51,7 +51,7 @@ prop_loom_config_toml_parse_ok =
           )
       [
         LoomConfig
-          "subdir"
+          (LoomRoot "subdir")
           (LoomName "dependencies_2")
           (AssetsPrefix "assets")
           [p "components/*"]

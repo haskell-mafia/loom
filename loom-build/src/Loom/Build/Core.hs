@@ -81,18 +81,16 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
     configs =
       -- Need to make sure the dependencies are in reverse order
       reverse $ config : others
-    input c =
-      fmap (loomConfigResolvedRoot c </>)
   components <- firstT LoomComponentError . for configs $ \c ->
-    fmap ((,) c) . resolveComponents . fmap (loomConfigResolvedRoot c </>) . loomConfigResolvedComponents $ c
+    fmap ((,) c) . resolveComponents . loomConfigResolvedComponents $ c
 
   --- SASS ---
   let
     outputCss = Sass.CssFile $ (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
     inputs =
       mconcat . mconcat $ [
-          fmap (\c -> input c . loomConfigResolvedSass $ c) configs
-        , fmap (\c -> fmap (componentFilePath c) . componentSassFiles $ c) . bind snd $ components
+          fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
+        , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
         ]
   firstT LoomSassError $
     Sass.compileSass sass Sass.SassCompressed (Sass.CssFile $ output </> Sass.renderCssFile outputCss) inputs
@@ -102,8 +100,8 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
     mms = with components $ \(cr, cs) ->
       MachinatorInput
         (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
-        (loomConfigResolvedRoot cr)
-        (bind (\c -> fmap (componentFilePath c) . componentMachinatorFiles $ c) cs)
+        (loomRootFilePath . loomConfigResolvedRoot $ cr)
+        (bind (fmap componentFilePath . componentMachinatorFiles) cs)
   mo <- firstT LoomMachinatorError $
     Machinator.compileMachinator mms
 
@@ -112,8 +110,8 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
     pms = with components $ \(cr, cs) ->
       Projector.ProjectorInput
         (Projector.moduleNameFromFile . T.unpack . renderLoomName . loomConfigResolvedName $ cr)
-        (loomConfigResolvedRoot cr)
-        (bind (\c -> fmap (componentFilePath c) . componentProjectorFiles $ c) cs)
+        (loomRootFilePath . loomConfigResolvedRoot $ cr)
+        (bind (fmap componentFilePath . componentProjectorFiles) cs)
   po <- firstT LoomProjectorError $
     Projector.compileProjector
       (Map.fromList .
@@ -124,8 +122,8 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
 
   --- Images ---
   let
-    images = components >>= \(_, cs) ->
-      bind (\c -> fmap (ImageFile . componentFilePath c) . componentImageFiles $ c) cs
+    images = components >>= \(cr, cs) ->
+      bind (\c -> fmap (ImageFile (loomConfigResolvedName cr)) . componentImageFiles $ c) cs
 
   pure $
     LoomResult

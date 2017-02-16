@@ -10,6 +10,7 @@ import           Data.List (nub)
 import qualified Data.Text.IO as T
 
 import           Loom.Build.Component
+import           Loom.Build.Data
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)
 import           Disorder.Core.IO (testIO)
@@ -42,22 +43,22 @@ prop_build_component =
         T.writeFile (dir </> f <> ".svg") ""
       liftIO . for_ fs $ \f ->
         T.writeFile (dir </> f <> ".png") ""
-      c <- resolveComponent dir
+      c <- resolveComponent (LoomFile (LoomRoot ".") dir)
       fmap (J.conjoin . join) . liftIO . sequence $ [
           for (componentSassFiles c) $
-            doesFileExist . componentFilePath c
+            doesFileExist . componentFilePath
         , for (componentProjectorFiles c) $
-            doesFileExist . componentFilePath c
+            doesFileExist . componentFilePath
         , for (componentMachinatorFiles c) $
-            doesFileExist . componentFilePath c
+            doesFileExist . componentFilePath
         , for (componentImageFiles c) $
-            doesFileExist . componentFilePath c
+            doesFileExist . componentFilePath
         ]
 
 prop_build_component_missing =
   J.once . testIO $ do
     let
-      f = "does_not_exist"
+      f = LoomFile (LoomRoot ".") "does_not_exist"
     c <- runEitherT . resolveComponent $ f
     pure $ c === Left (ComponentMissing f)
 
@@ -70,7 +71,7 @@ prop_build_component_unknown =
         T.writeFile (dir </> f <> ".scss") ""
       for_ gs $ \f ->
         T.writeFile (dir </> f) ""
-      c <- runEitherT . resolveComponent $ dir
+      c <- runEitherT . resolveComponent . LoomFile (LoomRoot ".") $ dir
       pure $ isRight c
 
 genFileNameNoExt :: J.Gen FilePath

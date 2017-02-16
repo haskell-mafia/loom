@@ -34,7 +34,7 @@ prop_build_find =
       for_ (fsx <> fsy) $ \f -> do
         createDirectoryIfMissing True . takeDirectory $ dir </> f
         T.writeFile (dir </> f) ""
-      fsz <- findFiles dir [p]
+      fsz <- findFiles' dir [p]
       pure $ fmap sort fsz === [sort fsx]
 
 return []

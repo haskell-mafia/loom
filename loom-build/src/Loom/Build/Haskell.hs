@@ -24,7 +24,7 @@ import           Loom.Sass (CssFile (..))
 import           P
 
 import           System.Directory (canonicalizePath, createDirectoryIfMissing)
-import           System.FilePath ((</>), FilePath, dropExtension, joinPath, normalise, takeDirectory)
+import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory)
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT)
@@ -51,10 +51,10 @@ generateAssetHaskell :: LoomName -> FilePath -> AssetsPrefix -> CssFile -> [Imag
 generateAssetHaskell name output apx css images = do
   let
     f = output </> "src" </> assetModulePath name
-    q p t = "(\"" <> T.pack (assetsPrefix apx </> normalise p) <> "\", $(embedFile \"" <> T.pack t <> "\"))"
+    q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
   createDirectoryIfMissing True . takeDirectory $ f
-  css' <- fmap ((,) (renderCssFile css)) . canonicalizePath $ output </> renderCssFile css
-  images' <- for images $ \(ImageFile t) -> (,) t <$> canonicalizePath t
+  css' <- fmap ((,) (cssAssetPath apx css)) . canonicalizePath $ output </> renderCssFile css
+  images' <- for images $ \i -> (,) (imageAssetPath apx i) <$> canonicalizePath (imageFilePath i)
   T.writeFile f $
     T.unlines [
         "{-# LANGUAGE NoImplicitPrelude #-}"
