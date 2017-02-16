@@ -47,11 +47,6 @@ data LoomError =
   | LoomHaskellError LoomHaskellError
   deriving (Show)
 
-data LoomResult =
-  LoomResult {
-      loomResultComponents :: [Component]
-    } deriving (Eq, Show)
-
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
 initialiseBuild =
   LoomBuildConfig
@@ -63,7 +58,9 @@ buildLoom buildConfig (Loom loomOutput' loomConfig' loomConfigs') = do
     LoomResolved loomOutput'
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  void $ buildLoomResolved buildConfig resolved
+  result <- buildLoomResolved buildConfig resolved
+  firstT LoomHaskellError $
+    generateHaskell (loomResolvedOutput resolved) result
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -121,10 +118,19 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
         )
       pms
 
-  firstT LoomHaskellError $
-    generateHaskell output (loomConfigResolvedName config) outputCss po mo
+  --- Images ---
+  let
+    images = components >>= \(_, cs) ->
+      bind (\c -> fmap (ImageFile . componentFilePath c) . componentImageFiles $ c) cs
 
-  pure $ LoomResult (bind snd components)
+  pure $
+    LoomResult
+      (loomConfigResolvedName config)
+      (bind snd components)
+      mo
+      po
+      outputCss
+      images
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =

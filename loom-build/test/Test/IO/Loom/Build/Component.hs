@@ -38,6 +38,10 @@ prop_build_component =
         T.writeFile (dir </> f <> ".prj") ""
       liftIO . for_ fs $ \f ->
         T.writeFile (dir </> f <> ".mcn") ""
+      liftIO . for_ fs $ \f ->
+        T.writeFile (dir </> f <> ".svg") ""
+      liftIO . for_ fs $ \f ->
+        T.writeFile (dir </> f <> ".png") ""
       c <- resolveComponent dir
       fmap (J.conjoin . join) . liftIO . sequence $ [
           for (componentSassFiles c) $
@@ -45,6 +49,8 @@ prop_build_component =
         , for (componentProjectorFiles c) $
             doesFileExist . componentFilePath c
         , for (componentMachinatorFiles c) $
+            doesFileExist . componentFilePath c
+        , for (componentImageFiles c) $
             doesFileExist . componentFilePath c
         ]
 
