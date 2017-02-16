@@ -8,16 +8,27 @@ $LOOM build
 
 file_exists() {
   if [ ! -e "$1" ]; then
-    "Could not find $1"
+    echo "Could not find $1"
+    exit 1
   fi
+}
+
+contains() {
+  grep -q "$2" "$1" || (echo "Could not find '$2' in '$1'" && exit 1)
 }
 
 file_exists "dist/test_build.css"
 file_exists "dist/test-build-loom.cabal"
-file_exists "dist/src/Library/Components/C1/Component.hs"
-file_exists "dist/src/Library/Components/C1/Data.hs"
+file_exists "dist/src/Other/Components/C1/Component.hs"
+file_exists "dist/src/Other/Components/C1/Data.hs"
 file_exists "dist/src/TestBuild/Components/C2/Component.hs"
 file_exists "dist/src/TestBuild/Components/C2/Data.hs"
+
+contains "dist/test_build.css" "/assets/other/components/c1/image.svg"
+contains "dist/test_build.css" "/assets/test_build/components/c2/image.svg"
+
+contains "dist/src/TestBuild/Assets.hs" "assets/other/components/c1/image.svg"
+contains "dist/src/TestBuild/Assets.hs" "assets/test_build/components/c2/image.svg"
 
 cd dist
 ../../../../mafia build

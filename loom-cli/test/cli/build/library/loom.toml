@@ -1,6 +1,6 @@
 [loom]
   version = 1
-  name = "library"
+  name = "other"
   output = "dist"
   assetsPrefix = "assets"
 

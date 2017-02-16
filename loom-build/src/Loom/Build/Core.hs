@@ -15,6 +15,7 @@ import           Control.Monad.IO.Class (liftIO)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
+import           Loom.Build.Assets
 import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Build.Haskell
@@ -27,10 +28,12 @@ import qualified Loom.Sass as Sass
 
 import           P
 
+import           System.Directory (createDirectoryIfMissing)
 import           System.FilePath ((</>))
 import           System.IO (IO)
+import qualified System.IO.Temp as Temp
 
-import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
+import           X.Control.Monad.Trans.Either (EitherT, newEitherT, runEitherT)
 
 data LoomBuildConfig =
   LoomBuildConfig Sass
@@ -84,6 +87,13 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
   components <- firstT LoomComponentError . for configs $ \c ->
     fmap ((,) c) . resolveComponents . loomConfigResolvedComponents $ c
 
+  liftIO $ createDirectoryIfMissing True output
+
+  --- Images ---
+  let
+    images = components >>= \(cr, cs) ->
+      bind (\c -> fmap (ImageFile (loomConfigResolvedName cr)) . componentImageFiles $ c) cs
+
   --- SASS ---
   let
     outputCss = Sass.CssFile $ (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
@@ -92,8 +102,15 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
           fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
         , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
         ]
-  firstT LoomSassError $
-    Sass.compileSass sass Sass.SassCompressed (Sass.CssFile $ output </> Sass.renderCssFile outputCss) inputs
+  newEitherT . Temp.withTempDirectory output "loom.css" $ \dir ->
+    runEitherT $ do
+      let
+        outputCssTemp = Sass.CssFile $ dir </> "loom-tmp.css"
+        outputCssAbs = Sass.CssFile $ output </> Sass.renderCssFile outputCss
+      firstT LoomSassError $
+        Sass.compileSass sass Sass.SassCompressed outputCssTemp inputs
+      liftIO $
+        prefixCssImageAssets (loomConfigResolvedAssetsPrefix config) images outputCssAbs outputCssTemp
 
   --- Machinator ---
   let
@@ -119,11 +136,6 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
         Map.toList . Machinator.machinatorOutputDefinitions $ mo
         )
       pms
-
-  --- Images ---
-  let
-    images = components >>= \(cr, cs) ->
-      bind (\c -> fmap (ImageFile (loomConfigResolvedName cr)) . componentImageFiles $ c) cs
 
   pure $
     LoomResult
