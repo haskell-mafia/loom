@@ -52,12 +52,14 @@ generateAssetHaskell name output apx css images = do
   let
     f = output </> "src" </> assetModulePath name
     q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
+    q2 p t = "(\"" <> p <> "\", \"" <> T.pack t <> "\")"
   createDirectoryIfMissing True . takeDirectory $ f
   css' <- fmap ((,) (cssAssetPath apx css)) . canonicalizePath $ output </> renderCssFile css
   images' <- for images $ \i -> (,) (imageAssetPath apx i) <$> canonicalizePath (imageFilePath i)
   T.writeFile f $
     T.unlines [
-        "{-# LANGUAGE NoImplicitPrelude #-}"
+        "{-# LANGUAGE CPP #-}"
+      , "{-# LANGUAGE NoImplicitPrelude #-}"
       , "{-# LANGUAGE OverloadedStrings #-}"
       , "{-# LANGUAGE TemplateHaskell #-}"
       , "module " <> renderAssetModuleName name <> " where"
@@ -67,22 +69,40 @@ generateAssetHaskell name output apx css images = do
       , ""
       , "import           Loom.Wai.Assets"
       , ""
+      , "#if CABAL"
       , "cssAssets :: Assets"
       , "cssAssets ="
       , "  fromList [" <> uncurry q css' <> "]"
+      , "#else"
+      , "cssAssets :: AssetsDev"
+      , "cssAssets ="
+      , "  fromListDev [" <> uncurry q2 css' <> "]"
+      , "#endif"
       , ""
       , "css :: [Text]"
       , "css ="
       , "  assetPaths cssAssets"
       , ""
+      , "#if CABAL"
       , "imagesAssets :: Assets"
       , "imagesAssets ="
-      , "  fromList [  " <> (T.intercalate "\n    , " . fmap(uncurry q)) images'
+      , "  fromList [  " <> (T.intercalate "\n    , " . fmap (uncurry q)) images'
       , "    ]"
+      , "#else"
+      , "imagesAssets :: AssetsDev"
+      , "imagesAssets ="
+      , "  fromListDev [  " <> (T.intercalate "\n    , " . fmap (uncurry q2)) images'
+      , "    ]"
+      , "#endif"
       , ""
       , "assetMiddleware :: Middleware"
       , "assetMiddleware ="
-      , "  assetsMiddleware (cssAssets <> imagesAssets)"
+      , "#if CABAL"
+      , "  assetsMiddleware"
+      , "#else"
+      , "  assetsMiddlewareDev"
+      , "#endif"
+      , "    (cssAssets <> imagesAssets)"
       ]
 
 generateCabal ::
@@ -116,7 +136,7 @@ generateCabal name output mo po = do
       , "    , ambiata-loom-wai-assets"
       , "    , ambiata-projector-html-runtime"
       , ""
-      , "  ghc-options: -Wall -O2"
+      , "  ghc-options: -Wall -O2 -DCABAL"
       , ""
       , "  exposed-modules:"
       , T.unlines . fmap ((<>) "    ") . mconcat $ [
