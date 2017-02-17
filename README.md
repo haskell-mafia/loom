@@ -1,7 +1,7 @@
 Loom
 ====
 
-![](http://www.nico71.fr/wp-content/gallery/lowressmallloombi/Small_Mechanical_Loom_page_57.jpg)
+![](https://cloud.githubusercontent.com/assets/355756/23049526/c99ade24-f510-11e6-851c-3e7902ed310c.jpg)
 
 Loom is a project for developing, building and packaging web-based projects.
 
