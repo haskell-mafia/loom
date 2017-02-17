@@ -3,6 +3,16 @@ Loom
 
 ![](https://cloud.githubusercontent.com/assets/355756/23049526/c99ade24-f510-11e6-851c-3e7902ed310c.jpg)
 
+> Why it's an extraordinary adventure with an interface on
+> magic... stunning, high-resolution, 3D landscapes... sophisticated
+> score and musical effects. Not to mention the detailed animation and
+> special effects, elegant point 'n' click control of characters,
+> objects, and magic spells.
+>
+> Beat the rush! Go out and buy Loom™ today!
+>
+> - Cobb, The Secret of Monkey Island
+
 Loom is a project for developing, building and packaging web-based projects.
 
 ## Background
