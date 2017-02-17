@@ -36,7 +36,7 @@ prop_wai_assets =
       req f = Wai.defaultRequest {
           Wai.pathInfo = fst f
         }
-      assets = Map.delete (fst f2) . fromList . fmap (first (T.unpack . T.intercalate "/")) $ f1 : files
+      assets = Map.delete (fst f2) . fromList . fmap (first (T.intercalate "/")) $ f1 : files
       notFound _ resp = resp $ Wai.responseLBS HTTP.status404 [] ""
       app = assetsMiddleware assets notFound
     resp1 <- WT.runSession (WT.srequest $ WT.SRequest (req f1) "") app

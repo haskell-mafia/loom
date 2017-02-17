@@ -87,7 +87,7 @@ resolveConfig root = do
   let
     config' (dir, rc) =
       LoomConfig
-        (makeRelative dir1 dir)
+        (LoomRoot $ makeRelative dir1 dir)
         (loomConfigRawName rc)
         (loomConfigRawAssetsPrefix rc)
         (loomConfigRawComponents rc)

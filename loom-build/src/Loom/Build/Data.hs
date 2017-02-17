@@ -4,28 +4,39 @@ module Loom.Build.Data (
     FilePattern (..)
   , Loom (..)
   , LoomResolved (..)
+  , LoomRoot (..)
+  , LoomFile (..)
   , LoomName (..)
   , LoomConfig (..)
   , LoomConfigResolved (..)
   , LoomResult (..)
+  , Component (..)
+  , ComponentFile (..)
   , ImageFile (..)
   , AssetsPrefix (..)
+  , loomFilePath
+  , componentName
+  , componentFilePath
+  , componentFilePathNoRoot
+  , imageFilePath
+  , imageAssetPath
+  , cssAssetPath
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
   , findFiles
+  , findFiles'
   ) where
 
 import qualified Data.Text as T
 
-import           Loom.Build.Component
 import           Loom.Machinator (MachinatorOutput)
 import           Loom.Projector (ProjectorOutput)
-import           Loom.Sass (CssFile)
+import           Loom.Sass (CssFile (..))
 
 import           P
 
-import           System.FilePath (FilePath, makeRelative)
+import           System.FilePath (FilePath, (</>), makeRelative, takeBaseName, normalise)
 import qualified System.FilePath.Glob as G
 import qualified System.FilePath.Glob.Primitive as G
 import           System.IO (IO)
@@ -48,6 +59,22 @@ data LoomResolved =
     , loomResolvedConfigs :: [LoomConfigResolved]
     } deriving (Eq, Show)
 
+-- | Represents the path to a loom file from the CWD
+-- eg.
+-- '.'
+-- 'lib/bikeshed'
+newtype LoomRoot =
+  LoomRoot {
+      loomRootFilePath :: FilePath
+    } deriving (Eq, Show)
+
+-- | Represents a resolved single file within a loom project
+data LoomFile =
+  LoomFile {
+      loomFileRoot :: LoomRoot
+    , loomFileRawPath :: FilePath
+    } deriving (Eq, Show)
+
 newtype LoomName =
   LoomName {
       renderLoomName :: Text
@@ -55,7 +82,7 @@ newtype LoomName =
 
 data LoomConfig =
   LoomConfig {
-      loomConfigRoot :: FilePath
+      loomConfigRoot :: LoomRoot
     , loomConfigName :: LoomName
     , loomConfigAssetsPreix :: AssetsPrefix
     , loomConfigComponents :: [FilePattern]
@@ -64,11 +91,11 @@ data LoomConfig =
 
 data LoomConfigResolved =
   LoomConfigResolved {
-      loomConfigResolvedRoot :: FilePath
+      loomConfigResolvedRoot :: LoomRoot
     , loomConfigResolvedName :: LoomName
     , loomConfigResolvedAssetsPrefix :: AssetsPrefix
-    , loomConfigResolvedComponents :: [FilePath]
-    , loomConfigResolvedSass :: [FilePath]
+    , loomConfigResolvedComponents :: [LoomFile]
+    , loomConfigResolvedSass :: [LoomFile]
     } deriving (Eq, Show)
 
 data LoomResult =
@@ -81,15 +108,61 @@ data LoomResult =
     , loomResultImages :: [ImageFile]
     }
 
-newtype ImageFile =
-  ImageFile {
-      imageFilePath :: FilePath
+data Component =
+  Component {
+      componentPath :: LoomFile
+    , componentSassFiles :: [ComponentFile]
+    , componentProjectorFiles :: [ComponentFile]
+    , componentMachinatorFiles :: [ComponentFile]
+    , componentImageFiles :: [ComponentFile]
+    } deriving (Eq, Show)
+
+data ComponentFile =
+  ComponentFile {
+      componentLoomFile :: LoomFile
+    , componentRawFilePath :: FilePath
     } deriving (Eq, Show)
 
 newtype AssetsPrefix =
   AssetsPrefix {
       assetsPrefix :: FilePath
     } deriving (Eq, Show)
+
+loomFilePath :: LoomFile -> FilePath
+loomFilePath (LoomFile r f) =
+  normalise $ loomRootFilePath r </> f
+
+componentName :: Component -> Text
+componentName =
+  T.pack . takeBaseName . loomFileRawPath . componentPath
+
+componentFilePath :: ComponentFile -> FilePath
+componentFilePath (ComponentFile r f) =
+  loomFilePath r </> f
+
+componentFilePathNoRoot :: ComponentFile -> FilePath
+componentFilePathNoRoot (ComponentFile r f) =
+  loomFileRawPath r </> f
+
+data ImageFile =
+  ImageFile {
+      imageLoomName :: LoomName
+    , imageComponentFile :: ComponentFile
+    } deriving (Eq, Show)
+
+imageFilePath :: ImageFile -> FilePath
+imageFilePath (ImageFile _ f) =
+  componentFilePath f
+
+cssAssetPath :: AssetsPrefix -> CssFile -> Text
+cssAssetPath apx f =
+  T.pack $
+    "/" <> assetsPrefix apx </> renderCssFile f
+
+imageAssetPath :: AssetsPrefix -> ImageFile -> Text
+imageAssetPath apx (ImageFile n f) =
+  T.pack $
+    "/" <> assetsPrefix apx </> (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
 
 compileFilePattern :: Text -> Either Text FilePattern
 compileFilePattern =
@@ -116,7 +189,11 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
   FilePattern $
     f1 <> G.literal "/" <> f2
 
-findFiles :: FilePath -> [FilePattern] -> IO [[FilePath]]
-findFiles root fps =
+findFiles :: LoomRoot -> [FilePattern] -> IO [[LoomFile]]
+findFiles root =
+  fmap (fmap (fmap ((LoomFile root)))) . findFiles' (loomRootFilePath root)
+
+findFiles' :: FilePath -> [FilePattern] -> IO [[FilePath]]
+findFiles' root fps =
   fmap (fmap (makeRelative root)) . fst <$>
      G.globDir (fmap (\(FilePattern g) -> g) fps) root

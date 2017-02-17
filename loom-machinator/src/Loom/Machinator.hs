@@ -17,7 +17,6 @@ import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
 import qualified Data.Char as Char
-import           Data.List (stripPrefix)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -29,7 +28,7 @@ import qualified Machinator.Haskell.Data.Types as MH
 import           P
 
 import           System.Directory (createDirectoryIfMissing)
-import           System.FilePath (FilePath, (</>), takeDirectory, dropExtension, joinPath)
+import           System.FilePath (FilePath, (</>), takeDirectory, dropExtension, joinPath, makeRelative)
 import           System.IO (IO)
 import           System.IO.Error (isDoesNotExistError)
 
@@ -82,7 +81,7 @@ compileMachinatorIncremental (MachinatorOutput d1) (MachinatorInput name root in
     m <- newEitherT . fmap (maybeToRight (MachinatorFileMissing f)) . readFileSafe $ f
     let
       n =
-        (T.unpack . renderModuleName $ name) <> (fromMaybe f . stripPrefix root) f
+        (T.unpack . renderModuleName) name </> makeRelative root f
     MC.Versioned _ (MC.DefinitionFile _ df) <-
       -- FIX We should be controlling the module name properly here
       hoistEither . first MachinatorError . MC.parseDefinitionFile n $ m
