@@ -54,9 +54,12 @@ test-suite test
                     , ambiata-p
                     , bytestring
                     , containers
+                    , directory                       == 1.2.*
+                    , filepath
                     , http-types
                     , QuickCheck                      == 2.8.*
                     , quickcheck-instances            == 0.3.*
+                    , temporary                       == 1.2.*
                     , text
                     , wai
                     , wai-extra                       == 3.0.*
