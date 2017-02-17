@@ -136,7 +136,7 @@ generateCabal name output mo po = do
       , "    , ambiata-loom-wai-assets"
       , "    , ambiata-projector-html-runtime"
       , ""
-      , "  ghc-options: -Wall -O2 -DCABAL"
+      , "  ghc-options: -Wall -O2 -DCABAL=1"
       , ""
       , "  exposed-modules:"
       , T.unlines . fmap ((<>) "    ") . mconcat $ [
