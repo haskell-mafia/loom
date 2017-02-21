@@ -27,6 +27,7 @@ library
                     , Glob                            == 0.7.*
                     , temporary                       == 1.2.*
                     , text                            >= 1.1        && < 1.3
+                    , time                            == 1.5.*
                     , transformers                    >= 0.4        && < 0.6
 
   ghc-options:
@@ -41,6 +42,7 @@ library
                     Loom.Build.Core
                     Loom.Build.Data
                     Loom.Build.Haskell
+                    Loom.Build.Logger
                     Loom.Build.Watch
 
 test-suite test
