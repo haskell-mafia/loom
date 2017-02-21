@@ -14,6 +14,7 @@ import           DependencyInfo_ambiata_loom_cli
 import           Loom.Build.Core
 import           Loom.Build.Data
 import           Loom.Build.Haskell
+import           Loom.Build.Logger
 import           Loom.Build.Watch
 import           Loom.Config.Toml
 import           Loom.Http
@@ -59,7 +60,13 @@ main = do
         sitePrefix <- sitePrefixEnv
         cwd <- getCurrentDirectory
         config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
-        orDie renderLoomCliError $ buildLoom' buildConfig config sitePrefix (defaultLoomSiteRoot config)
+        orDie renderLoomCliError $
+          buildLoom'
+            (newSimpleLogger stderr)
+            buildConfig
+            config
+            sitePrefix
+            (defaultLoomSiteRoot config)
       Watch port ->
         watch port
 
@@ -78,7 +85,12 @@ watch port = do
       run =
         MVar.modifyMVar_ v $ \_ -> do
           r <- runEitherT . firstT renderLoomCliError $
-            buildLoom' buildConfig config sitePrefix (defaultLoomSiteRoot config)
+            buildLoom'
+              (newSimpleLogger stderr)
+              buildConfig
+              config
+              sitePrefix
+              (defaultLoomSiteRoot config)
           IO.hPutStrLn stderr $ case r of
             Left e ->
               T.unpack e
@@ -103,8 +115,14 @@ watch port = do
 
 -----------
 
-buildLoom' :: LoomBuildConfig -> Loom -> LoomSitePrefix -> LoomSiteRoot -> EitherT LoomCliError IO ()
-buildLoom' buildConfig config sitePrefix siteRoot = do
+buildLoom' ::
+  Logger IO ->
+  LoomBuildConfig ->
+  Loom ->
+  LoomSitePrefix ->
+  LoomSiteRoot ->
+  EitherT LoomCliError IO ()
+buildLoom' logger buildConfig config sitePrefix siteRoot = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -112,10 +130,10 @@ buildLoom' buildConfig config sitePrefix siteRoot = do
   firstT LoomSiteError $
     generateLoomSiteStatic siteRoot
   r <- firstT LoomError $
-    buildLoom buildConfig sitePrefix config
-  firstT LoomHaskellError $
+    buildLoom (hoistLogger liftIO logger) buildConfig sitePrefix config
+  withLogIO logger "haskell" . firstT LoomHaskellError $
     generateHaskell (loomOutput config) sitePrefix (loomConfigAssetsPrefix . loomConfig $ config) r
-  firstT LoomSiteError $
+  withLogIO logger "site" . firstT LoomSiteError $
     generateLoomSite sitePrefix siteRoot (loomConfigAssetsPrefix . loomConfig $ config) r
 
 -----------

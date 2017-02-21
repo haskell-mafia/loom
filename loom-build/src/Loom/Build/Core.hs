@@ -18,6 +18,7 @@ import qualified Data.Text as T
 import           Loom.Build.Assets
 import           Loom.Build.Component
 import           Loom.Build.Data
+import           Loom.Build.Logger
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
@@ -53,13 +54,18 @@ initialiseBuild =
   LoomBuildConfig
     <$> (newEitherT . fmap (maybeToRight LoomMissingSassExecutable)) Sass.findSassOnPath
 
-buildLoom :: LoomBuildConfig -> LoomSitePrefix -> Loom -> EitherT LoomError IO LoomResult
-buildLoom buildConfig spx (Loom loomOutput' loomConfig' loomConfigs') = do
+buildLoom ::
+  Logger (EitherT LoomError IO) ->
+  LoomBuildConfig ->
+  LoomSitePrefix ->
+  Loom ->
+  EitherT LoomError IO LoomResult
+buildLoom logger buildConfig spx (Loom loomOutput' loomConfig' loomConfigs') = do
   resolved <- liftIO $
     LoomResolved loomOutput'
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  buildLoomResolved buildConfig spx resolved
+  buildLoomResolved logger buildConfig spx resolved
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -71,8 +77,13 @@ resolveLoom config =
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
-buildLoomResolved :: LoomBuildConfig -> LoomSitePrefix -> LoomResolved -> EitherT LoomError IO LoomResult
-buildLoomResolved (LoomBuildConfig sass) spx (LoomResolved output config others) = do
+buildLoomResolved ::
+  Logger (EitherT LoomError IO) ->
+  LoomBuildConfig ->
+  LoomSitePrefix ->
+  LoomResolved ->
+  EitherT LoomError IO LoomResult
+buildLoomResolved logger (LoomBuildConfig sass) spx (LoomResolved output config others) = do
   let
     configs =
       -- Need to make sure the dependencies are in reverse order
@@ -87,44 +98,45 @@ buildLoomResolved (LoomBuildConfig sass) spx (LoomResolved output config others)
     images = components >>= \(cr, cs) ->
       bind (\c -> fmap (ImageFile (loomConfigResolvedName cr)) . componentImageFiles $ c) cs
 
-  --- SASS ---
-  let
-    outputCss = Sass.CssFile $ (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
-    inputs =
-      mconcat . mconcat $ [
-          fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
-        , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
-        ]
-  newEitherT . Temp.withTempDirectory output "loom.css" $ \dir ->
-    runEitherT $ do
-      let
-        outputCssTemp = Sass.CssFile $ dir </> "loom-tmp.css"
-        outputCssAbs = Sass.CssFile $ output </> Sass.renderCssFile outputCss
-      firstT LoomSassError $
-        Sass.compileSass sass Sass.SassCompressed outputCssTemp inputs
-      liftIO $
-        prefixCssImageAssets spx (loomConfigResolvedAssetsPrefix config) images outputCssAbs outputCssTemp
+  outputCss <- withLog logger "sass" $ do
+    let
+      outputCss = Sass.CssFile $ (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
+      inputs =
+        mconcat . mconcat $ [
+            fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
+          , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
+          ]
+    newEitherT . Temp.withTempDirectory output "loom.css" $ \dir ->
+      runEitherT $ do
+        let
+          outputCssTemp = Sass.CssFile $ dir </> "loom-tmp.css"
+          outputCssAbs = Sass.CssFile $ output </> Sass.renderCssFile outputCss
+        firstT LoomSassError $
+          Sass.compileSass sass Sass.SassCompressed outputCssTemp inputs
+        liftIO $
+          prefixCssImageAssets spx (loomConfigResolvedAssetsPrefix config) images outputCssAbs outputCssTemp
+    pure outputCss
 
-  --- Machinator ---
-  let
-    mms = with components $ \(cr, cs) ->
-      MachinatorInput
-        (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
-        (loomRootFilePath . loomConfigResolvedRoot $ cr)
-        (bind (fmap componentFilePath . componentMachinatorFiles) cs)
-  mo <- firstT LoomMachinatorError $
-    Machinator.compileMachinator mms
+  mo <- withLog logger "machinator" $ do
+    let
+      mms = with components $ \(cr, cs) ->
+        MachinatorInput
+          (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
+          (loomRootFilePath . loomConfigResolvedRoot $ cr)
+          (bind (fmap componentFilePath . componentMachinatorFiles) cs)
+    firstT LoomMachinatorError $
+      Machinator.compileMachinator mms
 
-  --- Projector ---
-  let
-    pms = with components $ \(cr, cs) ->
-      Projector.ProjectorInput
-        (Projector.moduleNameFromFile . T.unpack . renderLoomName . loomConfigResolvedName $ cr)
-        (loomRootFilePath . loomConfigResolvedRoot $ cr)
-        (bind (fmap componentFilePath . componentProjectorFiles) cs)
-  po <- firstT LoomProjectorError $
-    Projector.compileProjector
-      (Map.fromList .
+  po <- withLog logger "projector" $ do
+    let
+      pms = with components $ \(cr, cs) ->
+        Projector.ProjectorInput
+          (Projector.moduleNameFromFile . T.unpack . renderLoomName . loomConfigResolvedName $ cr)
+          (loomRootFilePath . loomConfigResolvedRoot $ cr)
+          (bind (fmap componentFilePath . componentProjectorFiles) cs)
+    firstT LoomProjectorError $
+      Projector.compileProjector
+        (Map.fromList .
         fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
         Map.toList . Machinator.machinatorOutputDefinitions $ mo
         )
