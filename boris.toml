@@ -21,6 +21,11 @@
       ["bin/master", "build", "dist-7-10", "-C", "loom-machinator"]
     ]
 
+[build.dist-7-10-http]
+  command = [
+      ["bin/master", "build", "dist-7-10", "-C", "loom-http"]
+    ]
+
 [build.dist-7-10-process]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-process"]
@@ -34,6 +39,11 @@
 [build.dist-7-10-sass]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-sass"]
+    ]
+
+[build.dist-7-10-site]
+  command = [
+      ["bin/master", "build", "dist-7-10", "-C", "loom-site"]
     ]
 
 [build.dist-7-10-wai-assets]
@@ -61,6 +71,11 @@
       ["bin/master", "build", "branches-7-10", "-C", "loom-machinator"]
     ]
 
+[build.branches-7-10-http]
+  command = [
+      ["bin/master", "build", "branches-7-10", "-C", "loom-http"]
+    ]
+
 [build.branches-7-10-process]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-process"]
@@ -74,6 +89,11 @@
 [build.branches-7-10-sass]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-sass"]
+    ]
+
+[build.branches-7-10-site]
+  command = [
+      ["bin/master", "build", "branches-7-10", "-C", "loom-site"]
     ]
 
 [build.branches-7-10-wai-assets]

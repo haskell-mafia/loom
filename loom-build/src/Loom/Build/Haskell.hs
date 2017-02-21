@@ -33,8 +33,8 @@ data LoomHaskellError =
     LoomHaskellMachinatorError MachinatorHaskellError
   deriving (Show)
 
-generateHaskell :: FilePath -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
-generateHaskell output apx (LoomResult name _ mo po outputCss images) = do
+generateHaskell :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
+generateHaskell output spx apx (LoomResult _ name _ mo po outputCss images) = do
   void . firstT LoomHaskellMachinatorError $
     Machinator.generateMachinatorHaskell
       (output </> "src")
@@ -43,19 +43,19 @@ generateHaskell output apx (LoomResult name _ mo po outputCss images) = do
   void . liftIO $
     Projector.generateProjectorHaskell (output </> "src") po
   liftIO $
-    generateAssetHaskell name output apx outputCss images
+    generateAssetHaskell name output spx apx outputCss images
   liftIO $
     generateCabal name output mo po
 
-generateAssetHaskell :: LoomName -> FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
-generateAssetHaskell name output apx css images = do
+generateAssetHaskell :: LoomName -> FilePath -> LoomSitePrefix -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
+generateAssetHaskell name output spx apx css images = do
   let
     f = output </> "src" </> assetModulePath name
     q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
     q2 p t = "(\"" <> p <> "\", \"" <> T.pack t <> "\")"
   createDirectoryIfMissing True . takeDirectory $ f
-  css' <- fmap ((,) (cssAssetPath apx css)) . canonicalizePath $ output </> renderCssFile css
-  images' <- for images $ \i -> (,) (imageAssetPath apx i) <$> canonicalizePath (imageFilePath i)
+  css' <- fmap ((,) (cssAssetPath spx apx css)) . canonicalizePath $ output </> renderCssFile css
+  images' <- for images $ \i -> (,) (imageAssetPath spx apx i) <$> canonicalizePath (imageFilePath i)
   T.writeFile f $
     T.unlines [
         "{-# LANGUAGE CPP #-}"

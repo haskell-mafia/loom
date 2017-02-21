@@ -20,13 +20,13 @@ import           System.Directory (createDirectoryIfMissing, doesFileExist)
 import           System.FilePath (takeDirectory)
 import           System.IO (IO)
 
-prefixCssImageAssets :: AssetsPrefix -> [ImageFile] -> CssFile -> CssFile -> IO ()
-prefixCssImageAssets apx images out inp = do
+prefixCssImageAssets :: LoomSitePrefix -> AssetsPrefix -> [ImageFile] -> CssFile -> CssFile -> IO ()
+prefixCssImageAssets spx apx images out inp = do
   e <- doesFileExist (renderCssFile inp)
   when e $ do
     bs <- T.readFile (renderCssFile inp)
     createDirectoryIfMissing True . takeDirectory . renderCssFile $ out
-    T.writeFile (renderCssFile out) . prefixCssImageAssetsRaw (indexImageFiles apx images) $ bs
+    T.writeFile (renderCssFile out) . prefixCssImageAssetsRaw (indexImageFiles spx apx images) $ bs
 
 -- NOTE: Can't handle strings starting with 'url("'.
 prefixCssImageAssetsRaw :: Map Text Text -> Text -> Text
@@ -45,11 +45,11 @@ prefixCssImageAssetsRaw images t =
       h : ts ->
          T.concat $ h : fmap replace ts
 
-indexImageFiles :: AssetsPrefix -> [ImageFile] -> Map Text Text
-indexImageFiles apx images =
+indexImageFiles :: LoomSitePrefix -> AssetsPrefix -> [ImageFile] -> Map Text Text
+indexImageFiles spx apx images =
   Map.fromList . flip fmap images $ \i ->
     -- FIX Incorrectly using the component raw file path
     -- This will actually be fine until we have duplicate component/image paths
     (,)
       (T.pack . componentFilePathNoRoot $ imageComponentFile i)
-      (imageAssetPath apx i)
+      (imageAssetPath spx apx i)

@@ -19,3 +19,6 @@
 [submodule "lib/hydrant"]
 	path = lib/hydrant
 	url = git@github.com:ambiata/hydrant.git
+[submodule "lib/twine"]
+	path = lib/twine
+	url = git@github.com:ambiata/twine.git

@@ -55,31 +55,33 @@ initialiseBuild =
   LoomBuildConfig
     <$> (newEitherT . fmap (maybeToRight LoomMissingSassExecutable)) Sass.findSassOnPath
 
-buildLoom :: LoomBuildConfig -> Loom -> EitherT LoomError IO ()
-buildLoom buildConfig (Loom loomOutput' loomConfig' loomConfigs') = do
+buildLoom :: LoomBuildConfig -> LoomSitePrefix -> Loom -> EitherT LoomError IO LoomResult
+buildLoom buildConfig spx (Loom loomOutput' loomConfig' loomConfigs') = do
   resolved <- liftIO $
     LoomResolved loomOutput'
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  result <- buildLoomResolved buildConfig resolved
+  result <- buildLoomResolved buildConfig spx resolved
   firstT LoomHaskellError $
     generateHaskell
       (loomResolvedOutput resolved)
+      spx
       (loomConfigResolvedAssetsPrefix . loomResolvedConfig $ resolved)
       result
+  pure result
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
   LoomConfigResolved
     <$> (pure . loomConfigRoot) config
     <*> (pure . loomConfigName) config
-    <*> (pure . loomConfigAssetsPreix) config
+    <*> (pure . loomConfigAssetsPrefix) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
-buildLoomResolved :: LoomBuildConfig -> LoomResolved -> EitherT LoomError IO LoomResult
-buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = do
+buildLoomResolved :: LoomBuildConfig -> LoomSitePrefix -> LoomResolved -> EitherT LoomError IO LoomResult
+buildLoomResolved (LoomBuildConfig sass) spx (LoomResolved output config others) = do
   let
     configs =
       -- Need to make sure the dependencies are in reverse order
@@ -110,7 +112,7 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
       firstT LoomSassError $
         Sass.compileSass sass Sass.SassCompressed outputCssTemp inputs
       liftIO $
-        prefixCssImageAssets (loomConfigResolvedAssetsPrefix config) images outputCssAbs outputCssTemp
+        prefixCssImageAssets spx (loomConfigResolvedAssetsPrefix config) images outputCssAbs outputCssTemp
 
   --- Machinator ---
   let
@@ -139,6 +141,7 @@ buildLoomResolved (LoomBuildConfig sass) (LoomResolved output config others) = d
 
   pure $
     LoomResult
+      output
       (loomConfigResolvedName config)
       (bind snd components)
       mo

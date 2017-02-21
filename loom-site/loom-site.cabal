@@ -1,31 +1,34 @@
-name:                  ambiata-loom-build
+name:                  ambiata-loom-site
 version:               0.0.1
 license:               AllRightsReserved
 author:                Ambiata <info@ambiata.com>
 maintainer:            Ambiata <info@ambiata.com>
 copyright:             (c) 2016 Ambiata.
-synopsis:              loom-build
+synopsis:              loom-site
 category:              System
 cabal-version:         >= 1.8
 build-type:            Simple
-description:           loom-build
+description:           loom-site
+
+extra-source-files:
+                       assets/loom.css
+                     , assets/logo.svg
 
 library
   build-depends:
                       base                            >= 3          && < 5
                     , ambiata-p
+                    , ambiata-loom-build
                     , ambiata-loom-machinator
                     , ambiata-loom-projector
                     , ambiata-loom-sass
-                    , ambiata-twine
                     , ambiata-x-eithert
-                    , async                           == 2.1.*
-                    , containers                      >= 0.4        && < 0.6
+                    , blaze-html                      == 0.8.*
+                    , bytestring                      == 0.10.*
                     , directory                       == 1.2.*
+                    , exceptions                      == 0.8.*
+                    , file-embed                      == 0.0.*
                     , filepath                        >= 1.4        && < 1.6
-                    , fsnotify                        == 0.2.*
-                    , Glob                            == 0.7.*
-                    , temporary                       == 1.2.*
                     , text                            >= 1.1        && < 1.3
                     , transformers                    >= 0.4        && < 0.6
 
@@ -36,12 +39,7 @@ library
                     src
 
   exposed-modules:
-                    Loom.Build.Assets
-                    Loom.Build.Component
-                    Loom.Build.Core
-                    Loom.Build.Data
-                    Loom.Build.Haskell
-                    Loom.Build.Watch
+                    Loom.Site
 
 test-suite test
   type:
@@ -58,14 +56,12 @@ test-suite test
 
   build-depends:
                       base                            >= 3          && < 5
-                    , ambiata-loom-build
+                    , ambiata-loom-site
                     , ambiata-disorder-core
                     , ambiata-disorder-jack
                     , ambiata-p
-                    , containers
                     , QuickCheck                      == 2.8.*
                     , quickcheck-instances            == 0.3.*
-                    , text
 
 test-suite test-io
   type:
@@ -86,14 +82,14 @@ test-suite test-io
                     , ambiata-disorder-eithert
                     , ambiata-disorder-jack
                     , ambiata-loom-build
+                    , ambiata-loom-sass
+                    , ambiata-loom-site
                     , ambiata-p
-                    , ambiata-twine
                     , ambiata-x-eithert
-                    , async
                     , directory
                     , filepath
                     , QuickCheck                      == 2.8.*
                     , quickcheck-instances            == 0.3.*
-                    , temporary
+                    , temporary                       == 1.2.*
                     , text
                     , transformers

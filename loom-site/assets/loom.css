@@ -1,0 +1,137 @@
+/*
+ * WARNING: This style sheet will be used on the same page as the embedded source style sheet.
+ * To avoid accidental clashes it's critical that every class name be prefixed with "loom-",
+ * and no element rules added.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  color: #333;
+  background-color: #f2f2f2;
+  line-height: 1.4;
+  font-family: "Helvetica Neue",Helvetica,Arial,Geneva,sans-serif;
+  font-size: 18px;
+}
+
+.loom-logo-small img {
+  float: left;
+  width: 35px;
+}
+
+.loom-img {
+  border: 0;
+}
+
+.loom-pane-header {
+  background: #fff;
+}
+
+.loom-navigation-global {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 15px 0;
+}
+
+.loom-navigation-global:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.loom-navigation-global__internal {
+  max-width: 1050px;
+  margin: 0 auto;
+}
+
+.loom-navigation-global__internal:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.loom-navigation-global__items {
+  margin: 0;
+  padding: 3px 0 0;
+  list-style: none;
+}
+
+.loom-ul {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.loom-list-unstyled {
+  padding-left: 0;
+  list-style: none;
+}
+
+.loom-navigation-global__items a:visited {
+  color: #333;
+}
+
+.loom-navigation-global__items a {
+  float: left;
+  margin-left: 30px;
+  color: #333;
+  text-decoration: none;
+}
+
+.loom-a:visited {
+  color: #10626c;
+}
+
+.loom-a:link {
+  color: #1f7c8a;
+}
+
+.loom-navigation-global__items__current a {
+  color: #1f7c8a;
+  font-weight: bold;
+}
+
+.loom-navigation-global__items__current a:visited {
+  color: #1f7c8a;
+}
+
+.loom-a {
+  background-color: transparent;
+}
+
+.loom-pane-main {
+  display: block;
+  padding: 30px 20px 40px;
+}
+
+.loom-container-medium {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.loom-page-heading {
+  margin-bottom: 25px;
+}
+
+.loom-h1 {
+  font-size: 36px;
+}
+
+.loom-h1,
+.loom-h2,
+.loom-h3 {
+  margin: 0 0 .5em;
+}
+
+.loom-h1,
+.loom-h2,
+.loom-h3,
+.loom-h4,
+.loom-h5,
+.loom-h6 {
+  color: #555;
+  font-weight: 700;
+  line-height: 1.1;
+}
