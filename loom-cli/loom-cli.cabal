@@ -25,11 +25,17 @@ executable loom
                       base
                     , ambiata-loom-build
                     , ambiata-loom-config-toml
+                    , ambiata-loom-http
+                    , ambiata-loom-site
                     , ambiata-p
+                    , ambiata-twine
                     , ambiata-x-eithert
                     , ambiata-x-optparse
+                    , async                           == 2.1.*
                     , directory                       == 1.2.*
                     , text
+                    , transformers                    >= 0.4        && < 0.6
+                    , warp                            == 3.0.*
 
 test-suite test-cli
   type:

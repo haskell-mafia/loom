@@ -13,6 +13,7 @@ module Loom.Build.Data (
   , Component (..)
   , ComponentFile (..)
   , ImageFile (..)
+  , LoomSitePrefix (..)
   , AssetsPrefix (..)
   , loomFilePath
   , componentName
@@ -20,7 +21,9 @@ module Loom.Build.Data (
   , componentFilePathNoRoot
   , imageFilePath
   , imageAssetPath
+  , imageAssetFilePath
   , cssAssetPath
+  , cssAssetFilePath
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
@@ -38,7 +41,7 @@ import           Loom.Sass (CssFile (..))
 
 import           P
 
-import           System.FilePath (FilePath, (</>), makeRelative, takeBaseName, normalise)
+import           System.FilePath (FilePath, (</>), makeRelative, normalise)
 import qualified System.FilePath.Glob as G
 import qualified System.FilePath.Glob.Primitive as G
 import           System.IO (IO)
@@ -102,7 +105,8 @@ data LoomConfigResolved =
 
 data LoomResult =
   LoomResult {
-      loomResultName :: LoomName
+      loomResultDestination :: FilePath
+    , loomResultName :: LoomName
     , loomResultComponents :: [Component]
     , loomResultMachinatorOutput :: MachinatorOutput
     , loomResultProjectorOutput :: ProjectorOutput
@@ -125,6 +129,14 @@ data ComponentFile =
     , componentRawFilePath :: FilePath
     } deriving (Eq, Show)
 
+-- | Represents the logical prefix to be used for the root for all absolute paths
+-- By default this will be "/" but for generating paths for commit-specific sites,
+-- such as on a build, this can be configured.
+newtype LoomSitePrefix =
+  LoomSitePrefix {
+      loomSitePrefix :: Text
+    } deriving (Eq, Show)
+
 newtype AssetsPrefix =
   AssetsPrefix {
       assetsPrefix :: FilePath
@@ -136,7 +148,7 @@ loomFilePath (LoomFile r f) =
 
 componentName :: Component -> Text
 componentName =
-  T.pack . takeBaseName . loomFileRawPath . componentPath
+  T.pack . loomFileRawPath . componentPath
 
 componentFilePath :: ComponentFile -> FilePath
 componentFilePath (ComponentFile r f) =
@@ -156,15 +168,21 @@ imageFilePath :: ImageFile -> FilePath
 imageFilePath (ImageFile _ f) =
   componentFilePath f
 
-cssAssetPath :: AssetsPrefix -> CssFile -> Text
-cssAssetPath apx f =
-  T.pack $
-    "/" <> assetsPrefix apx </> renderCssFile f
+cssAssetPath :: LoomSitePrefix -> AssetsPrefix -> CssFile -> Text
+cssAssetPath p apx f =
+  loomSitePrefix p <> (T.pack . cssAssetFilePath apx) f
 
-imageAssetPath :: AssetsPrefix -> ImageFile -> Text
-imageAssetPath apx (ImageFile n f) =
-  T.pack $
-    "/" <> assetsPrefix apx </> (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
+cssAssetFilePath :: AssetsPrefix -> CssFile -> FilePath
+cssAssetFilePath apx f =
+  assetsPrefix apx </> renderCssFile f
+
+imageAssetPath :: LoomSitePrefix -> AssetsPrefix -> ImageFile -> Text
+imageAssetPath p apx f =
+  loomSitePrefix p <> (T.pack . imageAssetFilePath apx) f
+
+imageAssetFilePath :: AssetsPrefix -> ImageFile -> FilePath
+imageAssetFilePath apx (ImageFile n f) =
+  assetsPrefix apx </> (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
 
 compileFilePattern :: Text -> Either Text FilePattern
 compileFilePattern =
