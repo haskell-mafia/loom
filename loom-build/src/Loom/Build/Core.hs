@@ -75,7 +75,7 @@ resolveLoom config =
   LoomConfigResolved
     <$> (pure . loomConfigRoot) config
     <*> (pure . loomConfigName) config
-    <*> (pure . loomConfigAssetsPreix) config
+    <*> (pure . loomConfigAssetsPrefix) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
 

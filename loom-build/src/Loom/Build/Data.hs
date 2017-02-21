@@ -89,7 +89,7 @@ data LoomConfig =
   LoomConfig {
       loomConfigRoot :: LoomRoot
     , loomConfigName :: LoomName
-    , loomConfigAssetsPreix :: AssetsPrefix
+    , loomConfigAssetsPrefix :: AssetsPrefix
     , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
     } deriving (Eq, Show)
