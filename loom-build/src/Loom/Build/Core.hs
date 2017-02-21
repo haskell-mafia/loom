@@ -18,7 +18,6 @@ import qualified Data.Text as T
 import           Loom.Build.Assets
 import           Loom.Build.Component
 import           Loom.Build.Data
-import           Loom.Build.Haskell
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
@@ -47,7 +46,6 @@ data LoomError =
   | LoomComponentError ComponentError
   | LoomProjectorError ProjectorError
   | LoomMachinatorError MachinatorError
-  | LoomHaskellError LoomHaskellError
   deriving (Show)
 
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
@@ -61,14 +59,7 @@ buildLoom buildConfig spx (Loom loomOutput' loomConfig' loomConfigs') = do
     LoomResolved loomOutput'
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  result <- buildLoomResolved buildConfig spx resolved
-  firstT LoomHaskellError $
-    generateHaskell
-      (loomResolvedOutput resolved)
-      spx
-      (loomConfigResolvedAssetsPrefix . loomResolvedConfig $ resolved)
-      result
-  pure result
+  buildLoomResolved buildConfig spx resolved
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -166,5 +157,3 @@ renderLoomError le =
       Projector.renderProjectorError e
     LoomMachinatorError e ->
       Machinator.renderMachinatorError e
-    LoomHaskellError e ->
-      renderLoomHaskellError e
