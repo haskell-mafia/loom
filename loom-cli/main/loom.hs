@@ -13,6 +13,7 @@ import           DependencyInfo_ambiata_loom_cli
 
 import           Loom.Build.Core
 import           Loom.Build.Data
+import           Loom.Build.Haskell
 import           Loom.Build.Watch
 import           Loom.Config.Toml
 import           Loom.Http
@@ -42,6 +43,7 @@ data Command =
 
 data LoomCliError =
     LoomError LoomError
+  | LoomHaskellError LoomHaskellError
   | LoomSiteError LoomSiteError
 
 -----------
@@ -111,6 +113,8 @@ buildLoom' buildConfig config sitePrefix siteRoot = do
     generateLoomSiteStatic siteRoot
   r <- firstT LoomError $
     buildLoom buildConfig sitePrefix config
+  firstT LoomHaskellError $
+    generateHaskell (loomOutput config) sitePrefix (loomConfigAssetsPrefix . loomConfig $ config) r
   firstT LoomSiteError $
     generateLoomSite sitePrefix siteRoot (loomConfigAssetsPrefix . loomConfig $ config) r
 
@@ -146,5 +150,7 @@ renderLoomCliError le =
   case le of
     LoomError e ->
       renderLoomError e
+    LoomHaskellError e ->
+      renderLoomHaskellError e
     LoomSiteError e ->
       renderLoomSiteError e
