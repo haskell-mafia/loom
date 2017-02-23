@@ -8,10 +8,12 @@ module Loom.Build.Core (
   , buildLoom
   , renderLoomBuildInitisationError
   , renderLoomError
+  , machinatorOutputToProjector
   ) where
 
 import           Control.Monad.IO.Class (liftIO)
 
+import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -135,12 +137,14 @@ buildLoomResolved logger (LoomBuildConfig sass) spx (LoomResolved output config 
           (loomRootFilePath . loomConfigResolvedRoot $ cr)
           (bind (fmap componentFilePath . componentProjectorFiles) cs)
     firstT LoomProjectorError $
-      Projector.compileProjector
-        (Map.fromList .
-        fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
-        Map.toList . Machinator.machinatorOutputDefinitions $ mo
-        )
-      pms
+      foldMapM
+        (Projector.compileProjector
+          (Map.fromList .
+            fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
+            Map.toList . Machinator.machinatorOutputDefinitions $ mo
+            )
+          )
+        pms
 
   pure $
     LoomResult
@@ -151,6 +155,14 @@ buildLoomResolved logger (LoomBuildConfig sass) spx (LoomResolved output config 
       po
       outputCss
       images
+
+machinatorOutputToProjector ::
+  Machinator.MachinatorOutput ->
+  Map Projector.DataModuleName [Machinator.Definition]
+machinatorOutputToProjector =
+  Map.fromList .
+    fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
+    Map.toList . Machinator.machinatorOutputDefinitions
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
@@ -169,3 +181,7 @@ renderLoomError le =
       Projector.renderProjectorError e
     LoomMachinatorError e ->
       Machinator.renderMachinatorError e
+
+foldMapM :: (Foldable t, Monad m, Monoid b) => (b -> a -> m b) -> t a  -> m b
+foldMapM f =
+  foldM (\b -> fmap (mappend b) . f b) mempty

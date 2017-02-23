@@ -6,6 +6,7 @@ module Loom.Machinator (
   , MachinatorInput (..)
   , MachinatorOutput (..)
   , ModuleName (..)
+  , MC.Definition
   , machinatorOutputModules
   , compileMachinator
   , generateMachinatorHaskell
