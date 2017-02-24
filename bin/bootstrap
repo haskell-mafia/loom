@@ -1,0 +1,5 @@
+#!/bin/sh -eu
+
+git submodule update --init
+cd loom-cli
+./mafia build
