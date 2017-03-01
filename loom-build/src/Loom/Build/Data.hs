@@ -211,11 +211,15 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
 
 loomWatchPatterns :: Loom -> [FilePattern]
 loomWatchPatterns (Loom _ c cs) =
-  c : cs >>= \(LoomConfig _ _ _ comps sass) ->
-    mconcat [
-        comps >>= \cp -> fmap (appendFilePattern cp) componentFilePatterns
-      , sass
-      ]
+  c : cs >>= \(LoomConfig r _ _ comps sass) ->
+    let
+      rfp = FilePattern . G.literal . loomRootFilePath $ r
+    in
+      mconcat [
+          comps >>= \cp ->
+            fmap (appendFilePattern rfp . appendFilePattern cp) componentFilePatterns
+        , sass
+        ]
 
 componentFilePatterns :: [FilePattern]
 componentFilePatterns =
