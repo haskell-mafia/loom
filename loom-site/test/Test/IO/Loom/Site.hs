@@ -51,12 +51,11 @@ prop_site =
           (LoomSiteRoot dirOut)
           (AssetsPrefix "assets")
           (LoomResult
-            dir1
             (LoomName "test")
             components
             mempty
             mempty
-            (CssFile "test.css")
+            (CssFile $ dir1 </> "test.css")
             [ImageFile (LoomName "c1") (ComponentFile f1 "x.svg")]
             )
         fmap J.conjoin . lift . sequence $ [

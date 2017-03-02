@@ -4,6 +4,7 @@ module Loom.Build.Data (
     FilePattern (..)
   , Loom (..)
   , LoomResolved (..)
+  , LoomTmp (..)
   , LoomRoot (..)
   , LoomFile (..)
   , LoomName (..)
@@ -64,6 +65,15 @@ data LoomResolved =
     , loomResolvedConfigs :: [LoomConfigResolved]
     } deriving (Eq, Show)
 
+-- | Directory location for storing any temporary files during the loom build
+--
+-- Defaults to '.loom/'
+--
+newtype LoomTmp =
+  LoomTmp {
+      loomTmpFilePath :: FilePath
+    } deriving (Eq, Show)
+
 -- | Represents the path to a loom file from the CWD
 -- eg.
 -- '.'
@@ -105,8 +115,7 @@ data LoomConfigResolved =
 
 data LoomResult =
   LoomResult {
-      loomResultDestination :: FilePath
-    , loomResultName :: LoomName
+      loomResultName :: LoomName
     , loomResultComponents :: [Component]
     , loomResultMachinatorOutput :: MachinatorOutput
     , loomResultProjectorOutput :: ProjectorOutput

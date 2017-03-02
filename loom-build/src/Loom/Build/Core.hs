@@ -17,7 +17,6 @@ import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
-import           Loom.Build.Assets
 import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Build.Logger
@@ -30,12 +29,10 @@ import qualified Loom.Sass as Sass
 
 import           P
 
-import           System.Directory (createDirectoryIfMissing)
 import           System.FilePath ((</>))
 import           System.IO (IO)
-import qualified System.IO.Temp as Temp
 
-import           X.Control.Monad.Trans.Either (EitherT, newEitherT, runEitherT)
+import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
 
 data LoomBuildConfig =
   LoomBuildConfig Sass
@@ -59,15 +56,15 @@ initialiseBuild =
 buildLoom ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
-  LoomSitePrefix ->
+  LoomTmp ->
   Loom ->
   EitherT LoomError IO LoomResult
-buildLoom logger buildConfig spx (Loom loomOutput' loomConfig' loomConfigs') = do
+buildLoom logger buildConfig dir (Loom loomOutput' loomConfig' loomConfigs') = do
   resolved <- liftIO $
     LoomResolved loomOutput'
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  buildLoomResolved logger buildConfig spx resolved
+  buildLoomResolved logger buildConfig dir resolved
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -82,18 +79,16 @@ resolveLoom config =
 buildLoomResolved ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
-  LoomSitePrefix ->
+  LoomTmp ->
   LoomResolved ->
   EitherT LoomError IO LoomResult
-buildLoomResolved logger (LoomBuildConfig sass) spx (LoomResolved output config others) = do
+buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved _output config others) = do
   let
     configs =
       -- Need to make sure the dependencies are in reverse order
       reverse $ config : others
   components <- firstT LoomComponentError . for configs $ \c ->
     fmap ((,) c) . resolveComponents . loomConfigResolvedComponents $ c
-
-  liftIO $ createDirectoryIfMissing True output
 
   --- Images ---
   let
@@ -102,21 +97,14 @@ buildLoomResolved logger (LoomBuildConfig sass) spx (LoomResolved output config 
 
   outputCss <- withLog logger "sass" $ do
     let
-      outputCss = Sass.CssFile $ (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
+      outputCss = Sass.CssFile $ loomTmpFilePath dir </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
       inputs =
         mconcat . mconcat $ [
             fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
           , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
           ]
-    newEitherT . Temp.withTempDirectory output "loom.css" $ \dir ->
-      runEitherT $ do
-        let
-          outputCssTemp = Sass.CssFile $ dir </> "loom-tmp.css"
-          outputCssAbs = Sass.CssFile $ output </> Sass.renderCssFile outputCss
-        firstT LoomSassError $
-          Sass.compileSass sass Sass.SassCompressed outputCssTemp inputs
-        liftIO $
-          prefixCssImageAssets spx (loomConfigResolvedAssetsPrefix config) images outputCssAbs outputCssTemp
+    firstT LoomSassError $
+      Sass.compileSass sass Sass.SassCompressed outputCss inputs
     pure outputCss
 
   mo <- withLog logger "machinator" $ do
@@ -148,7 +136,6 @@ buildLoomResolved logger (LoomBuildConfig sass) spx (LoomResolved output config 
 
   pure $
     LoomResult
-      output
       (loomConfigResolvedName config)
       (bind snd components)
       mo
