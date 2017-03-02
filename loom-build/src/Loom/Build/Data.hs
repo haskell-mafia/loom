@@ -225,10 +225,14 @@ componentFilePatterns :: [FilePattern]
 componentFilePatterns =
   [
       FilePattern $ G.wildcard <> G.literal ".prj"
+    , FilePattern $ G.wildcard <> G.literal ".mcn"
     , FilePattern $ G.wildcard <> G.literal ".scss"
     , FilePattern $ G.wildcard <> G.literal ".svg"
     , FilePattern $ G.wildcard <> G.literal ".png"
     , FilePattern $ G.wildcard <> G.literal ".jpg"
+    , FilePattern $ G.literal "README.md"
+    , FilePattern $ G.literal "example/" <> G.wildcard <> G.literal ".prj"
+    , FilePattern $ G.literal "mock/" <> G.wildcard <> G.literal ".prj"
     ]
 
 matchFilePatterns :: [FilePattern] -> FilePath -> Bool

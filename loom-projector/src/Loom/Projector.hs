@@ -2,23 +2,30 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Projector (
     ProjectorError (..)
+  , ProjectorInterpretError (..)
   , ProjectorInput (..)
   , ProjectorOutput
   , MachinatorModules
   , projectorOutputModules
+  , projectorOutputModuleExprs
   , DataModuleName (..)
   , ModuleName (..)
+  , Projector.Html (..)
+  , Projector.Attribute (..)
   , compileProjector
+  , generateProjectorHtml
   , generateProjectorHaskell
   , moduleNameFromFile
   , requiredProjectorHaskellImports
   , renderProjectorError
+  , renderProjectorInterpretError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
 import           Data.List (stripPrefix)
+import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -27,10 +34,14 @@ import qualified Machinator.Core as MC
 
 import           P
 
-import           Projector.Html (DataModuleName (..), ModuleName (..))
+import           Projector.Html (DataModuleName (..), ModuleName (..), HtmlExpr, HtmlType)
+import           Projector.Html.Data.Annotation (SrcAnnotation)
 import qualified Projector.Html as Projector
 import qualified Projector.Html.Core.Machinator as Projector
 import qualified Projector.Html.Data.Backend as Projector
+import qualified Projector.Html.Data.Module as Projector
+import qualified Projector.Html.Interpreter as Projector
+import qualified Projector.Core as Projector
 
 import           System.Directory (createDirectoryIfMissing)
 import           System.FilePath (FilePath, (</>), takeDirectory, joinPath)
@@ -43,6 +54,10 @@ data ProjectorError =
     ProjectorFileMissing FilePath
   | ProjectorError [Projector.HtmlError]
     deriving (Eq, Show)
+
+data ProjectorInterpretError =
+    ProjectorInterpretError (Projector.InterpretError (HtmlType, SrcAnnotation))
+  deriving (Eq, Show)
 
 data ProjectorInput =
   ProjectorInput {
@@ -67,22 +82,21 @@ projectorOutputModules :: ProjectorOutput -> [ModuleName]
 projectorOutputModules (ProjectorOutput (Projector.BuildArtefacts _ ms)) =
   Map.keys ms
 
+projectorOutputModuleExprs ::
+  ProjectorOutput ->
+  Map ModuleName [HtmlExpr (HtmlType, SrcAnnotation)]
+projectorOutputModuleExprs (ProjectorOutput (Projector.BuildArtefacts _ ms)) =
+  fmap (fmap snd . Map.elems . Projector.moduleExprs) $ ms
+
 -- FIX Should be in machinator
 type MachinatorModules = Map.Map Projector.DataModuleName [MC.Definition]
 
 compileProjector ::
   MachinatorModules ->
-  [ProjectorInput] ->
-  EitherT ProjectorError IO ProjectorOutput
-compileProjector udts =
-  foldM (compileProjectorIncremental udts) mempty
-
-compileProjectorIncremental ::
-  MachinatorModules ->
   ProjectorOutput ->
   ProjectorInput ->
   EitherT ProjectorError IO ProjectorOutput
-compileProjectorIncremental
+compileProjector
   udts
   (ProjectorOutput (Projector.BuildArtefacts _ oh1))
   (ProjectorInput prefix root inputs) = do
@@ -107,7 +121,17 @@ compileProjectorIncremental
       (Projector.RawTemplates . fmap (first (moduleNameToFile "prj")) $ templates)
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
-  pure $ ProjectorOutput (Projector.BuildArtefacts mempty (oh1 <> oh2))
+  pure $ ProjectorOutput (Projector.BuildArtefacts mempty oh2)
+
+generateProjectorHtml ::
+  MachinatorModules ->
+  ProjectorOutput ->
+  Projector.HtmlExpr (HtmlType, SrcAnnotation) ->
+  Either ProjectorInterpretError Projector.Html
+generateProjectorHtml mo (ProjectorOutput (Projector.BuildArtefacts _ h)) =
+  first ProjectorInterpretError . Projector.interpret
+    (Projector.machinatorDecls . join $ Map.elems mo)
+    (Projector.extractModuleExprs h)
 
 generateProjectorHaskell :: FilePath -> ProjectorOutput -> IO [FilePath]
 generateProjectorHaskell output (ProjectorOutput (Projector.BuildArtefacts _ oh2)) =
@@ -142,6 +166,13 @@ renderProjectorError pe =
       "Could not find file: " <> T.pack f
     ProjectorError es ->
       "Projector build errors:\n" <> T.unlines (fmap Projector.renderHtmlError es)
+
+renderProjectorInterpretError :: ProjectorInterpretError -> Text
+renderProjectorInterpretError pe =
+  case pe of
+    ProjectorInterpretError (Projector.InterpretInvalidExpression e) ->
+      -- FIX Better error message from projector
+      "Error interpretting expression:\n" <> Projector.ppExpr e
 
 -- FIX Common module?
 readFileSafe :: MonadIO m => FilePath -> m (Maybe Text)

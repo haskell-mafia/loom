@@ -16,6 +16,7 @@ library
                     , ambiata-machinator-core
                     , ambiata-machinator-haskell
                     , ambiata-p
+                    , ambiata-projector-core
                     , ambiata-projector-html
                     , ambiata-loom-process
                     , ambiata-x-eithert
