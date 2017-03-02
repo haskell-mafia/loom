@@ -1,0 +1,97 @@
+#!/bin/sh -eu
+
+: ${LOOM_HOME:=$HOME/.loom}
+LOOM_DIR="$(git rev-parse --show-toplevel)/lib/loom"
+
+latest_version () {
+  git submodule status | grep "loom " | cut -c 2-41
+}
+
+local_version () {
+  awk '/^# Version: / { print $3; exit 0; }' $0
+}
+
+run_upgrade () {
+  LOOM_TEMP=$(mktemp 2>/dev/null || mktemp -t 'upgrade_loom')
+
+  clean_up () {
+    rm -f "$LOOM_TEMP"
+  }
+
+  trap clean_up EXIT
+
+  LOOM_CUR="$0"
+
+  if [ -L "$LOOM_CUR" ]; then
+    echo 'Refusing to overwrite a symlink; run `upgrade` from the canonical path.' >&2
+    exit 1
+  fi
+
+  echo "Checking for a new version of loom ..."
+  cp "${LOOM_DIR}/script/loom" $LOOM_TEMP
+
+  LATEST_VERSION=$(latest_version)
+  echo "# Version: $LATEST_VERSION" >> $LOOM_TEMP
+
+  if ! cmp $LOOM_CUR $LOOM_TEMP >/dev/null 2>&1; then
+    mv $LOOM_TEMP $LOOM_CUR
+    chmod +x $LOOM_CUR
+    echo "New version found and upgraded. You can now commit it to your git repo."
+  else
+    echo "You have latest loom."
+  fi
+}
+
+exec_loom () {
+  LOOM_VERSION=$(local_version)
+
+  if [ "x$LOOM_VERSION" = "x" ]; then
+    # If we can't find the loom version, then we need to upgrade the script.
+    run_upgrade
+  else
+    LOOM_BIN=$LOOM_HOME/bin
+    LOOM_FILE=loom-$LOOM_VERSION
+    LOOM_PATH=$LOOM_BIN/$LOOM_FILE
+
+    [ -f "$LOOM_PATH" ] || {
+
+      # Create a temporary file in LOOM_BIN so we can do an atomic copy/move dance.
+      mkdir -p $LOOM_BIN
+
+      echo "Building $LOOM_FILE in $LOOM_DIR"
+
+      ( cd $LOOM_DIR
+        bin/bootstrap ) || exit $?
+
+      LOOM_PATH_TEMP=$(mktemp --tmpdir=$LOOM_BIN $LOOM_FILE-XXXXXX 2>/dev/null || TMPDIR=$LOOM_BIN mktemp -t $LOOM_FILE)
+
+      clean_up_temp () {
+        rm -f "$LOOM_PATH_TEMP"
+      }
+      trap clean_up_temp EXIT
+
+      cp "${LOOM_DIR}/loom-cli/dist/build/loom/loom" "$LOOM_PATH_TEMP"
+      chmod 755 "$LOOM_PATH_TEMP"
+      mv "$LOOM_PATH_TEMP" "$LOOM_PATH"
+
+      clean_up_temp
+    }
+
+    exec $LOOM_PATH "$@"
+  fi
+}
+
+#
+# The actual start of the script.....
+#
+
+if [ $# -gt 0 ]; then
+  MODE="$1"
+else
+  MODE=""
+fi
+
+case "$MODE" in
+upgrade) shift; run_upgrade "$@" ;;
+*) exec_loom "$@"
+esac
