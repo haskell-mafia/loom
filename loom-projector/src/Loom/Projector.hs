@@ -29,6 +29,7 @@ import           P
 
 import           Projector.Html (DataModuleName (..), ModuleName (..))
 import qualified Projector.Html as Projector
+import qualified Projector.Html.Core.Machinator as Projector
 import qualified Projector.Html.Data.Backend as Projector
 
 import           System.Directory (createDirectoryIfMissing)
@@ -90,6 +91,9 @@ compileProjectorIncremental
     fmap ((,) (moduleNameFromFile . fromMaybe input . stripPrefix root $ input)) .
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
         input
+  let
+    decls =
+      Projector.machinatorDecls . join . Map.elems $ udts
   Projector.BuildArtefacts _ oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
       (Projector.Build
@@ -98,9 +102,11 @@ compileProjectorIncremental
         (Projector.moduleNamerSimple (Just prefix))
         (Map.keys udts)
         )
-      (Projector.UserDataTypes . join . Map.elems $ udts)
+      (Projector.UserDataTypes decls)
       oh1
       (Projector.RawTemplates . fmap (first (moduleNameToFile "prj")) $ templates)
+  hoistEither . first ProjectorError $
+    Projector.warnModules decls oh2
   pure $ ProjectorOutput (Projector.BuildArtefacts mempty (oh1 <> oh2))
 
 generateProjectorHaskell :: FilePath -> ProjectorOutput -> IO [FilePath]
