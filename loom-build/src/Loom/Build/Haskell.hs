@@ -15,7 +15,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import           Loom.Build.Data
-import           Loom.Projector (ProjectorOutput)
+import           Loom.Projector (ProjectorHaskellError, ProjectorOutput)
 import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorHaskellError, MachinatorOutput)
 import qualified Loom.Machinator as Machinator
@@ -31,6 +31,7 @@ import           X.Control.Monad.Trans.Either (EitherT)
 
 data LoomHaskellError =
     LoomHaskellMachinatorError MachinatorHaskellError
+  | LoomHaskellProjectorError ProjectorHaskellError
   deriving (Show)
 
 generateHaskell :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
@@ -40,7 +41,7 @@ generateHaskell output spx apx (LoomResult _ name _ mo po outputCss images) = do
       (output </> "src")
       (Machinator.ModuleName . Projector.unModuleName <$> Projector.requiredProjectorHaskellImports)
       mo
-  void . liftIO $
+  void . firstT LoomHaskellProjectorError $
     Projector.generateProjectorHaskell (output </> "src") po
   liftIO $
     generateAssetHaskell name output spx apx outputCss images
@@ -173,3 +174,5 @@ renderLoomHaskellError he =
   case he of
     LoomHaskellMachinatorError e ->
       Machinator.renderMachinatorHaskellError e
+    LoomHaskellProjectorError e ->
+      Projector.renderProjectorHaskellError e

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Projector (
     ProjectorError (..)
+  , ProjectorHaskellError (..)
   , ProjectorInterpretError (..)
   , ProjectorInput (..)
   , ProjectorOutput
@@ -18,6 +19,7 @@ module Loom.Projector (
   , moduleNameFromFile
   , requiredProjectorHaskellImports
   , renderProjectorError
+  , renderProjectorHaskellError
   , renderProjectorInterpretError
   ) where
 
@@ -54,6 +56,10 @@ data ProjectorError =
     ProjectorFileMissing FilePath
   | ProjectorError [Projector.HtmlError]
     deriving (Eq, Show)
+
+data ProjectorHaskellError =
+    ProjectorHaskellError Projector.HtmlError
+  deriving (Eq, Show)
 
 data ProjectorInterpretError =
     ProjectorInterpretError (Projector.InterpretError (HtmlType, SrcAnnotation))
@@ -133,16 +139,19 @@ generateProjectorHtml mo (ProjectorOutput (Projector.BuildArtefacts _ h)) =
     (Projector.machinatorDecls . join $ Map.elems mo)
     (Projector.extractModuleExprs h)
 
-generateProjectorHaskell :: FilePath -> ProjectorOutput -> IO [FilePath]
+generateProjectorHaskell :: FilePath -> ProjectorOutput -> EitherT ProjectorHaskellError IO [FilePath]
 generateProjectorHaskell output (ProjectorOutput (Projector.BuildArtefacts _ oh2)) =
   for (Map.toList oh2) $ \(n, m) -> do
     let
-      -- TODO validateModules
-      -- https://github.com/ambiata/projector/blob/master/projector-html/src/Projector/Html.hs#L216
-      (_, t) = Projector.codeGenModule Projector.Haskell n m
       f = moduleNameToFile "hs" n
-    createDirectoryIfMissing True (output </> takeDirectory f)
-    T.writeFile (output </> f) t
+    -- TODO validateModules
+    -- https://github.com/ambiata/projector/blob/master/projector-html/src/Projector/Html.hs#L216
+    (_, t) <- hoistEither . first ProjectorHaskellError $
+      Projector.codeGenModule Projector.Haskell n m
+    liftIO $
+      createDirectoryIfMissing True (output </> takeDirectory f)
+    liftIO $
+      T.writeFile (output </> f) t
     pure f
 
 moduleNameFromFile :: FilePath -> ModuleName
@@ -166,6 +175,12 @@ renderProjectorError pe =
       "Could not find file: " <> T.pack f
     ProjectorError es ->
       "Projector build errors:\n" <> T.unlines (fmap Projector.renderHtmlError es)
+
+renderProjectorHaskellError :: ProjectorHaskellError -> Text
+renderProjectorHaskellError pe =
+  case pe of
+    ProjectorHaskellError e ->
+      Projector.renderHtmlError e
 
 renderProjectorInterpretError :: ProjectorInterpretError -> Text
 renderProjectorInterpretError pe =
