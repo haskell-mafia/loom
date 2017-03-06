@@ -119,7 +119,7 @@ generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult root _name components
     sc <- resolveSiteComponent mo po c
     mapM writeHtmlFile . loomComponentHtml prefix sc $ c
   writeHtmlFile $
-    loomComponentsHtml components
+    loomComponentsHtml prefix components
   writeHtmlFile $
     loomHomeHtml
 
@@ -183,15 +183,15 @@ loomHomeHtml =
         H.h1 ! HA.class_ "loom-h1" $ "Welcome to loom"
         H.img ! HA.src "https://cloud.githubusercontent.com/assets/355756/23049526/c99ade24-f510-11e6-851c-3e7902ed310c.jpg"
 
-loomComponentsHtml ::  [Component] -> HtmlFile
-loomComponentsHtml components =
+loomComponentsHtml :: LoomSitePrefix -> [Component] -> HtmlFile
+loomComponentsHtml spx components =
   HtmlFile "components/index.html" SiteComponents (SiteTitle "Components") $
     H.div ! HA.class_ "loom-container-medium" $ do
       H.h1 ! HA.class_ "loom-h1 loom-page-header" $ "Components"
       H.ul ! HA.class_ "loom-ul loom-list-unstyled" $
         for_ components $ \c ->
           H.li $
-            H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . T.pack . componentDirectory $ c) $
+            H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . mappend (loomSitePrefix spx) . T.pack . componentDirectory $ c) $
               (H.text . componentName) c
 
 loomComponentHtml :: LoomSitePrefix -> SiteComponent -> Component -> [HtmlFile]
@@ -275,7 +275,7 @@ htmlTemplate spx apx csss navm title body = do
                         SiteHome ->
                           H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . loomSitePrefix $ spx) $ "Loom"
                         SiteComponents ->
-                          H.a ! HA.class_ "loom-a" ! HA.href "/components" $ "Components"
+                          H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
       H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
         body
 
