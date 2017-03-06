@@ -85,7 +85,7 @@ data SiteComponent =
 
 data HtmlFile =
     HtmlFile FilePath SiteNavigation SiteTitle Html
-  | HtmlRawFile FilePath Html
+  | HtmlRawFile FilePath SiteTitle Html
 
 defaultLoomSiteRoot :: Loom -> LoomSiteRoot
 defaultLoomSiteRoot c =
@@ -103,11 +103,11 @@ generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult root _name components
             Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
           safeIO $
             TL.writeFile (out </> fp) . renderHtml . htmlTemplate prefix apx [css] (Just nav) title $ h
-        HtmlRawFile fp h -> do
+        HtmlRawFile fp title h -> do
           safeIO $
             Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
           safeIO $
-            TL.writeFile (out </> fp) . renderHtml $ h
+            TL.writeFile (out </> fp) . renderHtml . htmlRawTemplate prefix apx [css] title $ h
   safeIO $
     Dir.createDirectoryIfMissing True out
   generateLoomSiteStatic (LoomSiteRoot out)
@@ -228,7 +228,7 @@ loomComponentHtml spx (SiteComponent rm d es ps) c =
                 H.div ! HA.class_ "loom-pullout" $ e
     pages =
       with ps $ \(n, p) ->
-        HtmlRawFile (pageLink n) p
+        HtmlRawFile (pageLink n) (SiteTitle n) p
   in
     root : pages
 
@@ -250,6 +250,30 @@ loomSiteNotFound =
 
 htmlTemplate :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> Maybe SiteNavigation -> SiteTitle -> Html -> Html
 htmlTemplate spx apx csss navm title body = do
+  htmlRawTemplate spx apx csss title $ do
+    H.div ! HA.class_ "loom-pane-header" $
+      H.div ! HA.class_ "loom-navigation-global" $
+        H.div ! HA.class_ "loom-navigation-global__internal" $ do
+          H.div ! HA.class_ "loom-logo-small" $
+            H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . loomSitePrefix $ spx) $
+              H.img ! HA.class_ "loom-img"
+                ! HA.alt "Loom"
+                ! HA.src (H.textValue . (<>) (loomSitePrefix spx) . T.pack . fst $ loomLogoFile)
+          for_ navm $ \nav ->
+            H.nav ! H.customAttribute "role" "navigation" $
+              H.ul ! HA.class_ "loom-ul loom-navigation-global__items" $ do
+                for_ [minBound..maxBound] $ \n ->
+                  H.li ! HA.class_ (if n == nav then "loom-navigation-global__items__current" else "") $
+                    case n of
+                      SiteHome ->
+                        H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . loomSitePrefix $ spx) $ "Loom"
+                      SiteComponents ->
+                        H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
+    H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
+      body
+
+htmlRawTemplate :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> SiteTitle -> Html -> Html
+htmlRawTemplate spx apx csss title body = do
   H.docType
   H.html $ do
     H.head $ do
@@ -257,27 +281,8 @@ htmlTemplate spx apx csss navm title body = do
         H.link ! HA.rel "stylesheet" ! HA.href (H.textValue . cssAssetPath spx apx $ css)
       H.link ! HA.rel "stylesheet" ! HA.href (H.textValue . (<>) (loomSitePrefix spx) . T.pack . fst $ loomCssFile)
       H.title . H.text . renderSiteTitle $ title
-    H.body $ do
-      H.div ! HA.class_ "loom-pane-header" $
-        H.div ! HA.class_ "loom-navigation-global" $
-          H.div ! HA.class_ "loom-navigation-global__internal" $ do
-            H.div ! HA.class_ "loom-logo-small" $
-              H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . loomSitePrefix $ spx) $
-                H.img ! HA.class_ "loom-img"
-                  ! HA.alt "Loom"
-                  ! HA.src (H.textValue . (<>) (loomSitePrefix spx) . T.pack . fst $ loomLogoFile)
-            for_ navm $ \nav ->
-              H.nav ! H.customAttribute "role" "navigation" $
-                H.ul ! HA.class_ "loom-ul loom-navigation-global__items" $ do
-                  for_ [minBound..maxBound] $ \n ->
-                    H.li ! HA.class_ (if n == nav then "loom-navigation-global__items__current" else "") $
-                      case n of
-                        SiteHome ->
-                          H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . loomSitePrefix $ spx) $ "Loom"
-                        SiteComponents ->
-                          H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
-      H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
-        body
+    H.body $
+      body
 
 --------
 
