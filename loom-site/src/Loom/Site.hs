@@ -94,8 +94,10 @@ defaultLoomSiteRoot c =
     loomOutput c </> "site"
 
 generateLoomSite :: LoomSitePrefix -> LoomSiteRoot -> AssetsPrefix -> LoomResult -> EitherT LoomSiteError IO ()
-generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult _name components mo po css images) = do
+generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images) = do
   let
+    css =
+      CssFile . File.takeFileName . renderCssFile $ cssIn
     writeHtmlFile :: HtmlFile -> EitherT LoomSiteError IO ()
     writeHtmlFile hf =
       case hf of
@@ -114,8 +116,8 @@ generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult _name components mo p
   generateLoomSiteStatic (LoomSiteRoot out)
   safeIO $
     prefixCssImageAssets prefix apx images
-      (CssFile $ out </> "assets" </> (File.takeFileName . cssAssetFilePath apx) css)
-      css
+      (CssFile $ out </> cssAssetFilePath apx css)
+      cssIn
   safeIO . for_ images $ \img ->
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
   for_ components $ \c -> do
