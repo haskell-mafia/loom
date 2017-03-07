@@ -58,7 +58,7 @@ data ProjectorError =
     deriving (Eq, Show)
 
 data ProjectorHaskellError =
-    ProjectorHaskellError Projector.HtmlBackendError
+    ProjectorHaskellError [Projector.HtmlBackendError]
   deriving (Eq, Show)
 
 data ProjectorInterpretError =
@@ -137,14 +137,10 @@ generateProjectorHtml mo (ProjectorOutput (BuildArtefacts h)) =
     (Projector.extractModuleExprs h)
 
 generateProjectorHaskell :: FilePath -> ProjectorOutput -> EitherT ProjectorHaskellError IO [FilePath]
-generateProjectorHaskell output (ProjectorOutput (BuildArtefacts oh2)) =
-  for (Map.toList oh2) $ \(n, m) -> do
-    let
-      f = moduleNameToFile "hs" n
-    -- TODO validateModules
-    -- https://github.com/ambiata/projector/blob/master/projector-html/src/Projector/Html.hs#L216
-    (_, t) <- hoistEither . first ProjectorHaskellError $
-      Projector.codeGenModule Projector.Haskell n m
+generateProjectorHaskell output (ProjectorOutput ba) = do
+  fs <- hoistEither . first ProjectorHaskellError $
+    Projector.codeGen Projector.Haskell ba
+  for fs $ \(f, t) -> do
     liftIO $
       createDirectoryIfMissing True (output </> takeDirectory f)
     liftIO $
@@ -176,8 +172,8 @@ renderProjectorError pe =
 renderProjectorHaskellError :: ProjectorHaskellError -> Text
 renderProjectorHaskellError pe =
   case pe of
-    ProjectorHaskellError e ->
-      Projector.renderHtmlBackendError e
+    ProjectorHaskellError es ->
+      "Projector haskell errors:\n" <> (T.unlines . fmap Projector.renderHtmlBackendError) es
 
 renderProjectorInterpretError :: ProjectorInterpretError -> Text
 renderProjectorInterpretError pe =
