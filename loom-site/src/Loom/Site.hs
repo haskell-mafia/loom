@@ -249,7 +249,7 @@ loomSiteNotFound =
     H.p "Page not found"
 
 htmlTemplate :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> Maybe SiteNavigation -> SiteTitle -> Html -> Html
-htmlTemplate spx apx csss navm title body = do
+htmlTemplate spx apx csss navm title body =
   htmlRawTemplate spx apx csss title $ do
     H.div ! HA.class_ "loom-pane-header" $
       H.div ! HA.class_ "loom-navigation-global" $

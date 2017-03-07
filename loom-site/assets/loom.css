@@ -170,6 +170,12 @@ body {
   background: white;
 }
 
+.loom-pullout:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
 .loom-vertical-grouping {
   margin-bottom: 40px;
 }
