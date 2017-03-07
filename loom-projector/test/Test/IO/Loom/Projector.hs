@@ -38,11 +38,11 @@ prop_projector_success =
     lift $ createDirectoryIfMissing True dir2
     lift $ writeFile f1 "\\foo : Foo ->\n<a>b</a>"
     lift $ writeFile f2 "\\bar : Bar\nfoo : Foo ->\n { test1 foo }"
-    out <- foldM (\o -> fmap (mappend o) . compileProjector mempty o) mempty [
+    out <- firstT renderProjectorError . foldM (\o -> fmap (mappend o) . compileProjector mempty o) mempty $ [
         ProjectorInput name dir1 [f1]
       , ProjectorInput name dir2 [f2]
       ]
-    f3 <- lift $ generateProjectorHaskell dir out
+    f3 <- firstT renderProjectorHaskellError $ generateProjectorHaskell dir out
     lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir) $ f3
 
 prop_projector_missing =
@@ -68,7 +68,7 @@ genModuleName =
 
 withProjector f =
   withTempDirectory "dist" "loom-projector" $ \dir ->
-    testEitherT renderProjectorError $
+    testEitherT id $
       f dir
 
 writeFile =

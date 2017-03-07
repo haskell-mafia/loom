@@ -19,7 +19,7 @@ library
                     , ambiata-x-eithert
                     , directory                       == 1.2.*
                     , filepath                        >= 1.4        && < 1.6
-                    , lens                            >= 4.6        && < 4.15
+                    , lens                            >= 4.6        && < 4.16
                     , htoml                           >= 0.1.0.3    && < 0.2
                     , parsec                          == 3.1.*
                     , text                            >= 1.1        && < 1.3
