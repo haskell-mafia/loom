@@ -18,6 +18,7 @@ library
                     , ambiata-p
                     , ambiata-projector-core
                     , ambiata-projector-html
+                    , ambiata-projector-html-haskell
                     , ambiata-loom-process
                     , ambiata-x-eithert
                     , containers                      >= 0.4        && < 0.6

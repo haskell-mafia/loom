@@ -39,6 +39,7 @@ import           P
 import           Projector.Html (BuildArtefacts (..), DataModuleName (..), ModuleName (..), HtmlExpr, HtmlType)
 import           Projector.Html.Data.Annotation (SrcAnnotation)
 import qualified Projector.Html as Projector
+import qualified Projector.Html.Backend.Haskell as Projector
 import qualified Projector.Html.Core.Machinator as Projector
 import qualified Projector.Html.Data.Backend as Projector
 import qualified Projector.Html.Data.Module as Projector
@@ -58,7 +59,7 @@ data ProjectorError =
     deriving (Eq, Show)
 
 data ProjectorHaskellError =
-    ProjectorHaskellError [Projector.HtmlBackendError]
+    ProjectorHaskellError [Projector.HaskellError]
   deriving (Eq, Show)
 
 data ProjectorInterpretError =
@@ -139,7 +140,7 @@ generateProjectorHtml mo (ProjectorOutput (BuildArtefacts h)) =
 generateProjectorHaskell :: FilePath -> ProjectorOutput -> EitherT ProjectorHaskellError IO [FilePath]
 generateProjectorHaskell output (ProjectorOutput ba) = do
   fs <- hoistEither . first ProjectorHaskellError $
-    Projector.codeGen Projector.Haskell ba
+    Projector.codeGen Projector.haskellBackend ba
   for fs $ \(f, t) -> do
     liftIO $
       createDirectoryIfMissing True (output </> takeDirectory f)
@@ -173,7 +174,7 @@ renderProjectorHaskellError :: ProjectorHaskellError -> Text
 renderProjectorHaskellError pe =
   case pe of
     ProjectorHaskellError es ->
-      "Projector haskell errors:\n" <> (T.unlines . fmap Projector.renderHtmlBackendError) es
+      "Projector haskell errors:\n" <> (T.unlines . fmap Projector.renderHaskellError) es
 
 renderProjectorInterpretError :: ProjectorInterpretError -> Text
 renderProjectorInterpretError pe =
