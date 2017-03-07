@@ -4,6 +4,7 @@
 
 cd test/cli/build
 rm -rf dist
+export LOOM_SITE_PREFIX="http://test/prefix/"
 $LOOM build
 
 file_exists() {
@@ -30,8 +31,10 @@ file_exists "dist/site/components/components/c1/index.html"
 file_exists "dist/site/components/components/c2/index.html"
 file_exists "dist/site/components/components/c2/pages/mock.html"
 
-contains "dist/test_build.css" "/assets/other/components/c1/image.svg"
-contains "dist/test_build.css" "/assets/test_build/components/c2/image.svg"
+contains "dist/test_build.css" "\"/assets/other/components/c1/image.svg\""
+contains "dist/test_build.css" "\"/assets/test_build/components/c2/image.svg\""
+contains "dist/site/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/other/components/c1/image.svg\""
+contains "dist/site/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/test_build/components/c2/image.svg\""
 
 contains "dist/src/TestBuild/Assets.hs" "assets/other/components/c1/image.svg"
 contains "dist/src/TestBuild/Assets.hs" "assets/test_build/components/c2/image.svg"

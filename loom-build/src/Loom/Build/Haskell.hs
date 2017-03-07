@@ -14,6 +14,7 @@ import qualified Data.Char as Char
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
+import           Loom.Build.Assets
 import           Loom.Build.Data
 import           Loom.Projector (ProjectorHaskellError, ProjectorOutput)
 import qualified Loom.Projector as Projector
@@ -24,7 +25,7 @@ import           Loom.Sass (CssFile (..))
 import           P
 
 import           System.Directory (canonicalizePath, createDirectoryIfMissing)
-import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory)
+import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory, takeFileName)
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT)
@@ -35,7 +36,7 @@ data LoomHaskellError =
   deriving (Show)
 
 generateHaskell :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
-generateHaskell output spx apx (LoomResult _ name _ mo po outputCss images) = do
+generateHaskell output spx apx (LoomResult name _ mo po inputCss images) = do
   void . firstT LoomHaskellMachinatorError $
     Machinator.generateMachinatorHaskell
       (output </> "src")
@@ -43,6 +44,10 @@ generateHaskell output spx apx (LoomResult _ name _ mo po outputCss images) = do
       mo
   void . firstT LoomHaskellProjectorError $
     Projector.generateProjectorHaskell (output </> "src") po
+  let
+    outputCss = CssFile $ output </> (takeFileName . renderCssFile )inputCss
+  liftIO $
+    prefixCssImageAssets spx apx images outputCss inputCss
   liftIO $
     generateAssetHaskell name output spx apx outputCss images
   liftIO $
@@ -55,7 +60,7 @@ generateAssetHaskell name output spx apx css images = do
     q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
     q2 p t = "(\"" <> p <> "\", \"" <> T.pack t <> "\")"
   createDirectoryIfMissing True . takeDirectory $ f
-  css' <- fmap ((,) (cssAssetPath spx apx css)) . canonicalizePath $ output </> renderCssFile css
+  css' <- fmap ((,) (cssAssetPath spx apx css)) . canonicalizePath $ renderCssFile css
   images' <- for images $ \i -> (,) (imageAssetPath spx apx i) <$> canonicalizePath (imageFilePath i)
   T.writeFile f $
     T.unlines [

@@ -27,13 +27,14 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 
+import           Loom.Build.Assets
 import           Loom.Build.Core
 import           Loom.Build.Data
 import           Loom.Machinator (MachinatorOutput)
 import           Loom.Projector (ProjectorOutput, ProjectorError, ProjectorInterpretError)
 import qualified Loom.Projector as Projector
 import qualified Loom.Projector as P
-import           Loom.Sass (CssFile (..), renderCssFile)
+import           Loom.Sass (CssFile (..))
 
 import           P
 
@@ -93,7 +94,7 @@ defaultLoomSiteRoot c =
     loomOutput c </> "site"
 
 generateLoomSite :: LoomSitePrefix -> LoomSiteRoot -> AssetsPrefix -> LoomResult -> EitherT LoomSiteError IO ()
-generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult root _name components mo po css images) = do
+generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult _name components mo po css images) = do
   let
     writeHtmlFile :: HtmlFile -> EitherT LoomSiteError IO ()
     writeHtmlFile hf =
@@ -112,7 +113,9 @@ generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult root _name components
     Dir.createDirectoryIfMissing True out
   generateLoomSiteStatic (LoomSiteRoot out)
   safeIO $
-    copyFile (root </> renderCssFile css) (out </> cssAssetFilePath apx css)
+    prefixCssImageAssets prefix apx images
+      (CssFile $ out </> "assets" </> (File.takeFileName . cssAssetFilePath apx) css)
+      css
   safeIO . for_ images $ \img ->
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
   for_ components $ \c -> do

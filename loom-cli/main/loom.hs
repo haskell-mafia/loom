@@ -130,9 +130,10 @@ buildLoom' logger buildConfig config sitePrefix siteRoot = do
   firstT LoomSiteError $
     generateLoomSiteStatic siteRoot
   r <- firstT LoomError $
-    buildLoom (hoistLogger liftIO logger) buildConfig sitePrefix config
+    buildLoom (hoistLogger liftIO logger) buildConfig (LoomTmp ".loom") config
   withLogIO logger "haskell" . firstT LoomHaskellError $
-    generateHaskell (loomOutput config) sitePrefix (loomConfigAssetsPrefix . loomConfig $ config) r
+    -- NOTE: Site prefix is intentionally different for haskell than generated site
+    generateHaskell (loomOutput config) (LoomSitePrefix "/") (loomConfigAssetsPrefix . loomConfig $ config) r
   withLogIO logger "site" . firstT LoomSiteError $
     generateLoomSite sitePrefix siteRoot (loomConfigAssetsPrefix . loomConfig $ config) r
 
