@@ -155,7 +155,18 @@ renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
   case ie of
     LoomMissingSassExecutable ->
-      "Could not locate 'sassc' executable on the PATH"
+      T.unlines [
+          "Could not locate 'sassc' executable on the PATH."
+        , ""
+        , "For OSX users try running the following first:"
+        , " - brew install sassc"
+        , ""
+        , "For Arch users try running the following first:"
+        , " - pacman -S sassc"
+        , ""
+        , "Otherwise please follow the build instructions here:"
+        , " - https://github.com/sass/sassc#documentation"
+        ]
 
 renderLoomError :: LoomError -> Text
 renderLoomError le =
