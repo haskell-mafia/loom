@@ -7,9 +7,15 @@ import           Control.Monad.IO.Class (liftIO)
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
 
+import qualified Data.List as List
 import qualified Data.Text as T
 
 import           DependencyInfo_ambiata_loom_cli
+
+
+import           Language.Haskell.Interpreter (InterpreterT, OptionVal(..))
+import qualified Language.Haskell.Interpreter as Hint
+import qualified Language.Haskell.Interpreter.Unsafe as Unsafe
 
 import           Loom.Build.Core
 import           Loom.Build.Data
@@ -25,8 +31,8 @@ import qualified Network.Wai.Handler.Warp as Warp
 import           P
 
 import           System.Directory (getCurrentDirectory)
-import           System.Environment (lookupEnv)
-import           System.IO (BufferMode (..), IO, hSetBuffering, stderr, stdout)
+import           System.Environment (lookupEnv, setEnv)
+import           System.IO (BufferMode (..), FilePath, IO, hSetBuffering, stderr, stdout)
 import qualified System.IO as IO
 
 import qualified Twine.Data.Pin as Pin
@@ -40,6 +46,7 @@ import           X.Control.Monad.Trans.Either.Exit (orDie)
 data Command =
     Build
   | Watch Int
+  | Dev FilePath
   deriving (Eq, Show)
 
 data LoomCliError =
@@ -68,21 +75,49 @@ main = do
             sitePrefix
             (defaultLoomSiteRoot config)
       Watch port ->
-        watch port
+        watch (const False) $ \config sitePrefix _ v -> do
+          IO.hPutStrLn stderr $ "Starting loom at http://localhost:" <> show port
+          let
+            renderHtmlErrorPage' =
+              renderHtmlErrorPage sitePrefix (loomConfigAssetsPrefix . loomConfig $ config)
+          Warp.runSettings (Warp.setPort port Warp.defaultSettings) $
+            loomHttpApplication
+              (loomSiteRootFilePath . defaultLoomSiteRoot $ config)
+              (LoomHttpNotFound . renderHtmlErrorPage' $ loomSiteNotFound)
+              (LoomHttpBuild . fmap (first (renderHtmlErrorPage' . loomSiteError)) . MVar.readMVar $ v)
+      Dev module' -> do
+        -- TODO call as yet undefined mafia setup for doing everything _but_ compile the current project
+        -- TODO Run separate warp server, intercept calls and either show build errors or the running server
+        -- TODO calculate this correctly/dynamically
+        setEnv "GHC_PACKAGE_PATH" "/Users/cofarrell/src/ambiata/ware/.cabal-sandbox/x86_64-apple-darwin/7.10.2/x86_64-osx-ghc-7.10.2-packages.conf.d:/Users/cofarrell/opt/ghc-7.10.2/lib/ghc-7.10.2/package.conf.d"
+        -- TODO What should we watch? What about main?
+        watch (List.isPrefixOf "src/") $ \_ _ x _ -> do
+          r <- Hint.runInterpreter $ do
+            go <- hint module' "main"
+            void . forever $ do
+              k <- go
+              a <- liftIO . Async.async $ k
+              _ <- liftIO x
+              liftIO . Async.cancel $ a
+            pure ()
+          IO.print $ r
 
 -----------
 
-watch :: Int -> IO ()
-watch port = do
+-- TODO Pass in loom and prefix
+watch :: (FilePath -> Bool) -> (Loom -> LoomSitePrefix -> IO () -> MVar.MVar (Either Text ()) -> IO ()) -> IO ()
+watch watchPred runner = do
   buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
   sitePrefix <- sitePrefixEnv
   cwd <- getCurrentDirectory
   config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
   v <- MVar.newMVar $ Left "Building..."
   pin <- Pin.newPin
+  -- TODO What's the best way to signal a file has changed to the caller?
+  x <- MVar.newEmptyMVar
   watchA <- Async.async $
     let
-      run =
+      run = do
         MVar.modifyMVar_ v $ \_ -> do
           r <- runEitherT . firstT renderLoomCliError $
             buildLoom'
@@ -97,21 +132,27 @@ watch port = do
             Right () ->
               "Build successful"
           pure r
+        void $ MVar.tryPutMVar x ()
     in do
       -- Run once before watching files
       run
-      loomWatch pin cwd config $ \_file -> run
-  IO.hPutStrLn stderr $ "Starting loom at http://localhost:" <> show port
-  let
-    renderHtmlErrorPage' =
-      renderHtmlErrorPage sitePrefix (loomConfigAssetsPrefix . loomConfig $ config)
-  Warp.runSettings (Warp.setPort port Warp.defaultSettings) $
-    loomHttpApplication
-      (loomSiteRootFilePath . defaultLoomSiteRoot $ config)
-      (LoomHttpNotFound . renderHtmlErrorPage' $ loomSiteNotFound)
-      (LoomHttpBuild . fmap (first (renderHtmlErrorPage' . loomSiteError)) . MVar.readMVar $ v)
+      watchTreeWithCancel pin cwd (\f -> loomWatchPredicate config f || watchPred f) $ \_file -> run
+  runner config sitePrefix (MVar.takeMVar x) v
   Pin.pullPin pin
   Async.wait watchA
+
+hint :: FilePath -> [Char] -> InterpreterT IO (InterpreterT IO (IO ()))
+hint modul entrypoint = do
+  Hint.set [Hint.searchPath := ["src", "dist/src"]]
+  liftIO . IO.putStrLn $ "Loading " <> modul
+  -- As best I can tell, this does a full reload, not an incremental reload
+  -- This is unfortunate and possibly a dealbreaker
+  -- might have to twiddle GHC API ourselves
+  Hint.loadModules [modul]
+  pure $ do
+    Hint.reload
+    Hint.setTopLevelModules ["Main"]
+    Unsafe.unsafeInterpret entrypoint "IO ()"
 
 -----------
 
@@ -152,6 +193,8 @@ parser =
         pure Build
     , OA.command' "watch" "Start an HTTP server in the current loom project and watch the filesystem for changes" $
         Watch <$> portP
+    , OA.command' "dev" "Start a Haskell program and rebuild/reload on changes to relevant files" $
+        Dev <$> moduleP
     ]
 
 portP :: Parser Int
@@ -161,6 +204,14 @@ portP =
     <> OA.short 'p'
     <> OA.metavar "PORT"
     <> OA.help "The HTTP port for running the server under. Defaults to port 3000."
+
+moduleP :: Parser FilePath
+moduleP =
+  OA.option OA.str $
+       OA.long "module"
+    <> OA.short 'm'
+    <> OA.metavar "MODULE"
+    <> OA.help "The path to a haskell module to run"
 
 -----------
 

@@ -22,3 +22,6 @@
 [submodule "lib/twine"]
 	path = lib/twine
 	url = git@github.com:ambiata/twine.git
+[submodule "lib/hint"]
+	path = lib/hint
+	url = git@github.com:thumphries/hint.git
