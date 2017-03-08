@@ -26,7 +26,6 @@ module Loom.Projector (
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
-import           Data.List (stripPrefix)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -47,7 +46,7 @@ import qualified Projector.Html.Interpreter as Projector
 import qualified Projector.Core as Projector
 
 import           System.Directory (createDirectoryIfMissing)
-import           System.FilePath (FilePath, (</>), takeDirectory, joinPath)
+import           System.FilePath (FilePath, (</>), takeDirectory, makeRelative)
 import           System.IO (IO)
 import           System.IO.Error (isDoesNotExistError)
 
@@ -108,21 +107,26 @@ compileProjector
   (ProjectorInput prefix root inputs) = do
 
   templates <- for inputs $ \input ->
-    fmap ((,) (moduleNameFromFile . fromMaybe input . stripPrefix root $ input)) .
+    fmap ((,) input) .
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
         input
   let
     decls =
       Projector.machinatorDecls . join . Map.elems $ udts
+    mnr =
+      Projector.moduleNamerSimple (Just prefix)
   BuildArtefacts oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
       (Projector.Build
-        (Projector.moduleNamerSimple (Just prefix))
+        (Projector.ModuleNamer
+          (Projector.pathToModuleName mnr . makeRelative root)
+          (Projector.filePathToExprName mnr . makeRelative root)
+          )
         (Map.keys udts)
         )
       (Projector.UserDataTypes decls)
       oh1
-      (Projector.RawTemplates . fmap (first (moduleNameToFile "prj")) $ templates)
+      (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
   pure $ ProjectorOutput (BuildArtefacts oh2)
@@ -151,10 +155,6 @@ generateProjectorHaskell output (ProjectorOutput ba) = do
 moduleNameFromFile :: FilePath -> ModuleName
 moduleNameFromFile =
   Projector.pathToModuleName (Projector.moduleNamerSimple Nothing)
-
-moduleNameToFile :: FilePath -> ModuleName -> FilePath
-moduleNameToFile ext (ModuleName n) =
-  (joinPath . fmap T.unpack . T.splitOn ".") n <> "." <> ext
 
 requiredProjectorHaskellImports :: [ModuleName]
 requiredProjectorHaskellImports =
