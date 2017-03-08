@@ -53,15 +53,13 @@ newtype FilePattern =
 
 data Loom =
   Loom {
-      loomOutput :: FilePath
-    , loomConfig :: LoomConfig
+      loomConfig :: LoomConfig
     , loomConfigs :: [LoomConfig]
     } deriving (Eq, Show)
 
 data LoomResolved =
   LoomResolved {
-      loomResolvedOutput :: FilePath
-    , loomResolvedConfig :: LoomConfigResolved
+      loomResolvedConfig :: LoomConfigResolved
     , loomResolvedConfigs :: [LoomConfigResolved]
     } deriving (Eq, Show)
 
@@ -99,7 +97,6 @@ data LoomConfig =
   LoomConfig {
       loomConfigRoot :: LoomRoot
     , loomConfigName :: LoomName
-    , loomConfigAssetsPrefix :: AssetsPrefix
     , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
     } deriving (Eq, Show)
@@ -108,7 +105,6 @@ data LoomConfigResolved =
   LoomConfigResolved {
       loomConfigResolvedRoot :: LoomRoot
     , loomConfigResolvedName :: LoomName
-    , loomConfigResolvedAssetsPrefix :: AssetsPrefix
     , loomConfigResolvedComponents :: [LoomFile]
     , loomConfigResolvedSass :: [LoomFile]
     } deriving (Eq, Show)
@@ -219,8 +215,8 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
     f1 <> G.literal "/" <> f2
 
 loomWatchPatterns :: Loom -> [FilePattern]
-loomWatchPatterns (Loom _ c cs) =
-  c : cs >>= \(LoomConfig r _ _ comps sass) ->
+loomWatchPatterns (Loom c cs) =
+  c : cs >>= \(LoomConfig r _ comps sass) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
     in

@@ -26,7 +26,7 @@ import           P
 
 import           System.Directory (getCurrentDirectory)
 import           System.Environment (lookupEnv)
-import           System.IO (BufferMode (..), IO, hSetBuffering, stderr, stdout)
+import           System.IO (BufferMode (..), FilePath, IO, hSetBuffering, stderr, stdout)
 import qualified System.IO as IO
 
 import qualified Twine.Data.Pin as Pin
@@ -47,6 +47,12 @@ data LoomCliError =
   | LoomHaskellError LoomHaskellError
   | LoomSiteError LoomSiteError
 
+data BuildConfig =
+  BuildConfig {
+      _buildConfigHaskell :: FilePath
+    , buildConfigSite :: LoomSiteRoot
+    }
+
 -----------
 
 main :: IO ()
@@ -58,6 +64,8 @@ main = do
       Build -> do
         buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
         sitePrefix <- sitePrefixEnv
+        apx <- assetsPrefixEnv
+        bc <- buildConfigEnv
         cwd <- getCurrentDirectory
         config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
         orDie renderLoomCliError $
@@ -66,7 +74,8 @@ main = do
             buildConfig
             config
             sitePrefix
-            (defaultLoomSiteRoot config)
+            apx
+            bc
       Watch port ->
         watch port
 
@@ -76,6 +85,8 @@ watch :: Int -> IO ()
 watch port = do
   buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
   sitePrefix <- sitePrefixEnv
+  apx <- assetsPrefixEnv
+  bc <- buildConfigEnv
   cwd <- getCurrentDirectory
   config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
   v <- MVar.newMVar $ Left "Building..."
@@ -90,7 +101,8 @@ watch port = do
               buildConfig
               config
               sitePrefix
-              (defaultLoomSiteRoot config)
+              apx
+              bc
           IO.hPutStrLn stderr $ case r of
             Left e ->
               T.unpack e
@@ -107,7 +119,7 @@ watch port = do
       renderHtmlErrorPage sitePrefix
   Warp.runSettings (Warp.setPort port Warp.defaultSettings) $
     loomHttpApplication
-      (loomSiteRootFilePath . defaultLoomSiteRoot $ config)
+      (loomSiteRootFilePath . buildConfigSite $ bc)
       (LoomHttpNotFound . renderHtmlErrorPage' $ loomSiteNotFound)
       (LoomHttpBuild . fmap (first (renderHtmlErrorPage' . loomSiteError)) . MVar.readMVar $ v)
   Pin.pullPin pin
@@ -120,9 +132,10 @@ buildLoom' ::
   LoomBuildConfig ->
   Loom ->
   LoomSitePrefix ->
-  LoomSiteRoot ->
+  AssetsPrefix ->
+  BuildConfig ->
   EitherT LoomCliError IO ()
-buildLoom' logger buildConfig config sitePrefix siteRoot = do
+buildLoom' logger buildConfig config sitePrefix apx (BuildConfig haskellRoot siteRoot) = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -133,15 +146,25 @@ buildLoom' logger buildConfig config sitePrefix siteRoot = do
     buildLoom (hoistLogger liftIO logger) buildConfig (LoomTmp ".loom") config
   withLogIO logger "haskell" . firstT LoomHaskellError $
     -- NOTE: Site prefix is intentionally different for haskell than generated site
-    generateHaskell (loomOutput config) (LoomSitePrefix "/") (loomConfigAssetsPrefix . loomConfig $ config) r
+    generateHaskell haskellRoot (LoomSitePrefix "/") apx r
   withLogIO logger "site" . firstT LoomSiteError $
-    generateLoomSite sitePrefix siteRoot (loomConfigAssetsPrefix . loomConfig $ config) r
+    generateLoomSite sitePrefix siteRoot apx r
 
 -----------
 
 sitePrefixEnv :: IO LoomSitePrefix
 sitePrefixEnv =
   fmap (LoomSitePrefix . T.pack . fromMaybe "/") . lookupEnv $ "LOOM_SITE_PREFIX"
+
+assetsPrefixEnv :: IO AssetsPrefix
+assetsPrefixEnv =
+  fmap (AssetsPrefix . fromMaybe "assets") . lookupEnv $ "LOOM_ASSETS_PREFIX"
+
+buildConfigEnv :: IO BuildConfig
+buildConfigEnv =
+  BuildConfig
+    <$> (fmap (fromMaybe "dist/loom/haskell") . lookupEnv) "LOOM_OUTPUT_HASKELL"
+    <*> (fmap (LoomSiteRoot . fromMaybe "dist/loom/site") . lookupEnv) "LOOM_OUTPUT_SITE"
 
 -----------
 

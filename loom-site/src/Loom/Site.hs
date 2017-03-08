@@ -88,10 +88,10 @@ data HtmlFile =
     HtmlFile FilePath SiteNavigation SiteTitle Html
   | HtmlRawFile FilePath SiteTitle Html
 
-defaultLoomSiteRoot :: Loom -> LoomSiteRoot
+defaultLoomSiteRoot :: FilePath -> LoomSiteRoot
 defaultLoomSiteRoot c =
   LoomSiteRoot $
-    loomOutput c </> "site"
+    c </> "site"
 
 generateLoomSite :: LoomSitePrefix -> LoomSiteRoot -> AssetsPrefix -> LoomResult -> EitherT LoomSiteError IO ()
 generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images) = do

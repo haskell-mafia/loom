@@ -34,8 +34,6 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
   version = 1
   dependencies = ["lib/bikeshed"]
   name = "my_project"
-  output = "dist"
-  assetsPrefix = "assets"
 
 [components]
   paths = ["components/*"]
@@ -56,8 +54,6 @@ data LoomConfigTomlError =
 data LoomConfigRaw =
   LoomConfigRaw {
       loomConfigRawName :: LoomName
-    , loomConfigRawOutput :: FilePath
-    , loomConfigRawAssetsPrefix :: AssetsPrefix
     , loomConfigRawDependencies :: [FilePath]
     , loomConfigRawComponents :: [FilePattern]
     , loomConfigRawSass :: [FilePattern]
@@ -83,16 +79,15 @@ resolveConfig root = do
       c <- hoistEither . parseConfig $ t
       ds <- mapM (parse' . (</>) dir) . loomConfigRawDependencies $ c
       pure $ ((dir, c), bind (uncurry (:)) ds)
-  (rc1@(dir1, c), rcs) <- parse' root
+  (rc1@(dir1, _), rcs) <- parse' root
   let
     config' (dir, rc) =
       LoomConfig
         (LoomRoot $ makeRelative dir1 dir)
         (loomConfigRawName rc)
-        (loomConfigRawAssetsPrefix rc)
         (loomConfigRawComponents rc)
         (loomConfigRawSass rc)
-  pure . Loom (loomConfigRawOutput c) (config' rc1) . fmap config' $ rcs
+  pure . Loom (config' rc1) . fmap config' $ rcs
 
 parseConfig :: Text -> Either LoomConfigTomlError LoomConfigRaw
 parseConfig t =
@@ -113,12 +108,6 @@ parseTomlConfigV1 t =
   LoomConfigRaw
     <$> (fmap LoomName . maybeToRight (ConfigInvalidField "loom.name") $
       t ^? key "loom" . _NTable . key "name" . _NTValue . _VString
-      )
-    <*> (fmap T.unpack . maybeToRight (ConfigInvalidField "loom.output") $
-      t ^? key "loom" . _NTable . key "output" . _NTValue . _VString
-      )
-    <*> (fmap (AssetsPrefix . T.unpack) . maybeToRight (ConfigInvalidField "loom.assetsPrefix") $
-      t ^? key "loom" . _NTable . key "assetsPrefix" . _NTValue . _VString
       )
     <*> (maybe (pure []) (fmap (fmap T.unpack) . maybeToRight (ConfigInvalidField "loom.dependencies") . mapM (preview _VString)) $
       t ^? key "loom" . _NTable . key "dependencies" . _NTValue . _VArray

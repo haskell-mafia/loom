@@ -59,9 +59,9 @@ buildLoom ::
   LoomTmp ->
   Loom ->
   EitherT LoomError IO LoomResult
-buildLoom logger buildConfig dir (Loom loomOutput' loomConfig' loomConfigs') = do
+buildLoom logger buildConfig dir (Loom loomConfig' loomConfigs') = do
   resolved <- liftIO $
-    LoomResolved loomOutput'
+    LoomResolved
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
   buildLoomResolved logger buildConfig dir resolved
@@ -71,7 +71,6 @@ resolveLoom config =
   LoomConfigResolved
     <$> (pure . loomConfigRoot) config
     <*> (pure . loomConfigName) config
-    <*> (pure . loomConfigAssetsPrefix) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
 
@@ -82,7 +81,7 @@ buildLoomResolved ::
   LoomTmp ->
   LoomResolved ->
   EitherT LoomError IO LoomResult
-buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved _output config others) = do
+buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others) = do
   let
     configs =
       -- Need to make sure the dependencies are in reverse order
