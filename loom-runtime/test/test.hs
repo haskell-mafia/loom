@@ -1,9 +1,9 @@
 import           Disorder.Core.Main
 
-import qualified Test.Loom.Wai.Assets
+import qualified Test.Loom.Runtime.Wai
 
 main :: IO ()
 main =
   disorderMain [
-      Test.Loom.Wai.Assets.tests
+      Test.Loom.Runtime.Wai.tests
     ]

@@ -1,14 +1,14 @@
-name:                  ambiata-loom-wai-assets
+name:                  ambiata-loom-runtime
 version:               0.0.1
 license:               AllRightsReserved
 author:                Ambiata <info@ambiata.com>
 maintainer:            Ambiata <info@ambiata.com>
 copyright:             (c) 2016 Ambiata.
-synopsis:              loom-wai-assets
+synopsis:              loom-runtime
 category:              System
 cabal-version:         >= 1.8
 build-type:            Simple
-description:           loom-wai-assets
+description:           loom-runtime
 
 library
   build-depends:
@@ -31,7 +31,7 @@ library
                     src
 
   exposed-modules:
-                    Loom.Wai.Assets
+                    Loom.Runtime.Wai
 
 test-suite test
   type:
@@ -48,7 +48,7 @@ test-suite test
 
   build-depends:
                       base                            >= 3          && < 5
-                    , ambiata-loom-wai-assets
+                    , ambiata-loom-runtime
                     , ambiata-disorder-core
                     , ambiata-disorder-jack
                     , ambiata-p
