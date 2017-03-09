@@ -162,7 +162,7 @@ generateLoomSiteStatic :: LoomSitePrefix -> LoomSiteRoot -> EitherT LoomSiteErro
 generateLoomSiteStatic prefix root@(LoomSiteRoot out) = do
   safeIO $
     Dir.createDirectoryIfMissing True out
-  safeIO . for_ [loomCssFile, loomLogoFile] $ \(fp, b) -> do
+  safeIO . for_ ([loomCssFile, loomLogoFile] <> loomLogoFavicons) $ \(fp, b) -> do
     Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
     B.writeFile (out </> fp) b
   writeHtmlFile prefix root [] $
@@ -288,11 +288,22 @@ htmlRawTemplate spx csss title body = do
   H.docType
   H.html $ do
     H.head $ do
+      H.title . H.text . renderSiteTitle $ title
+
       for_ csss $ \css ->
         H.link ! HA.rel "stylesheet" ! HA.href (H.textValue . (<>) (loomSitePrefix spx) . T.pack . renderCssFile $ css)
-      H.title . H.text . renderSiteTitle $ title
+
+      H.link ! HA.rel "icon" ! HA.type_ "image/png" ! HA.sizes "96x96" ! href spx "static/favicon-96x96.png"
+      H.link ! HA.rel "icon" ! HA.type_ "image/png" ! HA.sizes "32x32" ! href spx "static/favicon-32x32.png"
+      H.link ! HA.rel "icon" ! HA.type_ "image/png" ! HA.sizes "16x16" ! href spx "static/favicon-16x16.png"
+      H.link ! HA.rel "icon" ! href spx "static/favicon.ico"
+
     H.body $
       body
+
+href :: LoomSitePrefix -> FilePath -> H.Attribute
+href spx =
+  HA.href . H.textValue . (<>) (loomSitePrefix spx) . T.pack
 
 --------
 
@@ -303,6 +314,15 @@ loomCssFile =
 loomLogoFile :: (FilePath, ByteString)
 loomLogoFile =
   (,) "static/logo.svg" $(embedFile "../loom-site/assets/logo.svg")
+
+loomLogoFavicons :: [(FilePath, ByteString)]
+loomLogoFavicons =
+  [
+      (,) "static/favicon.ico" $(embedFile "../loom-site/assets/favicon.ico")
+    , (,) "static/favicon-16x16.png" $(embedFile "../loom-site/assets/favicon-16x16.png")
+    , (,) "static/favicon-32x32.png" $(embedFile "../loom-site/assets/favicon-32x32.png")
+    , (,) "static/favicon-96x96.png" $(embedFile "../loom-site/assets/favicon-96x96.png")
+    ]
 
 --------
 
