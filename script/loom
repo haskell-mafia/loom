@@ -81,6 +81,28 @@ exec_loom () {
   fi
 }
 
+initialize () {
+
+  PROJECT_ROOT=$(git rev-parse --show-toplevel)
+
+  # init any submodules that we need. Don't worry about explicit submodules
+  # file here, we just want to trust git to tell us things that haven't been
+  # initialized, we really _don't_ want to run this just because a module is
+  # dirty from development changes etc...
+
+  UNINITIALIZED=$(cd "$PROJECT_ROOT" && git submodule | grep "^-" | cut -d ' ' -f 2)
+  for submodule in $UNINITIALIZED; do
+    (cd "$PROJECT_ROOT" && git submodule update --init $submodule) || exit $?
+  done
+
+  # FIX This is horrible, but currently the haskell project in bikeshed depends
+  # on the output of gulp, and mafia will fail to run sdist
+  if [ -d lib/bikeshed ]; then
+    mkdir -p lib/bikeshed/dist/assets
+    touch lib/bikeshed/dist/assets/all-manifest.json
+  fi
+}
+
 #
 # The actual start of the script.....
 #
@@ -90,6 +112,8 @@ if [ $# -gt 0 ]; then
 else
   MODE=""
 fi
+
+initialize
 
 case "$MODE" in
 upgrade) shift; run_upgrade "$@" ;;
