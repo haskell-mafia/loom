@@ -104,7 +104,7 @@ watch port = do
   IO.hPutStrLn stderr $ "Starting loom at http://localhost:" <> show port
   let
     renderHtmlErrorPage' =
-      renderHtmlErrorPage sitePrefix (loomConfigAssetsPrefix . loomConfig $ config)
+      renderHtmlErrorPage sitePrefix
   Warp.runSettings (Warp.setPort port Warp.defaultSettings) $
     loomHttpApplication
       (loomSiteRootFilePath . defaultLoomSiteRoot $ config)
@@ -128,7 +128,7 @@ buildLoom' logger buildConfig config sitePrefix siteRoot = do
   liftIO $
     cleanLoomSite siteRoot
   firstT LoomSiteError $
-    generateLoomSiteStatic siteRoot
+    generateLoomSiteStatic sitePrefix siteRoot
   r <- firstT LoomError $
     buildLoom (hoistLogger liftIO logger) buildConfig (LoomTmp ".loom") config
   withLogIO logger "haskell" . firstT LoomHaskellError $
