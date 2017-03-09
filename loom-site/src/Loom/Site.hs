@@ -24,6 +24,7 @@ import           Data.FileEmbed (embedFile)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 
@@ -61,6 +62,7 @@ newtype LoomSiteRoot =
 
 data SiteNavigation =
     SiteHome
+  | SiteHow
   | SiteComponents
   deriving (Bounded, Eq, Enum, Show)
 
@@ -167,6 +169,10 @@ generateLoomSiteStatic prefix root@(LoomSiteRoot out) = do
     B.writeFile (out </> fp) b
   writeHtmlFile prefix root [] $
     loomHomeHtml
+  writeHtmlFile prefix root [] $
+    loomHowHtml prefix
+  for_ loomHowHtmls $
+    writeHtmlFile prefix root []
 
 writeHtmlFile :: LoomSitePrefix -> LoomSiteRoot -> [CssFile] -> HtmlFile -> EitherT LoomSiteError IO ()
 writeHtmlFile prefix (LoomSiteRoot out) css hf =
@@ -193,6 +199,45 @@ loomHomeHtml =
       H.div ! HA.class_ "loom-vertical-grouping" $ do
         H.h1 ! HA.class_ "loom-h1" $ "Welcome to loom"
         H.img ! HA.src "https://cloud.githubusercontent.com/assets/355756/23049526/c99ade24-f510-11e6-851c-3e7902ed310c.jpg"
+
+loomHowHtml :: LoomSitePrefix -> HtmlFile
+loomHowHtml spx =
+  HtmlFile "how/index.html" SiteHow (SiteTitle "How to Use") $
+    H.div ! HA.class_ "loom-container-medium" $
+      H.div ! HA.class_ "loom-vertical-grouping" $ do
+        H.h1 ! HA.class_ "loom-h1" $ "How to Use"
+
+        H.h2 ! HA.class_ "loom-h2" $
+          H.a ! HA.class_ "loom-a" ! href spx "how/component.html" $
+            "Creating New Components"
+        H.p $ "How to create a component"
+
+        H.h2 ! HA.class_ "loom-h2" $
+          H.a ! HA.class_ "loom-a" ! href spx "how/projector.html" $
+            "Projector"
+        H.p $ "The projector reference guide"
+
+        H.h2 ! HA.class_ "loom-h2" $
+          H.a ! HA.class_ "loom-a" ! href spx "how/machinator.html" $
+            "Machinator"
+        H.p $ "The machinator reference guide"
+
+loomHowHtmls :: [HtmlFile]
+loomHowHtmls =
+  let
+    snippets =
+      [
+          ("component.html", "Creating New Components", howComponentSnippet)
+        , ("machinator.html", "Machinator", howMachinatorSnippet)
+        , ("projector.html", "Projector", howProjectorSnippet)
+        ]
+  in
+    with snippets $ \(f, t, b) ->
+      HtmlFile ("how" </> f) SiteHow (SiteTitle (t <> " - How to Use")) $
+        H.div ! HA.class_ "loom-container-medium" $ do
+          H.h1 ! HA.class_ "loom-h1 loom-page-header" $ H.text t
+          H.div ! HA.class_ "loom" $
+            Markdown.markdown Markdown.defaultMarkdownSettings . TL.fromStrict $ b
 
 loomComponentsHtml :: LoomSitePrefix -> [Component] -> HtmlFile
 loomComponentsHtml spx components =
@@ -278,6 +323,8 @@ htmlTemplate spx css navm title body =
                     case n of
                       SiteHome ->
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . loomSitePrefix $ spx) $ "Loom"
+                      SiteHow ->
+                        H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "how") $ "How to Use"
                       SiteComponents ->
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
     H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
@@ -323,6 +370,18 @@ loomLogoFavicons =
     , (,) "static/favicon-32x32.png" $(embedFile "../loom-site/assets/favicon-32x32.png")
     , (,) "static/favicon-96x96.png" $(embedFile "../loom-site/assets/favicon-96x96.png")
     ]
+
+howComponentSnippet :: Text
+howComponentSnippet =
+  T.decodeUtf8 $(embedFile "../loom-site/how/component.md")
+
+howMachinatorSnippet :: Text
+howMachinatorSnippet =
+  T.decodeUtf8 $(embedFile "../loom-site/how/machinator.md")
+
+howProjectorSnippet :: Text
+howProjectorSnippet =
+  T.decodeUtf8 $(embedFile "../loom-site/how/projector.md")
 
 --------
 

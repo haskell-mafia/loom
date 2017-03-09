@@ -80,15 +80,18 @@ body {
   text-decoration: none;
 }
 
-.loom-a:visited {
+.loom-a:visited,
+.loom a:visited {
   color: #10626c;
 }
 
-.loom-a:link {
+.loom-a:link,
+.loom a:link {
   color: #1f7c8a;
 }
 
-.loom-a {
+.loom-a,
+.loom a {
   background-color: transparent;
 }
 
@@ -147,15 +150,29 @@ body {
   font-size: 36px;
 }
 
+.loom-h2 ,
+.loom h2 {
+  font-size: 22px;
+}
+
+.loom-h3,
+.loom h3 {
+  font-size: 18px;
+}
+
 .loom-h1,
 .loom-h2,
-.loom-h3 {
+.loom h2,
+.loom-h3,
+.loom h3 {
   margin: 0 0 .5em;
 }
 
 .loom-h1,
 .loom-h2,
+.loom h2,
 .loom-h3,
+.loom h3,
 .loom-h4,
 .loom-h5,
 .loom-h6 {
