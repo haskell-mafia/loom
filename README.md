@@ -70,6 +70,32 @@ by _this_ project, and will be visible in the generated site.
   Defaults to "/".
 
 
+## Setting up a new Haskell project with Loom
+
+Where `$PROJECT` is the name of your project.
+
+1. `git submodule add git@github.com:ambiata/loom.git lib/loom`
+2. `cp lib/loom/scripts/loom .`
+3. `echo .loom >> .gitignore`
+4. `printf "[loom]\n  version = 1\n  name = \"$PROJECT\"\n" > loom.toml`
+5. Add `$PROJECT-loom` package to your cabal build-depends dependencies
+6. Import `$PROJECT.Assets` into your main and compose `assetMiddleware` with your existing `Middleware`
+7. Render the template html to the relevant format using
+   [hydrant](http://haddock.engineering.ambiata.com/hoogle/package/ambiata-hydrant/Hydrant.html):
+
+   ```
+   import qualified Hydrant as Hydrant
+   import qualified $PROJECT.Assets as Assets
+   import qualified $PROJECT.Modules.Template as Template
+   ...
+   html =
+     Hydrant.to??? . Hydrant.doctype "html" . Template.frame Assets.css $
+       Template.myTemplate
+   ```
+
+   In this case `Assets.css` is a generated function with all the relevant css files.
+
+
 ## Prerequisites
 
 - `sassc`
