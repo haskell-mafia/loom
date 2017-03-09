@@ -94,26 +94,16 @@ defaultLoomSiteRoot c =
     loomOutput c </> "site"
 
 generateLoomSite :: LoomSitePrefix -> LoomSiteRoot -> AssetsPrefix -> LoomResult -> EitherT LoomSiteError IO ()
-generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images) = do
+generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images) = do
   let
     css =
       CssFile . File.takeFileName . renderCssFile $ cssIn
-    writeHtmlFile :: HtmlFile -> EitherT LoomSiteError IO ()
-    writeHtmlFile hf =
-      case hf of
-        HtmlFile fp nav title h -> do
-          safeIO $
-            Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
-          safeIO $
-            TL.writeFile (out </> fp) . renderHtml . htmlTemplate prefix apx [css] (Just nav) title $ h
-        HtmlRawFile fp title h -> do
-          safeIO $
-            Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
-          safeIO $
-            TL.writeFile (out </> fp) . renderHtml . htmlRawTemplate prefix apx [css] title $ h
+    writeHtmlFile' :: HtmlFile -> EitherT LoomSiteError IO ()
+    writeHtmlFile' =
+      writeHtmlFile prefix root [(CssFile . cssAssetFilePath apx) css]
   safeIO $
     Dir.createDirectoryIfMissing True out
-  generateLoomSiteStatic (LoomSiteRoot out)
+  generateLoomSiteStatic prefix (LoomSiteRoot out)
   safeIO $
     prefixCssImageAssets prefix apx images
       (CssFile $ out </> cssAssetFilePath apx css)
@@ -122,11 +112,9 @@ generateLoomSite prefix (LoomSiteRoot out) apx (LoomResult _name components mo p
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
   for_ components $ \c -> do
     sc <- resolveSiteComponent mo po c
-    mapM writeHtmlFile . loomComponentHtml prefix sc $ c
-  writeHtmlFile $
+    mapM writeHtmlFile' . loomComponentHtml prefix sc $ c
+  writeHtmlFile' $
     loomComponentsHtml prefix components
-  writeHtmlFile $
-    loomHomeHtml
 
 resolveSiteComponent :: MachinatorOutput -> ProjectorOutput -> Component -> EitherT LoomSiteError IO SiteComponent
 resolveSiteComponent mo po c =
@@ -170,13 +158,31 @@ cleanLoomSite (LoomSiteRoot out) =
 
 -- | Generate the static files required for the loom site to function,
 -- which are independent from the hosting project
-generateLoomSiteStatic :: LoomSiteRoot -> EitherT LoomSiteError IO ()
-generateLoomSiteStatic (LoomSiteRoot out) = do
+generateLoomSiteStatic :: LoomSitePrefix -> LoomSiteRoot -> EitherT LoomSiteError IO ()
+generateLoomSiteStatic prefix root@(LoomSiteRoot out) = do
   safeIO $
     Dir.createDirectoryIfMissing True out
   safeIO . for_ [loomCssFile, loomLogoFile] $ \(fp, b) -> do
     Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
     B.writeFile (out </> fp) b
+  writeHtmlFile prefix root [] $
+    loomHomeHtml
+
+writeHtmlFile :: LoomSitePrefix -> LoomSiteRoot -> [CssFile] -> HtmlFile -> EitherT LoomSiteError IO ()
+writeHtmlFile prefix (LoomSiteRoot out) css hf =
+  case hf of
+    HtmlFile fp nav title h -> do
+      safeIO $
+        Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
+      safeIO $
+        TL.writeFile (out </> fp) . renderHtml $
+          htmlTemplate prefix (css <> [(CssFile . fst) loomCssFile]) (Just nav) title h
+    HtmlRawFile fp title h -> do
+      safeIO $
+        Dir.createDirectoryIfMissing True . File.takeDirectory $ out </> fp
+      safeIO $
+        TL.writeFile (out </> fp) . renderHtml $
+          htmlRawTemplate prefix css title h
 
 --------
 
@@ -237,9 +243,9 @@ loomComponentHtml spx (SiteComponent rm d es ps) c =
   in
     root : pages
 
-renderHtmlErrorPage :: LoomSitePrefix -> AssetsPrefix -> Html -> Text
-renderHtmlErrorPage spx apx =
-  TL.toStrict . renderHtml . htmlTemplate spx apx [] Nothing (SiteTitle "Error")
+renderHtmlErrorPage :: LoomSitePrefix -> Html -> Text
+renderHtmlErrorPage spx =
+  TL.toStrict . renderHtml . htmlTemplate spx [(CssFile . fst) loomCssFile] (Just SiteComponents) (SiteTitle "Error")
 
 loomSiteError :: Text -> Html
 loomSiteError err =
@@ -253,9 +259,9 @@ loomSiteNotFound =
     H.h1 ! HA.class_ "loom-h1 loom-page-header" $ "Error"
     H.p "Page not found"
 
-htmlTemplate :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> Maybe SiteNavigation -> SiteTitle -> Html -> Html
-htmlTemplate spx apx csss navm title body =
-  htmlRawTemplate spx apx csss title $ do
+htmlTemplate :: LoomSitePrefix -> [CssFile] -> Maybe SiteNavigation -> SiteTitle -> Html -> Html
+htmlTemplate spx css navm title body =
+  htmlRawTemplate spx css title $ do
     H.div ! HA.class_ "loom-pane-header" $
       H.div ! HA.class_ "loom-navigation-global" $
         H.div ! HA.class_ "loom-navigation-global__internal" $ do
@@ -277,14 +283,13 @@ htmlTemplate spx apx csss navm title body =
     H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
       body
 
-htmlRawTemplate :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> SiteTitle -> Html -> Html
-htmlRawTemplate spx apx csss title body = do
+htmlRawTemplate :: LoomSitePrefix -> [CssFile] -> SiteTitle -> Html -> Html
+htmlRawTemplate spx csss title body = do
   H.docType
   H.html $ do
     H.head $ do
       for_ csss $ \css ->
-        H.link ! HA.rel "stylesheet" ! HA.href (H.textValue . cssAssetPath spx apx $ css)
-      H.link ! HA.rel "stylesheet" ! HA.href (H.textValue . (<>) (loomSitePrefix spx) . T.pack . fst $ loomCssFile)
+        H.link ! HA.rel "stylesheet" ! HA.href (H.textValue . (<>) (loomSitePrefix spx) . T.pack . renderCssFile $ css)
       H.title . H.text . renderSiteTitle $ title
     H.body $
       body
