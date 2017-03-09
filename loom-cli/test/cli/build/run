@@ -2,9 +2,12 @@
 
 . test/cli/core/env.sh
 
+ROOT="$(pwd)"
 cd test/cli/build
 rm -rf dist
 export LOOM_SITE_PREFIX="http://test/prefix/"
+export LOOM_OUTPUT_HASKELL="dist/haskell"
+export LOOM_OUTPUT_SITE="dist/site"
 $LOOM build
 
 file_exists() {
@@ -18,26 +21,26 @@ contains() {
   grep -q "$2" "$1" || (echo "Could not find '$2' in '$1'" && exit 1)
 }
 
-file_exists "dist/test_build.css"
-file_exists "dist/test-build-loom.cabal"
-file_exists "dist/src/Other/Components/C1/Component.hs"
-file_exists "dist/src/Other/Components/C1/Data.hs"
-file_exists "dist/src/TestBuild/Components/C2/Component.hs"
-file_exists "dist/src/TestBuild/Components/C2/Data.hs"
-file_exists "dist/site/index.html"
-file_exists "dist/site/components/index.html"
-file_exists "dist/site/components/index.html"
-file_exists "dist/site/components/components/c1/index.html"
-file_exists "dist/site/components/components/c2/index.html"
-file_exists "dist/site/components/components/c2/pages/mock.html"
+file_exists "${LOOM_OUTPUT_HASKELL}/test_build.css"
+file_exists "${LOOM_OUTPUT_HASKELL}/test-build-loom.cabal"
+file_exists "${LOOM_OUTPUT_HASKELL}/src/Other/Components/C1/Component.hs"
+file_exists "${LOOM_OUTPUT_HASKELL}/src/Other/Components/C1/Data.hs"
+file_exists "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Components/C2/Component.hs"
+file_exists "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Components/C2/Data.hs"
+file_exists "${LOOM_OUTPUT_SITE}/index.html"
+file_exists "${LOOM_OUTPUT_SITE}/components/index.html"
+file_exists "${LOOM_OUTPUT_SITE}/components/index.html"
+file_exists "${LOOM_OUTPUT_SITE}/components/components/c1/index.html"
+file_exists "${LOOM_OUTPUT_SITE}/components/components/c2/index.html"
+file_exists "${LOOM_OUTPUT_SITE}/components/components/c2/pages/mock.html"
 
-contains "dist/test_build.css" "\"/assets/other/components/c1/image.svg\""
-contains "dist/test_build.css" "\"/assets/test_build/components/c2/image.svg\""
-contains "dist/site/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/other/components/c1/image.svg\""
-contains "dist/site/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/test_build/components/c2/image.svg\""
+contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
+contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/test_build/components/c2/image.svg\""
+contains "${LOOM_OUTPUT_SITE}/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/other/components/c1/image.svg\""
+contains "${LOOM_OUTPUT_SITE}/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/test_build/components/c2/image.svg\""
 
-contains "dist/src/TestBuild/Assets.hs" "assets/other/components/c1/image.svg"
-contains "dist/src/TestBuild/Assets.hs" "assets/test_build/components/c2/image.svg"
+contains "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Assets.hs" "assets/other/components/c1/image.svg"
+contains "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Assets.hs" "assets/test_build/components/c2/image.svg"
 
-cd dist
-../../../../mafia build
+cd "$LOOM_OUTPUT_HASKELL"
+"${ROOT}/mafia" build
