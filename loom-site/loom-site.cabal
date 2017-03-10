@@ -17,6 +17,9 @@ extra-source-files:
                      , assets/favicon-16x16.png
                      , assets/favicon-32x32.png
                      , assets/favicon-96x96.png
+                     , how/component.md
+                     , how/machinator.md
+                     , how/projector.md
 
 library
   build-depends:
