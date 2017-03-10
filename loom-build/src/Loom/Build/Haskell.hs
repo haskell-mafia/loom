@@ -8,6 +8,7 @@ module Loom.Build.Haskell (
   , renderLoomHaskellError
   ) where
 
+import           Control.Monad.Catch (handleIf)
 import           Control.Monad.IO.Class (liftIO)
 
 import qualified Data.Char as Char
@@ -27,6 +28,8 @@ import           P
 import           System.Directory (canonicalizePath, createDirectoryIfMissing)
 import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory, takeFileName)
 import           System.IO (IO)
+import qualified System.IO.Error as IO.Error
+import qualified System.Posix.Files as Unix
 
 import           X.Control.Monad.Trans.Either (EitherT)
 
@@ -49,9 +52,11 @@ generateHaskell output spx apx (LoomResult name _ mo po inputCss images) = do
   liftIO $
     prefixCssImageAssets spx apx images outputCss inputCss
   liftIO $
+    createAssetSymlinks output apx outputCss images
+  liftIO $
     generateAssetHaskell name output spx apx outputCss images
   liftIO $
-    generateCabal name output mo po
+    generateCabal name output mo po apx outputCss images
 
 generateAssetHaskell :: LoomName -> FilePath -> LoomSitePrefix -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
 generateAssetHaskell name output spx apx css images = do
@@ -59,9 +64,9 @@ generateAssetHaskell name output spx apx css images = do
     f = output </> "src" </> assetModulePath name
     q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
     q2 p t = "(\"" <> p <> "\", \"" <> T.pack t <> "\")"
+    images' = with images $ \i -> (,) (imageAssetPath spx apx i) (imageAssetFilePath apx i)
+    css' = (,) (cssAssetPath spx apx css) (cssAssetFilePath apx css)
   createDirectoryIfMissing True . takeDirectory $ f
-  css' <- fmap ((,) (cssAssetPath spx apx css)) . canonicalizePath $ renderCssFile css
-  images' <- for images $ \i -> (,) (imageAssetPath spx apx i) <$> canonicalizePath (imageFilePath i)
   T.writeFile f $
     T.unlines [
         "{-# LANGUAGE CPP #-}"
@@ -111,15 +116,32 @@ generateAssetHaskell name output spx apx css images = do
       , "    (cssAssets <> imagesAssets)"
       ]
 
+createAssetSymlinks :: FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
+createAssetSymlinks output apx css images = do
+  let
+    link i o = do
+      createDirectoryIfMissing True . takeDirectory $ o
+      ic <- canonicalizePath i
+      handleIf IO.Error.isAlreadyExistsError (pure . const ()) $
+        Unix.createSymbolicLink ic o
+  link (renderCssFile css) (output </> cssAssetFilePath apx css)
+  for_ images $ \i ->
+    link (imageFilePath i) (output </> imageAssetFilePath apx i)
+
 generateCabal ::
   LoomName ->
   FilePath ->
   MachinatorOutput ->
   ProjectorOutput ->
+  AssetsPrefix ->
+  CssFile ->
+  [ImageFile] ->
   IO ()
-generateCabal name output mo po = do
+generateCabal name output mo po apx css images = do
   let
     n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "-loom"
+    sourceFiles =
+      cssAssetFilePath apx css : fmap (imageAssetFilePath apx) images
   T.writeFile (output </> T.unpack n <> ".cabal") $
     T.unlines [
         "name:          " <> n
@@ -132,6 +154,9 @@ generateCabal name output mo po = do
       , "cabal-version: >= 1.8"
       , "build-type:    Simple"
       , "description:   description"
+      , ""
+      , "extra-source-files:"
+      , "    " <> (T.intercalate "\n  , " . fmap T.pack) sourceFiles
       , ""
       , "library"
       , "  hs-source-dirs: src"
