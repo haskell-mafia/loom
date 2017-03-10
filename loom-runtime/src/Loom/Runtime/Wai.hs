@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Loom.Wai.Assets (
+module Loom.Runtime.Wai (
     Middleware
   , Asset (..)
   , Assets

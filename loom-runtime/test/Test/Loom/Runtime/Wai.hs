@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-module Test.Loom.Wai.Assets where
+module Test.Loom.Runtime.Wai where
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -11,7 +11,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
-import           Loom.Wai.Assets
+import           Loom.Runtime.Wai
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)
 import           Disorder.Core.IO (testIO)
@@ -67,7 +67,7 @@ prop_wai_assets_dev =
   J.forAll (J.noShrink J.arbitrary) $ \b ->
   fst f1 /= fst f2 ==>
   J.forAll (J.noShrink . J.listOf $ genFile) $ \files ->
-  testIO . Temp.withTempDirectory "dist" "wai-assets-dev" $ \dir -> do
+  testIO . Temp.withTempDirectory "dist" "temp" $ \dir -> do
     let
       req f = Wai.defaultRequest {
           Wai.pathInfo = fst f
