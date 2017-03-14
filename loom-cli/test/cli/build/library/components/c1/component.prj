@@ -6,7 +6,6 @@
    case test of
      Test1 ->
        <div>Test1</div>
-     ;
      Test2 s ->
        <div>Test2 { text s }</div>
  }
