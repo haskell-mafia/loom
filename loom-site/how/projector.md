@@ -29,10 +29,8 @@ Perhaps something a little more interesting:
           case size of
             Small ->
               "small"
-            ;
             Medium ->
               "medium"
-            ;
             Large ->
               "large"
         }">
@@ -107,21 +105,19 @@ _ `{ ... }`
 
   We're constructing a "String" type which will be the value of "href"
 
-- `;`
-
-  After the first match, and every subsequent match, you need to use ";"
-  to separate them.
-
-  NOTE: This is only temporary and will be removed very soon.
-
 - `Medium -> "medium"; Large -> "large"`
 
   The final two matches of the other two "Size" constructors.
 
-  NOTE: Loom will throw errors if any constructors _haven't_ been matched.
+  Loom will throw errors if any constructors _haven't_ been matched.
   You have to match _everything_. This is useful especially when we add
   new constructors to a data type and want to know where we might care
   about it.
+
+  Projector is whitespace-sensitive, and uses the indent level to
+  determine where a case begins and ends. In general, indent further
+  to the right when writing a case, and go back to the left to start a
+  new case. These rules also apply to lambdas.
 
 - `My name is:`
 
