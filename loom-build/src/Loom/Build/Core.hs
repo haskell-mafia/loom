@@ -120,7 +120,7 @@ buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others)
     let
       pms = with components $ \(cr, cs) ->
         Projector.ProjectorInput
-          (Projector.moduleNameFromFile . T.unpack . renderLoomName . loomConfigResolvedName $ cr)
+          (renderLoomName . loomConfigResolvedName $ cr)
           (loomRootFilePath . loomConfigResolvedRoot $ cr)
           (bind (fmap componentFilePath . componentProjectorFiles) cs)
     firstT LoomProjectorError $

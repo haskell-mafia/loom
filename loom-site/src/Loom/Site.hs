@@ -137,7 +137,7 @@ resolveSiteComponent mo po c =
           P.compileProjector
             (machinatorOutputToProjector mo)
             po
-            (P.ProjectorInput (P.ModuleName "Ignore") root [f])
+            (P.ProjectorInput "ignore" root [f])
         for (join . Map.elems . Projector.projectorOutputModuleExprs $ po') $
           fmap ((,) (T.pack . File.takeBaseName $ f)) .
             fmap projectorHtmlToBlaze . hoistEither . first LoomSiteProjectorInterpretError .

@@ -40,13 +40,12 @@ import           Projector.Html.Data.Annotation (SrcAnnotation)
 import qualified Projector.Html as Projector
 import qualified Projector.Html.Backend.Haskell as Projector
 import qualified Projector.Html.Core.Machinator as Projector
-import qualified Projector.Html.Data.Backend as Projector
 import qualified Projector.Html.Data.Module as Projector
 import qualified Projector.Html.Interpreter as Projector
 import qualified Projector.Core as Projector
 
 import           System.Directory (createDirectoryIfMissing)
-import           System.FilePath (FilePath, (</>), takeDirectory, makeRelative)
+import           System.FilePath (FilePath, (</>), takeDirectory, takeFileName, dropExtension, makeRelative)
 import           System.IO (IO)
 import           System.IO.Error (isDoesNotExistError)
 
@@ -67,7 +66,7 @@ data ProjectorInterpretError =
 
 data ProjectorInput =
   ProjectorInput {
-      projectorModuleName :: ModuleName
+      projectorLoomName :: Text
     , projectorModuleRoot :: FilePath
     , projectorModuleTemplates :: [FilePath]
     } deriving (Show)
@@ -79,18 +78,18 @@ data ProjectorOutput =
 
 instance Monoid ProjectorOutput where
   mempty =
-    ProjectorOutput (BuildArtefacts mempty)
-  mappend (ProjectorOutput (BuildArtefacts d1)) (ProjectorOutput (BuildArtefacts d2)) =
-    ProjectorOutput (BuildArtefacts (d1 <> d2))
+    ProjectorOutput (BuildArtefacts mempty mempty)
+  mappend (ProjectorOutput (BuildArtefacts d1 d3)) (ProjectorOutput (BuildArtefacts d2 d4)) =
+    ProjectorOutput (BuildArtefacts (d1 <> d2) (d3 <> d4))
 
 projectorOutputModules :: ProjectorOutput -> [ModuleName]
-projectorOutputModules (ProjectorOutput (BuildArtefacts ms)) =
+projectorOutputModules (ProjectorOutput (BuildArtefacts _nmap ms)) =
   Map.keys ms
 
 projectorOutputModuleExprs ::
   ProjectorOutput ->
   Map ModuleName [HtmlExpr (HtmlType, SrcAnnotation)]
-projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts ms)) =
+projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _nmap ms)) =
   fmap (fmap snd . Map.elems . Projector.moduleExprs) $ ms
 
 -- FIX Should be in machinator
@@ -103,7 +102,7 @@ compileProjector ::
   EitherT ProjectorError IO ProjectorOutput
 compileProjector
   udts
-  (ProjectorOutput (BuildArtefacts oh1))
+  (ProjectorOutput (BuildArtefacts nmap1 oh1))
   (ProjectorInput prefix root inputs) = do
 
   templates <- for inputs $ \input ->
@@ -113,30 +112,22 @@ compileProjector
   let
     decls =
       Projector.machinatorDecls . join . Map.elems $ udts
-    mnr =
-      Projector.moduleNamerSimple (Just prefix)
-  BuildArtefacts oh2 <- firstT ProjectorError . hoistEither $
+  BuildArtefacts nmap2 oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
-      (Projector.Build
-        (Projector.ModuleNamer
-          (Projector.pathToModuleName mnr . makeRelative root)
-          (Projector.filePathToExprName mnr . makeRelative root)
-          )
-        (Map.keys udts)
-        )
+      (Projector.Build (moduleNamer prefix root) (Map.keys udts))
       (Projector.UserDataTypes decls)
       oh1
       (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
-  pure $ ProjectorOutput (BuildArtefacts oh2)
+  pure $ ProjectorOutput (BuildArtefacts (nmap1 <> nmap2) oh2)
 
 generateProjectorHtml ::
   MachinatorModules ->
   ProjectorOutput ->
   Projector.HtmlExpr (HtmlType, SrcAnnotation) ->
   Either ProjectorInterpretError Projector.Html
-generateProjectorHtml mo (ProjectorOutput (BuildArtefacts h)) =
+generateProjectorHtml mo (ProjectorOutput (BuildArtefacts _ h)) =
   first ProjectorInterpretError . Projector.interpret
     (Projector.machinatorDecls . join $ Map.elems mo)
     (Projector.extractModuleExprs h)
@@ -144,13 +135,30 @@ generateProjectorHtml mo (ProjectorOutput (BuildArtefacts h)) =
 generateProjectorHaskell :: FilePath -> ProjectorOutput -> EitherT ProjectorHaskellError IO [FilePath]
 generateProjectorHaskell output (ProjectorOutput ba) = do
   fs <- hoistEither . first ProjectorHaskellError $
-    Projector.codeGen Projector.haskellBackend ba
+    Projector.codeGen Projector.haskellBackend codeGenNamer ba
   for fs $ \(f, t) -> do
     liftIO $
       createDirectoryIfMissing True (output </> takeDirectory f)
     liftIO $
       T.writeFile (output </> f) t
     pure f
+
+moduleNamer :: Text -> FilePath -> Projector.ModuleNamer
+moduleNamer prefix root =
+  let mnr = Projector.moduleNamerSimple (Just (moduleNameFromFile (T.unpack prefix)))
+  in Projector.ModuleNamer
+      (Projector.pathToModuleName mnr . takeDirectory . makeRelative root)
+      (\fp -> Projector.Name . T.pack $ T.unpack prefix </> (dropExtension . makeRelative root $ fp))
+
+codeGenNamer :: Projector.CodeGenNamer
+codeGenNamer =
+  Projector.CodeGenNamer
+    -- Names for invocations
+    (\_n (Projector.ModuleName mn) fp -> Projector.Name (mn <> "." <> file fp))
+    -- Names for definitions
+    (\_n _mn fp -> Projector.Name (file fp))
+  where
+    file = T.pack . dropExtension . takeFileName
 
 moduleNameFromFile :: FilePath -> ModuleName
 moduleNameFromFile =
@@ -159,8 +167,8 @@ moduleNameFromFile =
 requiredProjectorHaskellImports :: [ModuleName]
 requiredProjectorHaskellImports =
   [
-      Projector.htmlRuntime
-    ]
+    Projector.ModuleName "Projector.Html.Runtime"
+  ]
 
 renderProjectorError :: ProjectorError -> Text
 renderProjectorError pe =

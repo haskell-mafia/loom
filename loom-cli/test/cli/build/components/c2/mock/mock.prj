@@ -1,5 +1,5 @@
 <html>
   <body>
-    { componentsC2Component (Bar <span>hello</span>) Test1 }
+    { test_build/components/c2/component (Bar <span>hello</span>) Test1 }
   </body>
 </html>
