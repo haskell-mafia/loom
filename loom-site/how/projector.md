@@ -135,9 +135,18 @@ It's important to keep in mind that templates are _just_ functions.
 Each template is available under a function name that is derived from
 its filepath and project name.
 
+The default template for a given component is named `template.prj`,
+though there can be more than one template in each directory.
 
-So, in Bikeshed, `modules/my-component/template.prj` will be
-accessible under the name `bikeshed/modules/my-component/template`.
+Suppose we're working in Bikeshed on a module located in
+`modules/my-component/template.prj`. The project name for Bikeshed is
+`bikeshed`, set in its `loom.toml` file, so all names will be prefixed thus.
+
+- `modules/my-component/template.prj` is the default template, so it
+  gets a nice short name. It will be accessible under the name
+  `bikeshed/modules/my-component`.
+- `modules/my-component/foobar.prj` will be accessible under the name
+  `bikeshed/modules/my-component/foobar`.
 
 ## What is a function?
 

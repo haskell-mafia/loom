@@ -145,10 +145,21 @@ generateProjectorHaskell output (ProjectorOutput ba) = do
 
 moduleNamer :: Text -> FilePath -> Projector.ModuleNamer
 moduleNamer prefix root =
-  let mnr = Projector.moduleNamerSimple (Just (moduleNameFromFile (T.unpack prefix)))
+  let mnr =
+        Projector.moduleNamerSimple
+          (Just (moduleNameFromFile (T.unpack prefix)))
+      dropFileIfDefault fp =
+        if takeFileName (dropExtension fp) == defaultTemplateName
+          then takeDirectory fp
+          else fp
   in Projector.ModuleNamer
-      (Projector.pathToModuleName mnr . takeDirectory . makeRelative root)
-      (\fp -> Projector.Name . T.pack $ T.unpack prefix </> (dropExtension . makeRelative root $ fp))
+       (Projector.pathToModuleName mnr . takeDirectory . makeRelative root)
+       (\fp -> Projector.Name . T.pack $
+         T.unpack prefix </> (dropFileIfDefault . dropExtension . makeRelative root $ fp))
+
+defaultTemplateName :: [Char]
+defaultTemplateName =
+  "template"
 
 codeGenNamer :: Projector.CodeGenNamer
 codeGenNamer =
