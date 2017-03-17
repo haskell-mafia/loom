@@ -132,15 +132,12 @@ _ `{ ... }`
 ## How do I call another template?
 
 It's important to keep in mind that templates are _just_ functions.
-_Currently_ the template is compiled to a function name that is
-derived from the path.
+Each template is available under a function name that is derived from
+its filepath and project name.
 
-So `modules/my-component/template.prj` will be converted to
-`moduleMyComponentTemplate`
 
-Yeah, this is a little strange, the plan is to use
-[actual paths](https://github.com/ambiata/projector/issues/143) ASAP.
-
+So, in Bikeshed, `modules/my-component/template.prj` will be
+accessible under the name `bikeshed/modules/my-component/template`.
 
 ## What is a function?
 
