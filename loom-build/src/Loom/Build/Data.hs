@@ -20,6 +20,7 @@ module Loom.Build.Data (
   , componentName
   , componentFilePath
   , componentFilePathNoRoot
+  , templateName
   , imageFilePath
   , imageAssetPath
   , imageAssetFilePath
@@ -34,6 +35,7 @@ module Loom.Build.Data (
   , findFiles'
   ) where
 
+import           Data.Map.Strict (Map)
 import qualified Data.Text as T
 
 import           Loom.Machinator (MachinatorOutput)
@@ -91,7 +93,7 @@ data LoomFile =
 newtype LoomName =
   LoomName {
       renderLoomName :: Text
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 data LoomConfig =
   LoomConfig {
@@ -112,7 +114,7 @@ data LoomConfigResolved =
 data LoomResult =
   LoomResult {
       loomResultName :: LoomName
-    , loomResultComponents :: [Component]
+    , loomResultComponents :: Map LoomName [Component]
     , loomResultMachinatorOutput :: MachinatorOutput
     , loomResultProjectorOutput :: ProjectorOutput
     , loomResultCss :: CssFile
@@ -162,6 +164,10 @@ componentFilePath (ComponentFile r f) =
 componentFilePathNoRoot :: ComponentFile -> FilePath
 componentFilePathNoRoot (ComponentFile r f) =
   loomFileRawPath r </> f
+
+templateName :: LoomName -> Component -> Text
+templateName ln cm =
+  renderLoomName ln <> "/" <> componentName cm
 
 data ImageFile =
   ImageFile {
