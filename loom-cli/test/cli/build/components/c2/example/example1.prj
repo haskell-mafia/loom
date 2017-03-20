@@ -1,2 +1,2 @@
-{ test_build/components/c2 (Bar <span>hello</span>) Test1 }
+{ test_build/components/c2 (Bar (Fizz "xyz") <span>hello</span>) Test1 }
 

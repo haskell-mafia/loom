@@ -1,5 +1,9 @@
 -- machinator @ v1
 
 data Foo =
-    Bar Html
+    Bar Fizz Html
   | Baz String
+
+record Fizz = {
+    name : String
+  }
