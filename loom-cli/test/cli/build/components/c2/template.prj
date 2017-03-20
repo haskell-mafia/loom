@@ -1,7 +1,7 @@
 \foo : Foo
  test : Test ->
 
-{ other/components/c1/component test }
+{ other/components/c1 test }
 
 {
   case foo of
