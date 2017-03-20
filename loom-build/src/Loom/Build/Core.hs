@@ -136,7 +136,7 @@ buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others)
   pure $
     LoomResult
       (loomConfigResolvedName config)
-      (bind snd components)
+      (Map.fromList (fmap (first loomConfigResolvedName) components))
       mo
       po
       outputCss

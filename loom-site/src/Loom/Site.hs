@@ -22,7 +22,8 @@ import           Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import           Data.FileEmbed (embedFile)
 import qualified Data.List as List
-import qualified Data.Map as Map
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
@@ -112,9 +113,10 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
       cssIn
   safeIO . for_ images $ \img ->
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
-  for_ components $ \c -> do
-    sc <- resolveSiteComponent mo po c
-    mapM writeHtmlFile' . loomComponentHtml prefix sc $ c
+  void . flip Map.traverseWithKey components $ \ln cs ->
+    for_ cs $ \c -> do
+      sc <- resolveSiteComponent mo po c
+      mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c
   writeHtmlFile' $
     loomComponentsHtml prefix components
 
@@ -239,31 +241,35 @@ loomHowHtmls =
           H.div ! HA.class_ "loom" $
             Markdown.markdown Markdown.defaultMarkdownSettings . TL.fromStrict $ b
 
-loomComponentsHtml :: LoomSitePrefix -> [Component] -> HtmlFile
+loomComponentsHtml :: LoomSitePrefix -> Map LoomName [Component] -> HtmlFile
 loomComponentsHtml spx components =
   HtmlFile "components/index.html" SiteComponents (SiteTitle "Components") $
     H.div ! HA.class_ "loom-container-medium" $ do
       H.h1 ! HA.class_ "loom-h1 loom-page-header" $ "Components"
       H.ul ! HA.class_ "loom-ul loom-list-unstyled" $
-        for_ components $ \c ->
-          H.li $
-            H.a ! HA.class_ "loom-a" ! HA.href (H.textValue . mappend (loomSitePrefix spx) . T.pack . componentDirectory $ c) $
-              (H.text . componentName) c
+        void . flip Map.traverseWithKey components $ \ln cs -> do
+          H.h2 ! HA.class_ "loom-h2" $
+            H.a ! HA.id (H.textValue (renderLoomName ln)) $ H.text (renderLoomName ln)
+          for_ cs $ \c ->
+            let pageLink = T.unpack (loomSitePrefix spx) </> componentDirectory c ln in
+            H.li $
+              H.a ! HA.class_ "loom-a" ! HA.href (H.textValue (T.pack pageLink)) $
+                H.text (templateName ln c)
 
-loomComponentHtml :: LoomSitePrefix -> SiteComponent -> Component -> [HtmlFile]
-loomComponentHtml spx (SiteComponent rm d es ps) c =
+loomComponentHtml :: LoomSitePrefix -> SiteComponent -> LoomName -> Component -> [HtmlFile]
+loomComponentHtml spx (SiteComponent rm d es ps) ln c =
   let
     pageLink n =
-      componentDirectory c </> "pages" </> T.unpack n <> ".html"
+      componentDirectory c ln </> "pages" </> T.unpack n <> ".html"
     root =
       HtmlFile
-        (componentDirectory c </> "index.html")
+        (componentDirectory c ln </> "index.html")
         SiteComponents
         (SiteTitle $ componentName c <> " - Components")
         $
           H.div ! HA.class_ "loom-container-wide" $ do
             H.h1 ! HA.class_ "loom-h1 loom-page-header" $
-              H.text . componentName $ c
+              H.text (templateName ln c)
             for_ rm $
               H.p
             unless (null d) $
@@ -407,9 +413,9 @@ projectorHtmlToBlaze h =
 
 --------
 
-componentDirectory :: Component -> FilePath
-componentDirectory c =
-  "components" </> (T.unpack . componentName) c
+componentDirectory :: Component -> LoomName -> FilePath
+componentDirectory c (LoomName ln) =
+  "components" </> T.unpack ln </> (T.unpack . componentName) c
 
 readFileSafe :: FilePath -> IO (Maybe TL.Text)
 readFileSafe =
