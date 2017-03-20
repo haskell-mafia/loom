@@ -1,5 +1,4 @@
-\foo : Foo
- test : Test ->
+\ foo : Foo -> test : Test -> Html =
 
 { other/components/c1 test }
 

@@ -1,4 +1,4 @@
-\test : Test ->
+\ test : Test -> Html =
 { other/components/c1/foo }
 <div>
  {
