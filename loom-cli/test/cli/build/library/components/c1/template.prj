@@ -1,7 +1,6 @@
 \test : Test ->
+{ other/components/c1/foo }
 <div>
-  Hello World
-
  {
    case test of
      Test1 ->
