@@ -38,8 +38,8 @@ prop_projector_success =
        name1 = name <> "/test1"
     lift $ createDirectoryIfMissing True dir1
     lift $ createDirectoryIfMissing True dir2
-    lift $ writeFile f1 "\\foo : Foo ->\n<a>b</a>"
-    lift $ writeFile f2 ("\\bar : Bar\nfoo : Foo ->\n { " <> name1 <> " foo }")
+    lift $ writeFile f1 "\\foo : Foo -> Html =\n<a>b</a>"
+    lift $ writeFile f2 ("\\bar : Bar -> foo : Foo -> Html=\n { " <> name1 <> " foo }")
     out <- firstT renderProjectorError . foldM (\o -> fmap (mappend o) . compileProjector mempty o) mempty $ [
         ProjectorInput name dir1 [f1]
       , ProjectorInput name dir2 [f2]
