@@ -90,7 +90,7 @@ projectorOutputModuleExprs ::
   ProjectorOutput ->
   Map ModuleName [HtmlExpr (HtmlType, SrcAnnotation)]
 projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _nmap ms)) =
-  fmap (fmap snd . Map.elems . Projector.moduleExprs) $ ms
+  fmap (fmap Projector.meExpr . Map.elems . Projector.moduleExprs) $ ms
 
 -- FIX Should be in machinator
 type MachinatorModules = Map.Map Projector.DataModuleName [MC.Definition]

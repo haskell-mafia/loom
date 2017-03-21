@@ -19,7 +19,7 @@ by self-closing or with a closing tag (of the exact same name).
 Perhaps something a little more interesting:
 
 ```prj
-\input : Input ->
+\input : Input -> Html =
 
 <div>
   {
@@ -44,22 +44,37 @@ Starting from the beginning:
 
 - `\`
 
-  indicates the start of a "lambda" (another word for anonymous function).
-  This can be done optionally at the start of a template if you accept arguments,
-  or when using `each` (see below).
+  Indicates the start of the *type signature*. This indicates the
+  template's *arguments*, which have both a name and a type, as
+  well as its *result type*.
 
 - `input : Input`
 
-  A lambda value called "input" which has the type "Input", which can be declared
-  in a [machinator](machinator.html) file.
+  An *argument* named "input", which has the type "Input".
+
+  We can define types in a [machinator](machinator.html) file.
 
 - `->`
 
-  The end of the lambda.
+  This arrow separates arguments in the type signature.
+
+- `Html`
+
+  The last type in a type signature is the *result type*. Usually, a
+  template produces HTML, like this example.
+
+  The result type does not
+  have a name, since it is constructed by the template, rather than
+  being passed in as a parameter.
+
+- `=`
+
+  The end of the type signature. The template begins immediately after
+  the equal sign.
 
 - `<div>...</div>`
 
-  As above we can write (well-formed) html directly in the template.
+  We can write HTML directly in the template.
 
 _ `{ ... }`
 
@@ -237,8 +252,12 @@ A specialised, but very useful function, for iterating over each element of a `L
 and specifically returning `Html` values, to eventually be joined into a single
 `Html` result.
 
+Note the second argument to `each`, a function which takes an item of
+the list and turns it into `Html`. This is most convenient when used
+with an *anonymous function* or *lambda*, as per the example below:
+
 ```prj
-\names : List String ->
+\names : List String -> Html =
 {
   each names \name ->
     <span>{ text name }</span>
