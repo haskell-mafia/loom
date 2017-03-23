@@ -4,7 +4,6 @@ module Loom.Sass (
     Sass
   , SassError (..)
   , SassStyle (..)
-  , CssFile (..)
   , findSassOnPath
   , compileSass
   , compileSassFile
@@ -16,6 +15,7 @@ import           Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
+import           Loom.Core.Data
 import           Loom.Process
 
 import           P
@@ -42,11 +42,6 @@ data SassStyle =
   | SassCompact
   | SassCompressed
   deriving (Bounded, Enum, Eq, Show)
-
-newtype CssFile =
-  CssFile {
-      renderCssFile :: FilePath
-    } deriving (Eq, Show)
 
 findSassOnPath :: IO (Maybe Sass)
 findSassOnPath =

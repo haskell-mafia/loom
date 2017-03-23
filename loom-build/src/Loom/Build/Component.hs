@@ -13,7 +13,7 @@ import           Control.Monad.IO.Class (liftIO)
 import           Data.List (partition)
 import qualified Data.Text as T
 
-import           Loom.Build.Data
+import           Loom.Core.Data
 
 import           P
 

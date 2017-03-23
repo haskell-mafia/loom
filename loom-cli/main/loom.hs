@@ -12,10 +12,10 @@ import qualified Data.Text as T
 import           DependencyInfo_ambiata_loom_cli
 
 import           Loom.Build.Core
-import           Loom.Build.Data
 import           Loom.Build.Haskell
 import           Loom.Build.Logger
 import           Loom.Build.Watch
+import           Loom.Core.Data
 import           Loom.Config.Toml
 import           Loom.Http
 import           Loom.Site

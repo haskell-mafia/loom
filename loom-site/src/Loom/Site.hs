@@ -31,12 +31,11 @@ import qualified Data.Text.Lazy.IO as TL
 
 import           Loom.Build.Assets
 import           Loom.Build.Core
-import           Loom.Build.Data
+import           Loom.Core.Data
 import           Loom.Machinator (MachinatorOutput)
 import           Loom.Projector (ProjectorOutput, ProjectorError, ProjectorInterpretError)
 import qualified Loom.Projector as Projector
 import qualified Loom.Projector as P
-import           Loom.Sass (CssFile (..))
 
 import           P
 

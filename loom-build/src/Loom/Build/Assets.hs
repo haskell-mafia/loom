@@ -11,8 +11,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
-import           Loom.Build.Data
-import           Loom.Sass (CssFile, renderCssFile)
+import           Loom.Core.Data
 
 import           P
 

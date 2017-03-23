@@ -26,6 +26,7 @@ library
                       base                            >= 3          && < 5
                     , ambiata-p
                     , ambiata-loom-build
+                    , ambiata-loom-core
                     , ambiata-loom-machinator
                     , ambiata-loom-projector
                     , ambiata-loom-sass
@@ -66,6 +67,7 @@ test-suite test
 
   build-depends:
                       base                            >= 3          && < 5
+                    , ambiata-loom-core
                     , ambiata-loom-site
                     , ambiata-disorder-core
                     , ambiata-disorder-jack
@@ -92,6 +94,7 @@ test-suite test-io
                     , ambiata-disorder-eithert
                     , ambiata-disorder-jack
                     , ambiata-loom-build
+                    , ambiata-loom-core
                     , ambiata-loom-sass
                     , ambiata-loom-site
                     , ambiata-p

@@ -10,7 +10,7 @@ module Loom.Build.Watch (
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
 
-import           Loom.Build.Data
+import           Loom.Core.Data
 
 import           P
 

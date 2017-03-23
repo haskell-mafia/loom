@@ -10,7 +10,7 @@ import           Data.List (nub)
 import qualified Data.Text.IO as T
 
 import           Loom.Build.Component
-import           Loom.Build.Data
+import           Loom.Core.Data
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)
 import           Disorder.Core.IO (testIO)

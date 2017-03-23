@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Test.Loom.Build.Data where
 
-import           Loom.Build.Data
+import           Loom.Core.Data
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)
 

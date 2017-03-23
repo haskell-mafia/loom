@@ -6,6 +6,7 @@ module Test.IO.Loom.Sass where
 
 import           Control.Monad.Trans.Class (lift)
 
+import           Loom.Core.Data
 import           Loom.Sass
 
 import qualified Data.Text.IO as T

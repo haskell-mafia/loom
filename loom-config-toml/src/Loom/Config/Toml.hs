@@ -12,7 +12,7 @@ import           Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
-import           Loom.Build.Data
+import           Loom.Core.Data
 
 import           P
 
