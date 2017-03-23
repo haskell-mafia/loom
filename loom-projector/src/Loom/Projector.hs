@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 module Loom.Projector (
     ProjectorError (..)
   , ProjectorHaskellError (..)
@@ -31,6 +32,8 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
+import           Loom.Core.Data
+
 import qualified Machinator.Core as MC
 
 import           P
@@ -41,6 +44,7 @@ import qualified Projector.Html as Projector
 import qualified Projector.Html.Backend.Haskell as Projector
 import qualified Projector.Html.Core.Machinator as Projector
 import qualified Projector.Html.Data.Module as Projector
+import qualified Projector.Html.Data.Prim as Projector
 import qualified Projector.Html.Interpreter as Projector
 import qualified Projector.Core as Projector
 
@@ -68,6 +72,7 @@ data ProjectorInput =
   ProjectorInput {
       projectorLoomName :: Text
     , projectorModuleRoot :: FilePath
+    , projectorLoomImageFile :: [ImageFile]
     , projectorModuleTemplates :: [FilePath]
     } deriving (Show)
 
@@ -103,7 +108,7 @@ compileProjector ::
 compileProjector
   udts
   (ProjectorOutput (BuildArtefacts nmap1 oh1))
-  (ProjectorInput prefix root inputs) = do
+  (ProjectorInput prefix root images inputs) = do
 
   templates <- for inputs $ \input ->
     fmap ((,) input) .
@@ -116,6 +121,7 @@ compileProjector
     Projector.runBuildIncremental
       (Projector.Build (moduleNamer prefix root) (Map.keys udts))
       (Projector.UserDataTypes decls)
+      (userConstants images)
       oh1
       (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
@@ -123,19 +129,30 @@ compileProjector
   pure $ ProjectorOutput (BuildArtefacts (nmap1 <> nmap2) oh2)
 
 generateProjectorHtml ::
-  MachinatorModules ->
-  ProjectorOutput ->
-  Projector.HtmlExpr (HtmlType, SrcAnnotation) ->
-  Either ProjectorInterpretError Projector.Html
-generateProjectorHtml mo (ProjectorOutput (BuildArtefacts _ h)) =
+     MachinatorModules
+  -> LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> ProjectorOutput
+  -> Projector.HtmlExpr (HtmlType, SrcAnnotation)
+  -> Either ProjectorInterpretError Projector.Html
+generateProjectorHtml mo spfx apfx css images (ProjectorOutput (BuildArtefacts _ h)) =
   first ProjectorInterpretError . Projector.interpret
     (Projector.machinatorDecls . join $ Map.elems mo)
-    (Projector.extractModuleExprs h)
+    (Projector.extractModuleExprs h <> Projector.platformConstants (platformConstants spfx apfx css images))
 
-generateProjectorHaskell :: FilePath -> ProjectorOutput -> EitherT ProjectorHaskellError IO [FilePath]
-generateProjectorHaskell output (ProjectorOutput ba) = do
+generateProjectorHaskell ::
+     FilePath
+  -> LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> ProjectorOutput
+  -> EitherT ProjectorHaskellError IO [FilePath]
+generateProjectorHaskell output spfx apfx css images (ProjectorOutput ba) = do
   fs <- hoistEither . first ProjectorHaskellError $
-    Projector.codeGen Projector.haskellBackend codeGenNamer ba
+    Projector.codeGen Projector.haskellBackend codeGenNamer (platformConstants spfx apfx css images) ba
   for fs $ \(f, t) -> do
     liftIO $
       createDirectoryIfMissing True (output </> takeDirectory f)
@@ -206,3 +223,46 @@ renderProjectorInterpretError pe =
 readFileSafe :: MonadIO m => FilePath -> m (Maybe Text)
 readFileSafe =
   liftIO . handleIf isDoesNotExistError (const $ pure Nothing) . fmap Just . T.readFile
+
+userConstants :: [ImageFile] -> Projector.UserConstants
+userConstants images =
+  Projector.UserConstants . Map.fromList $
+    (cssName, cssType) : fmap ((, imageType) . imageName) images
+
+platformConstants :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> [ImageFile] -> Projector.PlatformConstants
+platformConstants spfx apfx css images =
+  Projector.PlatformConstants . Map.fromList $
+      (cssName, mkStringList (fmap (cssAssetPath spfx apfx) css))
+    : fmap (\i -> (imageName i, mkString (imageAssetPath spfx apfx i))) images
+
+cssName :: Projector.Name
+cssName =
+  Projector.Name "loom/css"
+
+cssType :: Projector.HtmlType
+cssType =
+  Projector.TList stringT
+
+imageType :: Projector.HtmlType
+imageType =
+  stringT
+
+imageName :: ImageFile -> Projector.Name
+imageName =
+  Projector.Name . T.replace "." "/" . T.pack . imageFilePathNoRoot
+
+mkString :: Text -> Projector.HtmlExpr Projector.HtmlType
+mkString =
+  Projector.ELit stringT . Projector.VString
+
+mkStringList :: [Text] -> Projector.HtmlExpr Projector.HtmlType
+mkStringList ts =
+  Projector.EList stringListT (fmap mkString ts)
+
+stringT :: Projector.HtmlType
+stringT =
+  Projector.TLit Projector.TString
+
+stringListT :: Projector.HtmlType
+stringListT =
+  Projector.TList stringT

@@ -53,6 +53,7 @@ test-suite test
 
   build-depends:
                       base                            >= 3          && < 5
+                    , ambiata-loom-core
                     , ambiata-loom-projector
                     , ambiata-disorder-core
                     , ambiata-p
@@ -76,6 +77,7 @@ test-suite test-io
                       base                            >= 3          && < 5
                     , ambiata-disorder-core
                     , ambiata-disorder-eithert
+                    , ambiata-loom-core
                     , ambiata-loom-projector
                     , ambiata-p
                     , ambiata-x-eithert

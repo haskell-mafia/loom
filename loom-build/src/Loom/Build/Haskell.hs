@@ -45,10 +45,10 @@ generateHaskell output spx apx (LoomResult name _ mo po inputCss images) = do
       (output </> "src")
       (Machinator.ModuleName . Projector.unModuleName <$> Projector.requiredProjectorHaskellImports)
       mo
-  void . firstT LoomHaskellProjectorError $
-    Projector.generateProjectorHaskell (output </> "src") po
   let
-    outputCss = CssFile $ output </> (takeFileName . renderCssFile )inputCss
+    outputCss = CssFile $ output </> (takeFileName . renderCssFile) inputCss
+  void . firstT LoomHaskellProjectorError $
+    Projector.generateProjectorHaskell (output </> "src") spx apx [outputCss] images po
   liftIO $
     prefixCssImageAssets spx apx images outputCss inputCss
   liftIO $
