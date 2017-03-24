@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Test.IO.Loom.Config.Toml where
 
-import           Loom.Build.Data
+import           Loom.Core.Data
 import           Loom.Config.Toml
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll)

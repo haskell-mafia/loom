@@ -4,7 +4,7 @@ module Test.Loom.Build.Gen.Data (
     genFilePattern
   ) where
 
-import           Loom.Build.Data
+import           Loom.Core.Data
 
 import           P
 

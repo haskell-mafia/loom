@@ -1,0 +1,28 @@
+name:                  ambiata-loom-core
+version:               0.0.1
+license:               AllRightsReserved
+author:                Ambiata <info@ambiata.com>
+maintainer:            Ambiata <info@ambiata.com>
+copyright:             (c) 2016 Ambiata.
+synopsis:              loom-core
+category:              System
+cabal-version:         >= 1.8
+build-type:            Simple
+description:           loom-core
+
+library
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-p
+                    , filepath                        >= 1.4        && < 1.6
+                    , Glob                            == 0.7.*
+                    , text                            >= 1.1        && < 1.3
+
+  ghc-options:
+                    -Wall
+
+  hs-source-dirs:
+                    src
+
+  exposed-modules:
+                    Loom.Core.Data

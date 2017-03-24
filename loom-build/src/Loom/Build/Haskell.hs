@@ -17,11 +17,11 @@ import qualified Data.Text.IO as T
 
 import           Loom.Build.Assets
 import           Loom.Build.Data
+import           Loom.Core.Data
 import           Loom.Projector (ProjectorHaskellError, ProjectorOutput)
 import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorHaskellError, MachinatorOutput)
 import qualified Loom.Machinator as Machinator
-import           Loom.Sass (CssFile (..))
 
 import           P
 

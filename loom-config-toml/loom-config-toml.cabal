@@ -13,6 +13,7 @@ description:           loom-config-toml
 library
   build-depends:
                       base                            >= 3          && < 5
+                    , ambiata-loom-core
                     , ambiata-loom-build
                     , ambiata-p
                     , ambiata-x-htoml
@@ -50,7 +51,7 @@ test-suite test-io
   build-depends:
                       base                            >= 3          && < 5
                     , ambiata-disorder-core
-                    , ambiata-loom-build
+                    , ambiata-loom-core
                     , ambiata-loom-config-toml
                     , ambiata-p
                     , ambiata-x-eithert

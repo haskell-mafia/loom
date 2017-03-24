@@ -20,6 +20,7 @@ import qualified Data.Text as T
 import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Build.Logger
+import           Loom.Core.Data
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
@@ -96,7 +97,7 @@ buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others)
 
   outputCss <- withLog logger "sass" $ do
     let
-      outputCss = Sass.CssFile $ loomTmpFilePath dir </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
+      outputCss = CssFile $ loomTmpFilePath dir </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
       inputs =
         mconcat . mconcat $ [
             fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
