@@ -114,13 +114,21 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
   void . flip Map.traverseWithKey components $ \ln cs ->
     for_ cs $ \c -> do
-      sc <- resolveSiteComponent mo po c
+      sc <- resolveSiteComponent prefix apx [css] images mo po c
       mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c
   writeHtmlFile' $
     loomComponentsHtml prefix components
 
-resolveSiteComponent :: MachinatorOutput -> ProjectorOutput -> Component -> EitherT LoomSiteError IO SiteComponent
-resolveSiteComponent mo po c =
+resolveSiteComponent ::
+     LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> MachinatorOutput
+  -> ProjectorOutput
+  -> Component
+  -> EitherT LoomSiteError IO SiteComponent
+resolveSiteComponent spfx apfx css images mo po c =
   let
     root =
       loomFilePath . componentPath $ c
@@ -129,7 +137,7 @@ resolveSiteComponent mo po c =
     loadData = do
       fs <- safeIO . getDirectoryContents $ root
       safeIO . fmap (join . catMaybes) . for (filter ((==) ".mcn" . File.takeExtension) fs) $
-        -- Drop the version line
+      -- Drop the version line
         fmap (fmap (List.dropWhile TL.null . drop 1 . TL.lines)) . readFileSafe
     loadDirectory d = do
       fs <- safeIO . getDirectoryContents $ root </> d
@@ -138,11 +146,11 @@ resolveSiteComponent mo po c =
           P.compileProjector
             (machinatorOutputToProjector mo)
             po
-            (P.ProjectorInput "ignore" root [f])
+            (P.ProjectorInput "ignore" root images [f])
         for (join . Map.elems . Projector.projectorOutputModuleExprs $ po') $
           fmap ((,) (T.pack . File.takeBaseName $ f)) .
             fmap projectorHtmlToBlaze . hoistEither . first LoomSiteProjectorInterpretError .
-              Projector.generateProjectorHtml (machinatorOutputToProjector mo) po
+              Projector.generateProjectorHtml (machinatorOutputToProjector mo) spfx apfx css images po
     loadReadme =
       fmap (Markdown.markdown Markdown.defaultMarkdownSettings)
         <$> readFileSafe (root </> "README.md")

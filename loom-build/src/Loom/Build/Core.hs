@@ -123,6 +123,7 @@ buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others)
         Projector.ProjectorInput
           (renderLoomName . loomConfigResolvedName $ cr)
           (loomRootFilePath . loomConfigResolvedRoot $ cr)
+          images
           (bind (fmap componentFilePath . componentProjectorFiles) cs)
     firstT LoomProjectorError $
       foldMapM

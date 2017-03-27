@@ -6,6 +6,7 @@ module Test.IO.Loom.Projector where
 
 import           Control.Monad.Trans.Class (lift)
 
+import           Loom.Core.Data
 import           Loom.Projector
 
 import qualified Data.Text as T
@@ -41,16 +42,16 @@ prop_projector_success =
     lift $ writeFile f1 "\\foo : Foo -> Html =\n<a>b</a>"
     lift $ writeFile f2 ("\\bar : Bar -> foo : Foo -> Html=\n { " <> name1 <> " foo }")
     out <- firstT renderProjectorError . foldM (\o -> fmap (mappend o) . compileProjector mempty o) mempty $ [
-        ProjectorInput name dir1 [f1]
-      , ProjectorInput name dir2 [f2]
+        ProjectorInput name dir1 [] [f1]
+      , ProjectorInput name dir2 [] [f2]
       ]
-    f3 <- firstT renderProjectorHaskellError $ generateProjectorHaskell dir out
+    f3 <- firstT renderProjectorHaskellError $ generateProjectorHaskell dir (LoomSitePrefix "") (AssetsPrefix "") [] [] out
     lift . fmap QC.conjoin . mapM (doesFileExist . (</>) dir) $ f3
 
 prop_projector_missing =
   QC.forAll genLoomName $ \name ->
   QC.once . testIO . withProjector $ \dir -> do
-    m <- lift . runEitherT . compileProjector mempty mempty $ ProjectorInput name dir ["missing.scss"]
+    m <- lift . runEitherT . compileProjector mempty mempty $ ProjectorInput name dir [] ["missing.scss"]
     pure $ isLeft m
 
 prop_projector_fail =
@@ -59,7 +60,7 @@ prop_projector_fail =
     let
        f1 = dir <> "/test1.prj"
     lift $ writeFile f1 "\\x"
-    m <- lift . runEitherT . compileProjector mempty mempty $ ProjectorInput name dir [f1]
+    m <- lift . runEitherT . compileProjector mempty mempty $ ProjectorInput name dir [] [f1]
     pure $ isLeft m
 
 -------------

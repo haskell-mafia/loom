@@ -4,7 +4,7 @@
  {
    case test of
      Test1 ->
-       <div>Test1</div>
+       (<div>Test1</div>) {- FIXME: these parens are a parser bug -}
      Test2 s ->
        <div>Test2 { text s }</div>
  }

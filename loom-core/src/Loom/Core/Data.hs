@@ -24,6 +24,7 @@ module Loom.Core.Data (
   , imageFilePath
   , imageAssetPath
   , imageAssetFilePath
+  , imageFilePathNoRoot
   , cssAssetPath
   , cssAssetFilePath
   , compileFilePattern
@@ -183,8 +184,13 @@ imageAssetPath p apx f =
   loomSitePrefix p <> (T.pack . imageAssetFilePath apx) f
 
 imageAssetFilePath :: AssetsPrefix -> ImageFile -> FilePath
-imageAssetFilePath apx (ImageFile n f) =
-  assetsPrefix apx </> (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
+imageAssetFilePath apx imf =
+  assetsPrefix apx </> imageFilePathNoRoot imf
+
+imageFilePathNoRoot :: ImageFile -> FilePath
+imageFilePathNoRoot (ImageFile n f) =
+  (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
+
 
 compileFilePattern :: Text -> Either Text FilePattern
 compileFilePattern =
