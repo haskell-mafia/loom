@@ -51,7 +51,8 @@ resolveComponent dir = do
     (mach, r3) = partition (hasExtension "mcn") r2
     (svg, r4) = partition (hasExtension "svg") r3
     (png, r5) = partition (hasExtension "png") r4
-    (jpg, _los) = partition (hasExtension "jpg") r5
+    (ico, r6) = partition (hasExtension "ico") r5
+    (jpg, _los) = partition (hasExtension "jpg") r6
     f f' = ComponentFile dir f'
   -- FIX More validation?
   pure $
@@ -60,7 +61,7 @@ resolveComponent dir = do
       (fmap f sass)
       (fmap f proj)
       (fmap f mach)
-      (fmap f $ svg <> png <> jpg)
+      (fmap f $ svg <> png <> jpg <> ico)
 
 -------------
 
