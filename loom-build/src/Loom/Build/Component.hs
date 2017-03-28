@@ -25,6 +25,7 @@ import           X.Control.Monad.Trans.Either (EitherT, left)
 
 data ComponentError =
     ComponentMissing LoomFile
+  | GlobInvariant
   deriving (Eq, Show)
 
 renderComponentError :: ComponentError -> Text
@@ -32,6 +33,8 @@ renderComponentError ce =
   case ce of
     ComponentMissing f ->
       "Could not find component directory: " <> (T.pack . loomFilePath) f
+    GlobInvariant ->
+      "BUG: Something went wrong with resolveComponent's globs"
 
 -------------
 
@@ -43,33 +46,35 @@ resolveComponent :: LoomFile -> EitherT ComponentError IO Component
 resolveComponent dir = do
   let
     dir' = loomFilePath dir
+    pats =
+        projectorFilePattern
+      : machinatorFilePattern
+      : sassFilePattern
+      : imageFilePatterns
   unlessM (liftIO . doesDirectoryExist $ dir') $
     left $ ComponentMissing dir
-  imgs <- liftIO (globDir imageFilePatterns dir')
-  proj <- liftIO (globDir1 projectorFilePattern dir')
-  mach <- liftIO (globDir1 machinatorFilePattern dir')
-  sass <- liftIO (globDir1 sassFilePattern dir')
+  files <- liftIO (globDir pats dir')
   let
-    f f' = ComponentFile dir f'
-    filterExamples = fmap f . filter (not . matches siteFilePatterns) . fmap (makeRelative dir')
+    f f' = ComponentFile dir (makeRelative dir' f')
+    filterExamples = filter (not . matches siteFilePatterns . makeRelative dir')
   -- FIX More validation?
-  pure $
-    Component
-      dir
-      (filterExamples sass)
-      (filterExamples proj)
-      (filterExamples mach)
-      (filterExamples imgs)
+  case files of
+    (proj : mach : sass : imgs) ->
+      pure $
+        Component
+          dir
+          (fmap f sass)
+          (fmap f (filterExamples proj))
+          (fmap f mach)
+          (fmap f (fold imgs))
+    _ ->
+      left GlobInvariant
 
 -------------
 
-globDir :: [FilePattern] -> FilePath -> IO [FilePath]
+globDir :: [FilePattern] -> FilePath -> IO [[FilePath]]
 globDir ps =
-  fmap (fold . fst) . Glob.globDir (fmap unFilePattern ps)
-
-globDir1 :: FilePattern -> FilePath -> IO [FilePath]
-globDir1 (FilePattern p) =
-  Glob.globDir1 p
+  fmap fst . Glob.globDir (fmap unFilePattern ps)
 
 matches :: [FilePattern] -> FilePath -> Bool
 matches ps p =
