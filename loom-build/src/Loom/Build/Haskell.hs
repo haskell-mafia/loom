@@ -63,7 +63,7 @@ generateAssetHaskell name output spx apx css images = do
   let
     f = output </> "src" </> assetModulePath name
     q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
-    q2 p t = "(\"" <> p <> "\", \"" <> T.pack t <> "\")"
+    q2 p t = "(\"" <> p <> "\", \"" <> T.pack (output </> t) <> "\")"
     images' = with images $ \i -> (,) (imageAssetPath spx apx i) (imageAssetFilePath apx i)
     css' = (,) (cssAssetPath spx apx css) (cssAssetFilePath apx css)
   createDirectoryIfMissing True . takeDirectory $ f
