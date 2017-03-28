@@ -32,6 +32,12 @@ module Loom.Core.Data (
   , appendFilePattern
   , loomWatchPatterns
   , matchFilePatterns
+  , componentFilePatterns
+  , projectorFilePattern
+  , machinatorFilePattern
+  , sassFilePattern
+  , imageFilePatterns
+  , siteFilePatterns
   , findFiles
   , findFiles'
   ) where
@@ -45,9 +51,9 @@ import qualified System.FilePath.Glob as G
 import qualified System.FilePath.Glob.Primitive as G
 import           System.IO (IO)
 
-newtype FilePattern =
-  FilePattern G.Pattern
-    deriving (Eq, Show)
+newtype FilePattern = FilePattern {
+     unFilePattern :: G.Pattern
+   } deriving (Eq, Show)
 
 data Loom =
   Loom {
@@ -231,18 +237,38 @@ loomWatchPatterns (Loom c cs) =
 
 componentFilePatterns :: [FilePattern]
 componentFilePatterns =
-  [
-      FilePattern $ G.wildcard <> G.literal ".prj"
-    , FilePattern $ G.wildcard <> G.literal ".mcn"
-    , FilePattern $ G.wildcard <> G.literal ".scss"
-    , FilePattern $ G.wildcard <> G.literal ".svg"
-    , FilePattern $ G.wildcard <> G.literal ".png"
-    , FilePattern $ G.wildcard <> G.literal ".jpg"
-    , FilePattern $ G.wildcard <> G.literal ".ico"
-    , FilePattern $ G.literal "README.md"
-    , FilePattern $ G.literal "example/" <> G.wildcard <> G.literal ".prj"
-    , FilePattern $ G.literal "mock/" <> G.wildcard <> G.literal ".prj"
-    ]
+     projectorFilePattern
+  :  machinatorFilePattern
+  :  sassFilePattern
+  :  imageFilePatterns
+  <> siteFilePatterns
+
+imageFilePatterns :: [FilePattern]
+imageFilePatterns = [
+    FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".svg"
+  , FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".png"
+  , FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".jpg"
+  , FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".ico"
+  ]
+
+projectorFilePattern :: FilePattern
+projectorFilePattern =
+  FilePattern $ G.wildcard <> G.literal ".prj"
+
+sassFilePattern :: FilePattern
+sassFilePattern =
+  FilePattern $ G.wildcard <> G.literal ".scss"
+
+machinatorFilePattern :: FilePattern
+machinatorFilePattern =
+  FilePattern $ G.wildcard <> G.literal ".mcn"
+
+siteFilePatterns :: [FilePattern]
+siteFilePatterns = [
+    FilePattern $ G.literal "README.md"
+  , FilePattern $ G.literal "example/" <> G.wildcard <> G.literal ".prj"
+  , FilePattern $ G.literal "mock/" <> G.wildcard <> G.literal ".prj"
+  ]
 
 matchFilePatterns :: [FilePattern] -> FilePath -> Bool
 matchFilePatterns fps f =
