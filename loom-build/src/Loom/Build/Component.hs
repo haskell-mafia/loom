@@ -10,21 +10,22 @@ module Loom.Build.Component (
 
 import           Control.Monad.IO.Class (liftIO)
 
-import           Data.List (partition)
 import qualified Data.Text as T
 
 import           Loom.Core.Data
 
 import           P
 
-import           System.Directory (doesDirectoryExist, getDirectoryContents)
-import           System.FilePath (FilePath, splitExtension)
-import           System.IO (IO)
+import           System.Directory (doesDirectoryExist)
+import qualified System.FilePath.Glob as Glob
+import           System.FilePath (makeRelative)
+import           System.IO (FilePath, IO)
 
 import           X.Control.Monad.Trans.Either (EitherT, left)
 
 data ComponentError =
     ComponentMissing LoomFile
+  | GlobInvariant
   deriving (Eq, Show)
 
 renderComponentError :: ComponentError -> Text
@@ -32,6 +33,8 @@ renderComponentError ce =
   case ce of
     ComponentMissing f ->
       "Could not find component directory: " <> (T.pack . loomFilePath) f
+    GlobInvariant ->
+      "BUG: Something went wrong with resolveComponent's globs"
 
 -------------
 
@@ -42,32 +45,37 @@ resolveComponents =
 resolveComponent :: LoomFile -> EitherT ComponentError IO Component
 resolveComponent dir = do
   let
-  unlessM (liftIO . doesDirectoryExist . loomFilePath $ dir) $
+    dir' = loomFilePath dir
+    pats =
+        projectorFilePattern
+      : machinatorFilePattern
+      : sassFilePattern
+      : imageFilePatterns
+  unlessM (liftIO . doesDirectoryExist $ dir') $
     left $ ComponentMissing dir
-  fs <- liftIO . fmap (filter (flip notElem [".", ".."])) . getDirectoryContents . loomFilePath $ dir
+  files <- liftIO (globDir pats dir')
   let
-    (sass, r1) = partition (hasExtension "scss") fs
-    (proj, r2) = partition (hasExtension "prj") r1
-    (mach, r3) = partition (hasExtension "mcn") r2
-    (svg, r4) = partition (hasExtension "svg") r3
-    (png, r5) = partition (hasExtension "png") r4
-    (ico, r6) = partition (hasExtension "ico") r5
-    (jpg, _los) = partition (hasExtension "jpg") r6
-    f f' = ComponentFile dir f'
+    f f' = ComponentFile dir (makeRelative dir' f')
+    filterExamples = filter (not . matches siteFilePatterns . makeRelative dir')
   -- FIX More validation?
-  pure $
-    Component
-      dir
-      (fmap f sass)
-      (fmap f proj)
-      (fmap f mach)
-      (fmap f $ svg <> png <> jpg <> ico)
+  case files of
+    (proj : mach : sass : imgs) ->
+      pure $
+        Component
+          dir
+          (fmap f sass)
+          (fmap f (filterExamples proj))
+          (fmap f mach)
+          (fmap f (fold imgs))
+    _ ->
+      left GlobInvariant
 
 -------------
 
-hasExtension :: [Char] -> FilePath -> Bool
-hasExtension ext f =
-  let
-    (bn, fe) = splitExtension f
-  in
-    (not . null) bn && fe == "." <> ext
+globDir :: [FilePattern] -> FilePath -> IO [[FilePath]]
+globDir ps =
+  fmap fst . Glob.globDir (fmap unFilePattern ps)
+
+matches :: [FilePattern] -> FilePath -> Bool
+matches ps p =
+  any (\(FilePattern pat) -> Glob.match pat p) ps
