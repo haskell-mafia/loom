@@ -253,15 +253,15 @@ imageFilePatterns = [
 
 projectorFilePattern :: FilePattern
 projectorFilePattern =
-  FilePattern $ G.wildcard <> G.literal ".prj"
+  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".prj"
 
 sassFilePattern :: FilePattern
 sassFilePattern =
-  FilePattern $ G.wildcard <> G.literal ".scss"
+  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".scss"
 
 machinatorFilePattern :: FilePattern
 machinatorFilePattern =
-  FilePattern $ G.wildcard <> G.literal ".mcn"
+  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".mcn"
 
 siteFilePatterns :: [FilePattern]
 siteFilePatterns = [

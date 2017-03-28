@@ -41,22 +41,25 @@ resolveComponents =
 
 resolveComponent :: LoomFile -> EitherT ComponentError IO Component
 resolveComponent dir = do
-  let dir' = loomFilePath dir
+  let
+    dir' = loomFilePath dir
   unlessM (liftIO . doesDirectoryExist $ dir') $
     left $ ComponentMissing dir
   imgs <- liftIO (globDir imageFilePatterns dir')
   proj <- liftIO (globDir1 projectorFilePattern dir')
   mach <- liftIO (globDir1 machinatorFilePattern dir')
   sass <- liftIO (globDir1 sassFilePattern dir')
-  let  f f' = ComponentFile dir (makeRelative dir' f')
+  let
+    f f' = ComponentFile dir f'
+    filterExamples = fmap f . filter (not . matches siteFilePatterns) . fmap (makeRelative dir')
   -- FIX More validation?
   pure $
     Component
       dir
-      (fmap f sass)
-      (fmap f proj)
-      (fmap f mach)
-      (fmap f imgs)
+      (filterExamples sass)
+      (filterExamples proj)
+      (filterExamples mach)
+      (filterExamples imgs)
 
 -------------
 
@@ -67,3 +70,7 @@ globDir ps =
 globDir1 :: FilePattern -> FilePath -> IO [FilePath]
 globDir1 (FilePattern p) =
   Glob.globDir1 p
+
+matches :: [FilePattern] -> FilePath -> Bool
+matches ps p =
+  any (\(FilePattern pat) -> Glob.match pat p) ps
