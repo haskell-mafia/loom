@@ -200,3 +200,28 @@ body {
 .loom-vertical-grouping-xs {
   margin-bottom: 10px;
 }
+
+/* syntax highlighting */
+.loom-code {
+  display: block;
+  unicode-bidi: embed;
+  font-family: monospace;
+  white-space: pre;
+}
+
+/* somebody please make these good */
+.loom-code-id {
+  color: forestgreen;
+}
+
+.loom-code-def {
+  color: deepskyblue;
+}
+
+.loom-code-punctuation {
+  color: gray;
+}
+
+.loom-code-keyword {
+  color: blue;
+}

@@ -32,10 +32,13 @@ import qualified Data.Text.Lazy.IO as TL
 import           Loom.Build.Assets
 import           Loom.Build.Core
 import           Loom.Core.Data
-import           Loom.Machinator (MachinatorOutput)
+import           Loom.Machinator (MachinatorOutput (..))
 import           Loom.Projector (ProjectorOutput, ProjectorError, ProjectorInterpretError)
 import qualified Loom.Projector as Projector
 import qualified Loom.Projector as P
+
+import qualified Machinator.Core.Data.Definition as MC
+import qualified Machinator.Core.Pretty as MP
 
 import           P
 
@@ -64,6 +67,7 @@ data SiteNavigation =
     SiteHome
   | SiteHow
   | SiteComponents
+  | SiteData
   deriving (Bounded, Eq, Enum, Show)
 
 newtype SiteTitle =
@@ -118,6 +122,8 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
       mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c
   writeHtmlFile' $
     loomComponentsHtml prefix components
+  writeHtmlFile' $
+    loomDataHtml mo
 
 resolveSiteComponent ::
      LoomSitePrefix
@@ -281,8 +287,9 @@ loomComponentHtml spx (SiteComponent rm d es ps) ln c =
               H.p
             unless (null d) $
               H.div ! HA.class_ "loom-vertical-grouping" $ do
-                H.h2 ! HA.class_ "loom-h2" $ "Interface"
-                H.pre . H.lazyText $ TL.unlines d
+                H.h2 ! HA.class_ "loom-h2" $ "Data Types"
+                H.div ! HA.class_ "loom-pullout" $
+                  H.pre . H.lazyText $ TL.unlines d
             unless (null ps) $
               H.div ! HA.class_ "loom-vertical-grouping" $ do
                 H.h2 ! HA.class_ "loom-h2" $ "Mocks"
@@ -300,6 +307,59 @@ loomComponentHtml spx (SiteComponent rm d es ps) ln c =
         HtmlRawFile (pageLink n) (SiteTitle n) p
   in
     root : pages
+
+loomDataHtml :: MachinatorOutput -> HtmlFile
+loomDataHtml (MachinatorOutput defmap) =
+  HtmlFile "data/index.html" SiteData (SiteTitle "Data Types") $
+    H.div ! HA.class_ "loom-container-medium" $ do
+      H.h1 ! HA.class_ "loom-h1 loom-page-header" $ "Data Types"
+      -- Would be nice if these were grouped by loom name before they arrive here
+      let sorted = sortOn MC.defName (mconcat (Map.elems defmap))
+      for_ sorted $ \d@(MC.Definition (MC.Name name) _def) -> do
+        H.a ! HA.href (H.textValue ("#" <> anchorDefinition name)) $
+          H.h2 ! HA.id (H.textValue (anchorDefinition name)) $ (H.text name)
+        H.div ! HA.class_ "loom-pullout loom-code" $
+          loomDataDefinition d
+
+loomDataDefinition :: MC.Definition -> Html
+loomDataDefinition def =
+  H.preEscapedText $
+    MP.ppDefinitionAnnotated start end def
+  where
+    start ann =
+      case ann of
+        MP.Punctuation ->
+          "<span class=\"loom-code-punctuation\">"
+        MP.Keyword ->
+          "<span class=\"loom-code-keyword\">"
+        MP.TypeDefinition _ ->
+          "<span class=\"loom-code-def\">"
+        MP.TypeUsage n ->
+          "<a href=\"#" <> anchorDefinition n <> "\"><span class=\"loom-code-id\">"
+        MP.ConstructorDefinition c ->
+          "<span id=\"" <> anchorConstructor c <> "\" class=\"loom-code-def\">"
+        MP.FieldDefinition t f ->
+          "<span id=\"" <> anchorField t f <> "\" class=\"loom-code-def\">"
+        MP.VersionMarker ->
+          ""
+    end ann =
+      case ann of
+        MP.TypeUsage _ ->
+          "</span></a>"
+        _ ->
+          "</span>"
+
+anchorDefinition :: Text -> Text
+anchorDefinition n =
+  "t:" <> n
+
+anchorConstructor :: Text -> Text
+anchorConstructor c =
+  "c:" <> c
+
+anchorField :: Text -> Text -> Text
+anchorField t f =
+  "f:" <> t <> "-" <> f
 
 renderHtmlErrorPage :: LoomSitePrefix -> Html -> Text
 renderHtmlErrorPage spx =
@@ -340,6 +400,8 @@ htmlTemplate spx css navm title body =
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "how") $ "How to Use"
                       SiteComponents ->
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
+                      SiteData ->
+                        H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "data") $ "Data Types"
     H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
       body
 
