@@ -405,8 +405,6 @@ projectorHtmlToBlaze h =
       H.text t
     P.Raw t ->
       H.preEscapedToHtml t
-    P.Whitespace t ->
-      H.text t
     P.Comment t ->
       H.textComment t
     P.Element t ats b ->
