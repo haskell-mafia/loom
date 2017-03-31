@@ -43,4 +43,5 @@ contains "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Assets.hs" "assets/other/componen
 contains "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Assets.hs" "assets/test_build/components/c2/image.svg"
 
 cd "$LOOM_OUTPUT_HASKELL"
+cp ${ROOT}/../loom-runtime/loom-runtime.lock-7.10.2 ./test-build-loom.lock-7.10.2
 "${ROOT}/mafia" build
