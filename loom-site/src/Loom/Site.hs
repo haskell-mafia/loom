@@ -332,14 +332,16 @@ loomDataDefinition def =
           "<span class=\"loom-code-punctuation\">"
         MP.Keyword ->
           "<span class=\"loom-code-keyword\">"
+        MP.Primitive ->
+          "<span class=\"loom-code-primitive\">"
         MP.TypeDefinition _ ->
-          "<span class=\"loom-code-def\">"
+          "<span class=\"loom-code-type-definition\">"
         MP.TypeUsage n ->
-          "<a href=\"#" <> anchorDefinition n <> "\"><span class=\"loom-code-id\">"
+          "<a href=\"#" <> anchorDefinition n <> "\"><span class=\"loom-code-type-usage\">"
         MP.ConstructorDefinition c ->
-          "<span id=\"" <> anchorConstructor c <> "\" class=\"loom-code-def\">"
+          "<span id=\"" <> anchorConstructor c <> "\" class=\"loom-code-constructor-definition\">"
         MP.FieldDefinition t f ->
-          "<span id=\"" <> anchorField t f <> "\" class=\"loom-code-def\">"
+          "<span id=\"" <> anchorField t f <> "\" class=\"loom-code-field-definition\">"
         MP.VersionMarker ->
           ""
     end ann =
