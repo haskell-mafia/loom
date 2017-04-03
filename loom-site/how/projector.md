@@ -34,7 +34,7 @@ Perhaps something a little more interesting:
             Large ->
               "large"
         }">
-          My name is: { text name }
+          My name is: {{ name }}
         </a>
   }
 </div>
@@ -138,10 +138,11 @@ _ `{ ... }`
 
   Some normal text to be rendered in html.
 
-- `{ text name }`
+- `{{ name }}`
 
-  Opening another expression block, calling "text" with the "name" value
-  that we matched way back from the "Input" constructor.
+  A special kind of expression block for rendering string values as html,
+  in this case the "name" value that we matched way back from the "Input"
+  constructor.
 
 
 ## How do I call another template?
@@ -224,6 +225,12 @@ needs to be converted to `Html`.
 
 ```prj
 { text myStringVariable }
+```
+
+This is more commonly written as:
+
+```prj
+{{ myStringVariable }}
 ```
 
 
