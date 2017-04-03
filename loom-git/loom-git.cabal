@@ -1,0 +1,68 @@
+name:                  ambiata-loom-git
+version:               0.0.1
+license:               AllRightsReserved
+author:                Ambiata <info@ambiata.com>
+maintainer:            Ambiata <info@ambiata.com>
+copyright:             (c) 2016 Ambiata.
+synopsis:              loom-git
+category:              System
+cabal-version:         >= 1.8
+build-type:            Simple
+description:           loom-git
+
+library
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-p
+                    , filepath                        >= 1.4        && < 1.6
+                    , text                            >= 1.1        && < 1.3
+
+  ghc-options:
+                    -Wall
+
+  hs-source-dirs:
+                    src
+
+  exposed-modules:
+                    Loom.Git
+
+
+test-suite test
+  type:
+                    exitcode-stdio-1.0
+
+  main-is:
+                    test.hs
+
+  ghc-options:
+                    -Wall -threaded -O2
+
+  hs-source-dirs:
+                    test
+
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-disorder-core
+                    , ambiata-loom-git
+                    , ambiata-p
+                    , QuickCheck                      == 2.8.*
+                    , quickcheck-instances            == 0.3.*
+
+test-suite test-io
+  type:
+                    exitcode-stdio-1.0
+
+  main-is:
+                    test-io.hs
+
+  ghc-options:
+                    -Wall -threaded -O2
+
+  hs-source-dirs:
+                    test
+
+  build-depends:
+                      base                            >= 3          && < 5
+                    , ambiata-disorder-core
+                    , ambiata-loom-git
+                    , ambiata-p
