@@ -21,6 +21,11 @@
       ["bin/master", "build", "dist-7-10", "-C", "loom-config-toml"]
     ]
 
+[build.dist-7-10-fetch]
+  command = [
+      ["bin/master", "build", "dist-7-10", "-C", "loom-fetch"]
+    ]
+
 [build.dist-7-10-machinator]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-machinator"]
@@ -74,6 +79,11 @@
 [build.branches-7-10-config-toml]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-config-toml"]
+    ]
+
+[build.branches-7-10-fetch]
+  command = [
+      ["bin/master", "build", "branches-7-10", "-C", "loom-fetch"]
     ]
 
 [build.branches-7-10-machinator]
