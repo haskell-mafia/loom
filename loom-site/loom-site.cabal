@@ -30,6 +30,7 @@ library
                     , ambiata-loom-machinator
                     , ambiata-loom-projector
                     , ambiata-loom-sass
+                    , ambiata-machinator-core
                     , ambiata-x-eithert
                     , blaze-html                      == 0.8.*
                     , blaze-markup                    == 0.7.*
