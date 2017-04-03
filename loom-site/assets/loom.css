@@ -208,20 +208,29 @@ body {
   font-family: monospace;
   white-space: pre;
 }
-
-/* somebody please make these good */
-.loom-code-id {
-  color: forestgreen;
-}
-
-.loom-code-def {
-  color: deepskyblue;
+.loom-code a {
+  text-decoration: none;
+  border-bottom: 1px dashed;
 }
 
 .loom-code-punctuation {
   color: gray;
 }
-
 .loom-code-keyword {
-  color: blue;
+  color: #AC275C;
+}
+.loom-code-type-definition {
+  color: #8679B0;
+}
+.loom-code-type-usage {
+  color: #8679B0;
+}
+.loom-code-constructor-definition {
+  color: #8679B0;
+}
+.loom-code-field-definition {
+  color: #555;
+}
+.loom-code-primitive {
+  color: #8679B0;
 }
