@@ -36,6 +36,15 @@ Other loom libraries can be referenced in the set of `dependencies`.
 This will include all their components/sass files as if they were directly referenced
 by _this_ project, and will be visible in the generated site.
 
+Javascript dependencies can be sourced from the NPM registry, but we
+require the SHA1 hash of each dependencys source tarball alongside its
+version tag. This will be validated on fetch to prevent unexpected
+upstream changes. Dependency tarballs will be cached in `$HOME/.loom`.
+
+Javascript and Purescript dependencies can also be sourced from Github
+using a repository identifier, a Git ref, and the source tarball's
+SHA1 hash.
+
 ```toml
 [loom]
   # Mandatory
@@ -54,6 +63,21 @@ by _this_ project, and will be visible in the generated site.
 [sass]
   # Optional
   paths = ["scss/*"]
+
+[dependencies.js]
+  # Optional
+  npm = [
+      ["d3", "4.7.4", "a2f40eb57decc51bc469010d48ae74a20e025772"]
+    ]
+  github = [
+      ["isaacs/rimraf", "tags/v2.6.1", "813139ac3628ae0b47136de18939cbb623e21475"]
+    ]
+
+[dependencies.purs]
+  # Optional
+  github = [
+      ["purescript/purescript-newtype", "tags/v2.0.0", "2276bd44ff5b7440c455839833c69f40cc8d8616"]
+    ]
 ```
 
 
