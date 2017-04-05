@@ -64,7 +64,7 @@ SHA1 hash.
   # Optional
   paths = ["scss/*"]
 
-[dependencies.js]
+[js.dependencies]
   # Optional
   npm = [
       ["d3", "4.7.4", "a2f40eb57decc51bc469010d48ae74a20e025772"]
@@ -73,7 +73,7 @@ SHA1 hash.
       ["isaacs/rimraf", "tags/v2.6.1", "813139ac3628ae0b47136de18939cbb623e21475"]
     ]
 
-[dependencies.purs]
+[purs.dependencies]
   # Optional
   github = [
       ["purescript/purescript-newtype", "tags/v2.0.0", "2276bd44ff5b7440c455839833c69f40cc8d8616"]

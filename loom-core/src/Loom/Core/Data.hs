@@ -17,9 +17,15 @@ module Loom.Core.Data (
   , CssFile (..)
   , LoomSitePrefix (..)
   , AssetsPrefix (..)
+  , Tarball (..)
   , Uri (..)
   , Sha1 (..)
-  , Tarball (..)
+  , GithubRepo (..)
+  , GitRef (..)
+  , NpmPackage (..)
+  , NpmPackageVersion (..)
+  , GithubDependency (..)
+  , NpmDependency (..)
   , loomFilePath
   , componentName
   , componentFilePath
@@ -115,6 +121,9 @@ data LoomConfig =
     , loomConfigName :: LoomName
     , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
+    , loomConfigJsDepsNpm :: [NpmDependency]
+    , loomConfigJsDepsGithub :: [GithubDependency]
+    , loomConfigPursDepsGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
 data LoomConfigResolved =
@@ -237,7 +246,7 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
 
 loomWatchPatterns :: Loom -> [FilePattern]
 loomWatchPatterns (Loom c cs) =
-  c : cs >>= \(LoomConfig r _ comps sass) ->
+  c : cs >>= \(LoomConfig r _ comps sass _ _ _) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
     in
@@ -308,4 +317,39 @@ newtype Sha1 = Sha1 {
 -- | A path to a gzipped tarball.
 newtype Tarball = Tarball {
     tarballFilePath :: FilePath
+  } deriving (Eq, Ord, Show)
+
+-- | A Github user/repo combination, e.g. @GithubRepo "purescript" "purescript-newtype"@.
+data GithubRepo = GithubRepo {
+    grUser :: Text
+  , grRepo :: Text
+  } deriving (Eq, Ord, Show)
+
+-- | A git ref, e.g. '"tags/v2.0.0"' or '"bff4a0d"' or '"bff4a0db303949a5878a052c901849527c9390ff"'.
+newtype GitRef = GitRef {
+    unGitRef :: Text
+  } deriving (Eq, Ord, Show)
+
+-- | A NPM package name, e.g. '"react"'.
+newtype NpmPackage = NpmPackage {
+    unNpmPackage :: Text
+  } deriving (Eq, Ord, Show)
+
+-- | A NPM package version, e.g. "4.7.4".
+newtype NpmPackageVersion = NpmPackageVersion {
+    unNpmPackageVersion :: Text
+  } deriving (Eq, Ord, Show)
+
+-- | A fully specified Github dependency.
+data GithubDependency = GithubDependency {
+    ghdRepo :: GithubRepo
+  , ghdRef :: GitRef
+  , ghdSha1 :: Sha1
+  } deriving (Eq, Ord, Show)
+
+-- | A fully specified NPM dependency.
+data NpmDependency = NpmDependency {
+    ndPackage :: NpmPackage
+  , ndPackageVersion :: NpmPackageVersion
+  , ndSha1 :: Sha1
   } deriving (Eq, Ord, Show)
