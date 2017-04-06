@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Config.Toml (
@@ -22,7 +23,7 @@ import           System.IO (IO)
 
 import           Text.Parsec.Error (ParseError)
 import           Text.Toml (parseTomlDoc)
-import           Text.Toml.Types (Table, TValue)
+import           Text.Toml.Types (Table, TValue (..))
 
 import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT)
 import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, key)
@@ -57,6 +58,9 @@ data LoomConfigRaw =
     , loomConfigRawDependencies :: [FilePath]
     , loomConfigRawComponents :: [FilePattern]
     , loomConfigRawSass :: [FilePattern]
+    , loomConfigRawJsNpm :: [NpmDependency]
+    , loomConfigRawJsGithub :: [GithubDependency]
+    , loomConfigRawPursGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
 defaultLoomFile :: FilePath
@@ -87,6 +91,9 @@ resolveConfig root = do
         (loomConfigRawName rc)
         (loomConfigRawComponents rc)
         (loomConfigRawSass rc)
+        (loomConfigRawJsNpm rc)
+        (loomConfigRawJsGithub rc)
+        (loomConfigRawPursGithub rc)
   pure . Loom (config' rc1) . fmap config' $ rcs
 
 parseConfig :: Text -> Either LoomConfigTomlError LoomConfigRaw
@@ -118,6 +125,15 @@ parseTomlConfigV1 t =
     <*> (maybe (pure []) (parseFilePatterns "sass.paths") $
       t ^? key "sass" . _NTable . key "paths" . _NTValue . _VArray
       )
+    <*> (maybe (pure []) (parseNpmDeps "js.dependencies.npm") $
+      t ^? key "js" . _NTable . key "dependencies" . _NTable . key "npm" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseGithubDeps "js.dependencies.github") $
+      t ^? key "js" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseGithubDeps "purs.dependencies.github") $
+      t ^? key "purs" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+      )
 
 parseFilePatterns :: Text -> [TValue] -> Either LoomConfigTomlError [FilePattern]
 parseFilePatterns l =
@@ -126,6 +142,26 @@ parseFilePatterns l =
 parseFilePattern :: Text -> Either LoomConfigTomlError FilePattern
 parseFilePattern t =
   first ConfigInvalidPattern . compileFilePattern $ t
+
+parseNpmDeps :: Text -> [TValue] -> Either LoomConfigTomlError [NpmDependency]
+parseNpmDeps l vals =
+  for vals $ \case
+    VArray (VString name : VString vers : VString sha : []) ->
+      pure (NpmDependency (NpmPackage name) (NpmPackageVersion vers) (Sha1 sha))
+    _ ->
+      Left (ConfigInvalidField l)
+
+parseGithubDeps :: Text -> [TValue] -> Either LoomConfigTomlError [GithubDependency]
+parseGithubDeps l vals =
+  for vals $ \case
+    VArray (VString name : VString ref : VString sha : []) ->
+      case T.splitOn "/" name of
+        [user, repo] ->
+          pure (GithubDependency (GithubRepo user repo) (GitRef ref) (Sha1 sha))
+        _ ->
+          Left (ConfigInvalidField l)
+    _ ->
+      Left (ConfigInvalidField l)
 
 renderLoomConfigTomlError :: LoomConfigTomlError -> Text
 renderLoomConfigTomlError te =
