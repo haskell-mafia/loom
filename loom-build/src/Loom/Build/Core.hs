@@ -144,8 +144,10 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
         pms
 
   withLog logger "js" . firstT LoomJsError $ do
+    let
+      jsdir = Js.JsUnpackDir (loomTmpFilePath dir </> "js")
     deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
-    Js.unpackJs dir deps
+    Js.unpackJs jsdir deps
 
   pure $
     LoomResult

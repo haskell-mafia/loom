@@ -1,9 +1,11 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Js (
     JsError (..)
   , renderJsError
   , fetchJs
+  , JsUnpackDir (..)
   , unpackJs
   ) where
 
@@ -20,7 +22,7 @@ import           Loom.Fetch.HTTPS (HTTPSError, renderHTTPSError)
 import           Loom.Fetch.HTTPS.Github (githubFetcher)
 import           Loom.Fetch.HTTPS.Npm (npmFetcher)
 
-import           System.FilePath (FilePath, (</>))
+import           System.FilePath (FilePath)
 import qualified System.FilePath as FP
 import           System.IO (IO)
 
@@ -31,6 +33,10 @@ data JsError =
     JsFetchError [FetchError HTTPSError]
   | JsUnpackError [FetchError ()]
   deriving (Eq, Ord, Show)
+
+newtype JsUnpackDir = JsUnpackDir {
+    unJsUnpackDir :: FilePath
+  } deriving (Eq, Ord, Show)
 
 renderJsError :: JsError -> Text
 renderJsError je =
@@ -60,15 +66,10 @@ fetchJsGithub home grubs = do
   let ghNamer = T.unpack . grRepo . ghdRepo
   firstT JsFetchError $ fetchDepsSha1 home github ghNamer ghdSha1 grubs
 
-unpackJs :: LoomTmp -> [FetchedDependency] -> EitherT JsError IO ()
-unpackJs tmp deps = do
-  let out = jsDest tmp
+unpackJs :: JsUnpackDir -> [FetchedDependency] -> EitherT JsError IO ()
+unpackJs (JsUnpackDir out) deps = do
   firstT JsUnpackError . void . sequenceEitherT . with deps $ \dep ->
     firstT pure $ unpackRenameDep (renameBaseDir (fetchedName dep)) dep out
-
-jsDest :: LoomTmp -> FilePath
-jsDest (LoomTmp path) =
-  path </> "js"
 
 renameBaseDir :: FilePath -> FilePath -> FilePath
 renameBaseDir new fp =
