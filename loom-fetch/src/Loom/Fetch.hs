@@ -6,6 +6,7 @@ module Loom.Fetch (
     FetchedDependency (..)
   -- * IO
   , FetchError (..)
+  , renderFetchError
   , fetchDeps
   , fetchDepsSha1
   , fetch
@@ -57,9 +58,22 @@ data FetchError e =
   | CorruptArchive Text
   deriving (Eq, Ord, Show)
 
+renderFetchError :: (e -> Text) -> FetchError e -> Text
+renderFetchError f fe =
+  case fe of
+    FetchError e ->
+      "Fetch error: " <> f e
+    FetchException t ->
+      "Fetch exception: " <> t
+    Sha1Mismatch file want have ->
+      "Fetch error: SHA1 mismatch for '" <> T.pack file <> "' (want " <> unSha1 want <> ", have " <> unSha1 have <> ")"
+    CorruptArchive t ->
+      "Fetch error: could not unpack tarball (" <> t <> ")"
+
 -- | Unpack a fetched tarball to some destination directory.
 unpackDep :: FetchedDependency -> FilePath -> EitherT (FetchError e) IO ()
 unpackDep (FetchedDependency tar sha) out = do
+  liftIO (createDirectoryIfMissing True out)
   _ <- validateCachedFile (tarballFilePath tar) sha
   e <- liftIO $ A.async (unpackTarball out tar) >>= A.waitCatch
   either
@@ -86,12 +100,14 @@ fetchDepsSha1 ::
   => LoomHome
   -> Fetcher a e FilePath
   -> (a -> FilePath)
-  -> t (a, Sha1)
+  -> (a -> Sha1)
+  -> t a
   -> EitherT [FetchError e] IO (t FetchedDependency)
-fetchDepsSha1 home fetcher namer deps = do
+fetchDepsSha1 home fetcher namer hashr deps = do
   liftIO (createDirectoryIfMissing True (cacheRoot home))
   liftIO (createDirectoryIfMissing True (cacheTemp home))
-  sequenceEitherT (fmap (firstT pure . uncurry (fetchSha1 home fetcher namer)) deps)
+  let go a = fetchSha1 home fetcher namer a (hashr a)
+  sequenceEitherT (fmap (firstT pure . go) deps)
 
 fetch ::
      LoomHome

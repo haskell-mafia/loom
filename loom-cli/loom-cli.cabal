@@ -34,6 +34,7 @@ executable loom
                     , ambiata-x-optparse
                     , async                           == 2.1.*
                     , directory                       == 1.2.*
+                    , filepath                        == 1.2.*
                     , text
                     , transformers                    >= 0.4        && < 0.6
                     , warp                            == 3.0.*

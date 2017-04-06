@@ -1,8 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Js (
-    LoomJsError (..)
-  , renderLoomJsError
+    JsError (..)
+  , renderJsError
   , fetchJs
   , unpackJs
   ) where
@@ -10,29 +10,61 @@ module Loom.Js (
 
 import           Control.Monad.IO.Class (liftIO)
 
+import qualified Data.Text as T
+
 import           P
 
 import           Loom.Core.Data
-import           Loom.Fetch
+import           Loom.Fetch (FetchedDependency (..), FetchError, renderFetchError, fetchDepsSha1, unpackDep)
+import           Loom.Fetch.HTTPS (HTTPSError, renderHTTPSError)
 import           Loom.Fetch.HTTPS.Github (githubFetcher)
+import           Loom.Fetch.HTTPS.Npm (npmFetcher)
 
-import           X.Control.Monad.Trans.Either (EitherT)
+import           System.FilePath (FilePath, (</>))
+import           System.IO (IO)
+
+import           X.Control.Monad.Trans.Either (EitherT, sequenceEitherT)
 
 
-data LoomJsError =
-    LoomJsError
+data JsError =
+    JsFetchError [FetchError HTTPSError]
+  | JsUnpackError [FetchError ()]
   deriving (Eq, Ord, Show)
 
-renderLoomJsError :: LoomJsError -> Text
-renderLoomJsError je =
+renderJsError :: JsError -> Text
+renderJsError je =
   case je of
-    LoomJsError ->
-      "something went wrong pal"
+    JsFetchError fes ->
+      "Error while fetching JS:\n"
+        <> T.unlines (fmap (renderFetchError renderHTTPSError) fes)
+    JsUnpackError fes ->
+      "Error unpacking JS:\n"
+        <> T.unlines (fmap (renderFetchError (const "")) fes)
 
-fetchJs :: LoomHome -> [NpmDependency] -> [GithubDependency] -> EitherT LoomJsError IO [FetchedDependency]
+fetchJs :: LoomHome -> [NpmDependency] -> [GithubDependency] -> EitherT JsError IO [FetchedDependency]
 fetchJs home npms ghub = do
-  github <- githubFetcher
+  (<>)
+    <$> fetchJsNpm home npms
+    <*> fetchJsGithub home ghub
 
-unpackJs :: LoomTmp -> [FetchedDependency] -> EitherT LoomJsError IO ()
-unpackJs tmp deps =
-  undefined
+fetchJsNpm :: LoomHome -> [NpmDependency] -> EitherT JsError IO [FetchedDependency]
+fetchJsNpm home npms = do
+  npm <- liftIO npmFetcher
+  let npmNamer = T.unpack . unNpmPackage . ndPackage
+  firstT JsFetchError $ fetchDepsSha1 home npm npmNamer ndSha1 npms
+
+fetchJsGithub :: LoomHome -> [GithubDependency] -> EitherT JsError IO [FetchedDependency]
+fetchJsGithub home grubs = do
+  github <- liftIO githubFetcher
+  let ghNamer = T.unpack . grRepo . ghdRepo
+  firstT JsFetchError $ fetchDepsSha1 home github ghNamer ghdSha1 grubs
+
+unpackJs :: LoomTmp -> [FetchedDependency] -> EitherT JsError IO ()
+unpackJs tmp deps = do
+  let out = jsDest tmp
+  firstT JsUnpackError . void . sequenceEitherT . with deps $ \dep ->
+    firstT pure $ unpackDep dep out
+
+jsDest :: LoomTmp -> FilePath
+jsDest (LoomTmp path) =
+  path </> "js"

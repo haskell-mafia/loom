@@ -21,6 +21,7 @@ import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Build.Logger
 import           Loom.Core.Data
+import           Loom.Js (JsError)
 import qualified Loom.Js as Js
 import           Loom.Projector (ProjectorError)
 import qualified Loom.Projector as Projector
@@ -48,6 +49,7 @@ data LoomError =
   | LoomComponentError ComponentError
   | LoomProjectorError ProjectorError
   | LoomMachinatorError MachinatorError
+  | LoomJsError JsError
   deriving (Show)
 
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
@@ -58,15 +60,16 @@ initialiseBuild =
 buildLoom ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
+  LoomHome ->
   LoomTmp ->
   Loom ->
   EitherT LoomError IO LoomResult
-buildLoom logger buildConfig dir (Loom loomConfig' loomConfigs') = do
+buildLoom logger buildConfig home dir (Loom loomConfig' loomConfigs') = do
   resolved <- liftIO $
     LoomResolved
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  buildLoomResolved logger buildConfig dir resolved
+  buildLoomResolved logger buildConfig home dir resolved
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -75,15 +78,19 @@ resolveLoom config =
     <*> (pure . loomConfigName) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
+    <*> pure (loomConfigJsDepsNpm config)
+    <*> pure (loomConfigJsDepsGithub config)
+    <*> pure (loomConfigPursDepsGithub config)
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
 buildLoomResolved ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
+  LoomHome ->
   LoomTmp ->
   LoomResolved ->
   EitherT LoomError IO LoomResult
-buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others) = do
+buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config others) = do
   let
     configs =
       -- Need to make sure the dependencies are in reverse order
@@ -136,6 +143,10 @@ buildLoomResolved logger (LoomBuildConfig sass) dir (LoomResolved config others)
           )
         pms
 
+  withLog logger "js" . firstT LoomJsError $ do
+    deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
+    Js.unpackJs dir deps
+
   pure $
     LoomResult
       (loomConfigResolvedName config)
@@ -181,6 +192,8 @@ renderLoomError le =
       Projector.renderProjectorError e
     LoomMachinatorError e ->
       Machinator.renderMachinatorError e
+    LoomJsError e ->
+      Js.renderJsError e
 
 foldMapM :: (Foldable t, Monad m, Monoid b) => (b -> a -> m b) -> t a  -> m b
 foldMapM f =

@@ -24,8 +24,9 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 import           P
 
-import           System.Directory (getCurrentDirectory)
+import           System.Directory (getCurrentDirectory, getHomeDirectory)
 import           System.Environment (lookupEnv)
+import           System.FilePath ((</>))
 import           System.IO (BufferMode (..), FilePath, IO, hSetBuffering, stderr, stdout)
 import qualified System.IO as IO
 
@@ -63,6 +64,7 @@ main = do
     case c of
       Build -> do
         buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
+        home <- loomHomeEnv
         sitePrefix <- sitePrefixEnv
         apx <- assetsPrefixEnv
         bc <- buildConfigEnv
@@ -73,6 +75,7 @@ main = do
             (newSimpleLogger stderr)
             buildConfig
             config
+            home
             sitePrefix
             apx
             bc
@@ -84,6 +87,7 @@ main = do
 watch :: Int -> IO ()
 watch port = do
   buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
+  home <- loomHomeEnv
   sitePrefix <- sitePrefixEnv
   apx <- assetsPrefixEnv
   bc <- buildConfigEnv
@@ -100,6 +104,7 @@ watch port = do
               (newSimpleLogger stderr)
               buildConfig
               config
+              home
               sitePrefix
               apx
               bc
@@ -131,11 +136,12 @@ buildLoom' ::
   Logger IO ->
   LoomBuildConfig ->
   Loom ->
+  LoomHome ->
   LoomSitePrefix ->
   AssetsPrefix ->
   BuildConfig ->
   EitherT LoomCliError IO ()
-buildLoom' logger buildConfig config sitePrefix apx (BuildConfig haskellRoot siteRoot) = do
+buildLoom' logger buildConfig config home sitePrefix apx (BuildConfig haskellRoot siteRoot) = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -143,7 +149,7 @@ buildLoom' logger buildConfig config sitePrefix apx (BuildConfig haskellRoot sit
   firstT LoomSiteError $
     generateLoomSiteStatic sitePrefix siteRoot
   r <- firstT LoomError $
-    buildLoom (hoistLogger liftIO logger) buildConfig (LoomTmp ".loom") config
+    buildLoom (hoistLogger liftIO logger) buildConfig home (LoomTmp ".loom") config
   withLogIO logger "haskell" . firstT LoomHaskellError $
     -- NOTE: Site prefix is intentionally different for haskell than generated site
     generateHaskell haskellRoot (LoomSitePrefix "/") apx r
@@ -151,6 +157,11 @@ buildLoom' logger buildConfig config sitePrefix apx (BuildConfig haskellRoot sit
     generateLoomSite sitePrefix siteRoot apx r
 
 -----------
+
+loomHomeEnv :: IO LoomHome
+loomHomeEnv = do
+  home <- getHomeDirectory
+  fmap (LoomHome . fromMaybe (home </> ".loom")) . lookupEnv $ "LOOM_HOME"
 
 sitePrefixEnv :: IO LoomSitePrefix
 sitePrefixEnv =
