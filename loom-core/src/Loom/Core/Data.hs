@@ -5,6 +5,7 @@ module Loom.Core.Data (
   , Loom (..)
   , LoomResolved (..)
   , LoomTmp (..)
+  , LoomHome (..)
   , LoomRoot (..)
   , LoomFile (..)
   , LoomName (..)
@@ -16,6 +17,9 @@ module Loom.Core.Data (
   , CssFile (..)
   , LoomSitePrefix (..)
   , AssetsPrefix (..)
+  , Uri (..)
+  , Sha1 (..)
+  , Tarball (..)
   , loomFilePath
   , componentName
   , componentFilePath
@@ -74,6 +78,14 @@ data LoomResolved =
 newtype LoomTmp =
   LoomTmp {
       loomTmpFilePath :: FilePath
+    } deriving (Eq, Show)
+
+-- | Global directory used to cache loom binaries and dependencies.
+--
+-- Defaults to '$HOME/.loom'
+newtype LoomHome =
+  LoomHome {
+      loomHomeFilePath :: FilePath
     } deriving (Eq, Show)
 
 -- | Represents the path to a loom file from the CWD
@@ -282,3 +294,18 @@ findFiles' :: FilePath -> [FilePattern] -> IO [[FilePath]]
 findFiles' root fps =
   fmap (fmap (makeRelative root)) . fst <$>
      G.globDir (fmap (\(FilePattern g) -> g) fps) root
+
+-- | An unstructured, unvalidated URI.
+newtype Uri = Uri {
+    unUri :: [Char]
+  } deriving (Eq, Ord, Show)
+
+-- | A SHA1 hash.
+newtype Sha1 = Sha1 {
+    unSha1 :: Text
+  } deriving (Eq, Ord, Show)
+
+-- | A path to a gzipped tarball.
+newtype Tarball = Tarball {
+    tarballFilePath :: FilePath
+  } deriving (Eq, Ord, Show)

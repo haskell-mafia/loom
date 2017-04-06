@@ -15,8 +15,21 @@ library
                       base                            >= 3          && < 5
                     , ambiata-loom-core
                     , ambiata-p
+                    , ambiata-x-eithert
+                    , async                           == 2.*
+                    , base16-bytestring               == 0.1.*
+                    , bytestring                      == 0.10.*
+                    , cryptohash-sha1                 == 0.11.*
+                    , directory                       == 1.2.*
                     , filepath                        >= 1.4        && < 1.6
+                    , http-client                     == 0.5.*
+                    , http-client-tls                 == 0.3.*
+                    , http-types                      == 0.9.*
+                    , tar                             == 0.5.*
+                    , temporary                       == 1.2.*
                     , text                            >= 1.1        && < 1.3
+                    , transformers                    >= 0.4        && < 1.0
+                    , zlib                            == 0.6.*
 
   ghc-options:
                     -Wall
@@ -26,6 +39,8 @@ library
 
   exposed-modules:
                     Loom.Fetch
+                    Loom.Fetch.Data
+                    Loom.Fetch.HTTPS
 
 
 test-suite test
