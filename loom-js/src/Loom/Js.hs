@@ -5,6 +5,8 @@ module Loom.Js (
     JsError (..)
   , renderJsError
   , fetchJs
+  , fetchJsNpm
+  , fetchJsGithub
   , JsUnpackDir (..)
   , unpackJs
   ) where
