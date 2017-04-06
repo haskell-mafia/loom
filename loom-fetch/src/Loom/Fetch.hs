@@ -145,7 +145,8 @@ fetchSha1 home fetcher namer dep sha1 = do
   let out = cacheFile home (namer dep) sha1
   ifM (liftIO $ doesFileExist out)
     (validateCachedFile out sha1)
-    (fetch home fetcher namer dep)
+    (do fd <- fetch home fetcher namer dep
+        validateCachedFile (tarballFilePath (fetchedTarball fd)) sha1)
 
 validateCachedFile :: FilePath -> Sha1 -> EitherT (FetchError e) IO FetchedDependency
 validateCachedFile out sha1 = do
