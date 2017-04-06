@@ -31,7 +31,7 @@ library
   exposed-modules:
                     Loom.Js
                     Loom.Js.Node
-
+                    Loom.Js.Browserify
 
 test-suite test
   type:
