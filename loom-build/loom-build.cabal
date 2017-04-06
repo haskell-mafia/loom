@@ -15,6 +15,7 @@ library
                       base                            >= 3          && < 5
                     , ambiata-p
                     , ambiata-loom-core
+                    , ambiata-loom-fetch
                     , ambiata-loom-machinator
                     , ambiata-loom-projector
                     , ambiata-loom-sass

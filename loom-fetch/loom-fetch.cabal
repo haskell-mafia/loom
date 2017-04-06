@@ -41,6 +41,8 @@ library
                     Loom.Fetch
                     Loom.Fetch.Data
                     Loom.Fetch.HTTPS
+                    Loom.Fetch.HTTPS.Github
+                    Loom.Fetch.HTTPS.Npm
 
 
 test-suite test
