@@ -15,12 +15,13 @@ import qualified Data.Text as T
 import           P
 
 import           Loom.Core.Data
-import           Loom.Fetch (FetchedDependency (..), FetchError, renderFetchError, fetchDepsSha1, unpackDep)
+import           Loom.Fetch (FetchedDependency (..), FetchError, renderFetchError, fetchDepsSha1, unpackRenameDep)
 import           Loom.Fetch.HTTPS (HTTPSError, renderHTTPSError)
 import           Loom.Fetch.HTTPS.Github (githubFetcher)
 import           Loom.Fetch.HTTPS.Npm (npmFetcher)
 
 import           System.FilePath (FilePath, (</>))
+import qualified System.FilePath as FP
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT, sequenceEitherT)
@@ -63,8 +64,16 @@ unpackJs :: LoomTmp -> [FetchedDependency] -> EitherT JsError IO ()
 unpackJs tmp deps = do
   let out = jsDest tmp
   firstT JsUnpackError . void . sequenceEitherT . with deps $ \dep ->
-    firstT pure $ unpackDep dep out
+    firstT pure $ unpackRenameDep (renameBaseDir (fetchedName dep)) dep out
 
 jsDest :: LoomTmp -> FilePath
 jsDest (LoomTmp path) =
   path </> "js"
+
+renameBaseDir :: FilePath -> FilePath -> FilePath
+renameBaseDir new fp =
+  FP.joinPath $ case FP.splitPath fp of
+    [] ->
+      []
+    (_:xs) ->
+      (new:xs)

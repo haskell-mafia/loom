@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Fetch (
@@ -13,12 +14,14 @@ module Loom.Fetch (
   , fetchSha1
   , validateCachedFile
   , unpackDep
+  , unpackRenameDep
   -- * Caching
   , cacheRoot
   ) where
 
 
 import qualified Codec.Archive.Tar as Tar
+import qualified Codec.Archive.Tar.Entry as Tar
 import qualified Codec.Compression.GZip as GZip
 
 import qualified Control.Concurrent.Async as A
@@ -39,13 +42,15 @@ import           P
 import           System.Directory (createDirectoryIfMissing, doesFileExist, renameFile)
 import           System.FilePath (FilePath, (</>), (<.>))
 import           System.IO (IO, hClose)
+import           System.IO.Error (IOError, userError)
 import           System.IO.Temp (openTempFile)
 
 import           X.Control.Monad.Trans.Either (EitherT, hoistEither, left, runEitherT, sequenceEitherT)
 
 
 data FetchedDependency = FetchedDependency {
-    fetchedTarball :: Tarball
+    fetchedName :: [Char]
+  , fetchedTarball :: Tarball
   , fetchedSha1 :: Sha1
   } deriving (Eq, Ord, Show)
 
@@ -72,10 +77,24 @@ renderFetchError f fe =
 
 -- | Unpack a fetched tarball to some destination directory.
 unpackDep :: FetchedDependency -> FilePath -> EitherT (FetchError e) IO ()
-unpackDep (FetchedDependency tar sha) out = do
+unpackDep (FetchedDependency _name tar sha) out = do
   liftIO (createDirectoryIfMissing True out)
   _ <- validateCachedFile (tarballFilePath tar) sha
   e <- liftIO $ A.async (unpackTarball out tar) >>= A.waitCatch
+  either
+    (left . CorruptArchive . T.pack . show)
+    pure
+    e
+
+unpackRenameDep ::
+     (FilePath -> FilePath)
+  -> FetchedDependency
+  -> FilePath
+  -> EitherT (FetchError e) IO ()
+unpackRenameDep namer (FetchedDependency _name tar sha) out = do
+  liftIO (createDirectoryIfMissing True out)
+  _ <- validateCachedFile (tarballFilePath tar) sha
+  e <- liftIO $ A.async (unpackRenameTarball namer out tar) >>= A.waitCatch
   either
     (left . CorruptArchive . T.pack . show)
     pure
@@ -132,7 +151,7 @@ fetch home fetcher namer dep = do
   let out = cacheFile home (namer dep) sha1
   liftIO (renameFile tmp out)
   -- TODO Validate filetype? ensure it's a tarball
-  pure (FetchedDependency (Tarball out) sha1)
+  pure (FetchedDependency (namer dep) (Tarball out) sha1)
 
 fetchSha1 ::
      LoomHome
@@ -144,23 +163,45 @@ fetchSha1 ::
 fetchSha1 home fetcher namer dep sha1 = do
   let out = cacheFile home (namer dep) sha1
   ifM (liftIO $ doesFileExist out)
-    (validateCachedFile out sha1)
+    (do tb <- validateCachedFile out sha1
+        pure (FetchedDependency (namer dep) tb sha1))
     (do fd <- fetch home fetcher namer dep
-        validateCachedFile (tarballFilePath (fetchedTarball fd)) sha1)
+        _ <- validateCachedFile (tarballFilePath (fetchedTarball fd)) sha1
+        pure fd)
 
-validateCachedFile :: FilePath -> Sha1 -> EitherT (FetchError e) IO FetchedDependency
+validateCachedFile :: FilePath -> Sha1 -> EitherT (FetchError e) IO Tarball
 validateCachedFile out sha1 = do
   have <- liftIO $ fmap (sha1sumLB $!) (LB.readFile out)
   unless (have == sha1) (left (Sha1Mismatch out sha1 have))
-  pure (FetchedDependency (Tarball out) sha1)
+  pure (Tarball out)
 
 sha1sumLB :: LB.ByteString -> Sha1
 sha1sumLB =
   Sha1 . TE.decodeUtf8 . Hex.encode . SHA1.hashlazy
 
 unpackTarball :: FilePath -> Tarball -> IO ()
-unpackTarball fp tar =
-  Tar.unpack fp . Tar.read . GZip.decompress =<< LB.readFile (tarballFilePath tar)
+unpackTarball out tar =
+  Tar.unpack out . Tar.read . GZip.decompress =<< LB.readFile (tarballFilePath tar)
+
+-- This may fail if the new filenames are too long. This is why it's
+-- wrapped in an async above. Beware!
+unpackRenameTarball :: (FilePath -> FilePath) -> FilePath -> Tarball -> IO ()
+unpackRenameTarball namer out tar =
+  Tar.unpack out . renameTar namer . Tar.read . GZip.decompress =<< LB.readFile (tarballFilePath tar)
+
+renameTar :: Show e => (FilePath -> FilePath) -> Tar.Entries e -> Tar.Entries IOError
+renameTar namer =
+  fmap (fmap (userError . show)) . Tar.mapEntries $ \case
+    Tar.Entry path etype perms owns time fmt ->
+      case etype of
+        Tar.Directory ->
+          (\x -> Tar.Entry x etype perms owns time fmt)
+            <$> tarNamer True path
+        _ ->
+          (\x -> Tar.Entry x etype perms owns time fmt)
+            <$> tarNamer False path
+  where
+    tarNamer b = Tar.toTarPath b . namer . Tar.fromTarPath
 
 -- -----------------------------------------------------------------------------
 
