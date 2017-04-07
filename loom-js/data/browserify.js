@@ -7,10 +7,6 @@ var util = require('util');
 var path = require('path');
 
 // Helpers
-function bail(msg) {
-  console.log(msg);
-  process.exit(2);
-}
 function bailWithUsage() {
   console.log(
     "Usage: node browserify.js path/to/app entryPoint1.js [entryPoint2.js ...]"
@@ -36,25 +32,32 @@ if (inputFiles.length < 1) {
 
 var isProduction = true; // TODO
 
-browserify({
-  debug: !(isProduction), // Toggles sourcemaps
-  detectGlobals: false,
-  paths: [
-    path.join(appPath, 'node_modules'),
-  ],
-  entries: inputFiles,
-})
-  .transform(
-    envify({
-      "_": "purge",
-      NODE_ENV: (isProduction ? "production" : "development")
-    }),
-    { global: true }
-  )
-  .transform(
-    uglifyify,
-    { global: true }
-  )
+var bundler =
+  browserify({
+    debug: !(isProduction), // Toggles sourcemaps
+    detectGlobals: false,
+    paths: [
+      path.join(appPath, 'node_modules'),
+    ],
+    entries: inputFiles,
+  })
+    .transform(
+      envify({
+        "_": "purge",
+        NODE_ENV: (isProduction ? "production" : "development")
+      }),
+      { global: true }
+    )
+
+if (isProduction) {
+  bundler =
+    bundler.transform(
+      uglifyify,
+      { global: true }
+    )
+}
+
+bundler
   .bundle()
   .pipe(process.stdout)
 // TODO: A bunch of .require(pathToJSFile, { expose: "pathToExposeAs" }),
