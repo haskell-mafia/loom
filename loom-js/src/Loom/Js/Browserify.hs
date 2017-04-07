@@ -1,8 +1,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Loom.Js.Browserify (
     Browserify
+  , runBrowserify
   , installBrowserify
   , browserifyVersion
   , browserifyDeps
@@ -11,7 +13,11 @@ module Loom.Js.Browserify (
 
 import           Control.Monad.IO.Class (MonadIO(..))
 
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString as SB
+import           Data.FileEmbed (embedFile)
 import           Data.Hashable (Hashable (..))
+import qualified Data.Text as T
 
 import           Loom.Core.Data
 import           Loom.Js
@@ -19,9 +25,11 @@ import           Loom.Js
 import           P
 
 import           System.Directory (createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
+import           System.Exit (ExitCode (..))
 import           System.FilePath ((</>), takeDirectory)
-import           System.IO  (IO, FilePath)
+import           System.IO  (IO, FilePath, putStrLn)
 import           System.IO.Temp (createTempDirectory)
+import           System.Process (readProcessWithExitCode)
 
 import           Text.Printf (printf)
 
@@ -33,6 +41,18 @@ newtype Browserify = Browserify {
     _browserifyPath :: FilePath
   } deriving (Eq, Ord, Show)
 
+-- | Run browserify.
+-- function should probably take some inputs...
+runBrowserify :: Browserify -> EitherT JsError IO ()
+runBrowserify (Browserify script) = do
+  (ec, out, err) <- liftIO $ readProcessWithExitCode "node" [script] []
+  case ec of
+    ExitSuccess ->
+      -- probably should produce a single filepath or something instead of dumping to stdout
+      liftIO $ putStrLn out
+    ExitFailure x ->
+      left (JsBrowserifyError x (T.pack err))
+
 -- | Ensure the desired version of Browserify is installed.
 -- This means simply constructing the 'Browserify' token if already installed,
 -- or fetching and unpacking everything.
@@ -41,6 +61,7 @@ installBrowserify home = do
   let dir = browserifyDestination home
       bin = browserifyEntryPoint dir
       tmpdir = browserifyTempDir home
+  -- TODO this needs an async wrapper, many exceptions could be thrown
   ifM
     (liftIO (doesDirectoryExist dir))
     (pure (Browserify bin))
@@ -49,6 +70,7 @@ installBrowserify home = do
         let nodes = tmp </> "node_modules"
         tars <- fetchJsNpm home browserifyDeps
         unpackJs (JsUnpackDir nodes) tars
+        liftIO $ SB.writeFile (browserifyEntryPoint tmp) browserifyScript
         liftIO $ createDirectoryIfMissing True (takeDirectory dir)
         liftIO $ renameDirectory tmp dir
         pure (Browserify bin))
@@ -61,8 +83,7 @@ browserifyDestination home =
 -- | The browserify entry point.
 browserifyEntryPoint :: FilePath -> FilePath
 browserifyEntryPoint root =
-  -- TODO replace with custom script
-  root </> "node_modules" </> "browserify" </> "bin" </> "cmd.js"
+  root </> "browserify.js"
 
 -- | The tmpdir we use while unpacking.
 browserifyTempDir :: LoomHome -> FilePath
@@ -76,6 +97,10 @@ browserifyVersion =
   printf "%x" . hash $
       "loom" -- Replace this constant to force a version change.
     : (fmap (unSha1 . ndSha1) browserifyDeps)
+
+browserifyScript :: ByteString
+browserifyScript =
+  $(embedFile "data/browserify.js")
 
 browserifyDeps :: [NpmDependency]
 browserifyDeps =

@@ -10,6 +10,9 @@ cabal-version:         >= 1.8
 build-type:            Simple
 description:           loom-js
 
+extra-source-files:
+                      data/browserify.js
+
 library
   build-depends:
                       base                            >= 3          && < 5
@@ -17,6 +20,8 @@ library
                     , ambiata-loom-fetch
                     , ambiata-p
                     , ambiata-x-eithert
+                    , bytestring                      == 0.10.*
+                    , file-embed
                     , filepath                        >= 1.4        && < 1.6
                     , hashable                        == 1.2.*
                     , text                            >= 1.1        && < 1.3

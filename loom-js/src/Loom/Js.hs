@@ -34,6 +34,7 @@ import           X.Control.Monad.Trans.Either (EitherT, sequenceEitherT)
 data JsError =
     JsFetchError [FetchError HTTPSError]
   | JsUnpackError [FetchError ()]
+  | JsBrowserifyError Int Text
   deriving (Eq, Ord, Show)
 
 newtype JsUnpackDir = JsUnpackDir {
@@ -49,6 +50,9 @@ renderJsError je =
     JsUnpackError fes ->
       "Error unpacking JS:\n"
         <> T.unlines (fmap (renderFetchError (const "")) fes)
+    JsBrowserifyError x err ->
+      "Error bundling JS (exit " <> renderIntegral x <> "):\n"
+        <> err
 
 fetchJs :: LoomHome -> [NpmDependency] -> [GithubDependency] -> EitherT JsError IO [FetchedDependency]
 fetchJs home npms ghub = do
