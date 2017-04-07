@@ -132,6 +132,9 @@ data LoomConfigResolved =
     , loomConfigResolvedName :: LoomName
     , loomConfigResolvedComponents :: [LoomFile]
     , loomConfigResolvedSass :: [LoomFile]
+    , loomConfigResolvedJsDepsNpm :: [NpmDependency]
+    , loomConfigResolvedJsDepsGithub :: [GithubDependency]
+    , loomConfigResolvedPursDepsGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
 data Component =
