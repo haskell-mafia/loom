@@ -250,9 +250,9 @@ loomWatchPatterns (Loom c cs) =
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
     in
-      mconcat [
+      fmap (appendFilePattern rfp) . mconcat $ [
           comps >>= \cp ->
-            fmap (appendFilePattern rfp . appendFilePattern cp) componentFilePatterns
+            fmap (appendFilePattern cp) componentFilePatterns
         , sass
         ]
 
