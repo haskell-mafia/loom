@@ -32,6 +32,8 @@ import           X.Control.Monad.Trans.Either (EitherT, sequenceEitherT)
 data JsError =
     JsFetchError [FetchError HTTPSError]
   | JsUnpackError [FetchError ()]
+  | JsNodeMissing
+  | JsNodeExitFailure Int Text Text
   deriving (Eq, Ord, Show)
 
 newtype JsUnpackDir = JsUnpackDir {
@@ -47,6 +49,26 @@ renderJsError je =
     JsUnpackError fes ->
       "Error unpacking JS:\n"
         <> T.unlines (fmap (renderFetchError (const "")) fes)
+    JsNodeMissing ->
+      T.unlines [
+          "Could not locate 'node' executable on the PATH."
+        , ""
+        , "For OSX users try running the following first:"
+        , " - brew install node"
+        , ""
+        , "For Arch users try running the following first:"
+        , " - pacman -S node"
+        , ""
+        , "Otherwise please follow the build instructions here:"
+        , " - https://github.com/nodejs/node"
+        ]
+    JsNodeExitFailure x out err ->
+      T.unlines [
+          "Error running 'node' (exit code " <> renderIntegral x <> "):"
+        , out
+        , err
+        ]
+
 
 fetchJs :: LoomHome -> [NpmDependency] -> [GithubDependency] -> EitherT JsError IO [FetchedDependency]
 fetchJs home npms ghub = do
