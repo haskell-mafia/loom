@@ -61,8 +61,8 @@ browserifyDestination home =
 -- | The browserify entry point.
 browserifyEntryPoint :: FilePath -> FilePath
 browserifyEntryPoint root =
-  -- TODO this does not exist
-  root </> "thing"
+  -- TODO replace with custom script
+  root </> "node_modules" </> "browserify" </> "bin" </> "cmd.js"
 
 -- | The tmpdir we use while unpacking.
 browserifyTempDir :: LoomHome -> FilePath
