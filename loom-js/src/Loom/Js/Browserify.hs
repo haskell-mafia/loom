@@ -1,25 +1,110 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Loom.Js.Browserify (
-    browserifyDeps
+    Browserify
+  , runBrowserify
+  , installBrowserify
+  , browserifyVersion
+  , browserifyDeps
   ) where
 
+
+import qualified Control.Concurrent.Async as A
+import           Control.Exception (SomeException)
+import           Control.Monad.IO.Class (MonadIO(..))
+
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString as SB
+import           Data.FileEmbed (embedFile)
+import           Data.Hashable (Hashable (..))
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 
 import           Loom.Core.Data
 import           Loom.Js
 
 import           P
 
-import           System.IO  (IO, FilePath)
+import           System.Directory (createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
+import           System.Exit (ExitCode (..))
+import           System.FilePath ((</>), takeDirectory)
+import           System.IO  (IO, FilePath, putStrLn)
+import           System.IO.Temp (createTempDirectory)
+import           System.Process (readProcessWithExitCode)
+
+import           Text.Printf (printf)
 
 import           X.Control.Monad.Trans.Either
 
 
-installBrowserify :: LoomHome -> EitherT JsError IO [FetchedDependency]
+-- | A token to be passed around when Browserify is to be run.
+newtype Browserify = Browserify {
+    _browserifyPath :: FilePath
+  } deriving (Eq, Ord, Show)
+
+-- | Run browserify.
+-- function should probably take some inputs...
+runBrowserify :: Browserify -> EitherT JsError IO ()
+runBrowserify (Browserify script) = do
+  (ec, out, err) <- liftIO $ readProcessWithExitCode "node" [script] []
+  case ec of
+    ExitSuccess ->
+      -- probably should produce a single filepath or something instead of dumping to stdout
+      liftIO $ putStrLn out
+    ExitFailure x ->
+      left (JsBrowserifyError x (T.pack err))
+
+-- | Ensure the desired version of Browserify is installed.
+-- This means simply constructing the 'Browserify' token if already installed,
+-- or fetching and unpacking everything.
+installBrowserify :: LoomHome -> EitherT JsError IO Browserify
 installBrowserify home = do
-  undefined
+  let dir = browserifyDestination home
+      bin = browserifyEntryPoint dir
+      tmpdir = browserifyTempDir home
+  safeEitherTIO (JsException . T.pack . show) $
+    ifM
+      (liftIO (doesDirectoryExist dir))
+      (pure (Browserify bin))
+      (do liftIO $ createDirectoryIfMissing True tmpdir
+          tmp <- liftIO $ createTempDirectory tmpdir "loom-"
+          let nodes = tmp </> "node_modules"
+          tars <- fetchJsNpm home browserifyDeps
+          unpackJs (JsUnpackDir nodes) tars
+          liftIO $ SB.writeFile (browserifyEntryPoint tmp) browserifyScript
+          liftIO $ createDirectoryIfMissing True (takeDirectory dir)
+          liftIO $ renameDirectory tmp dir
+          pure (Browserify bin))
 
+-- | The directory we expect browserify installed into.
+browserifyDestination :: LoomHome -> FilePath
+browserifyDestination home =
+  loomHomeFilePath home </> "js" </> "browserify-" <> browserifyVersion
 
+-- | The browserify entry point.
+browserifyEntryPoint :: FilePath -> FilePath
+browserifyEntryPoint root =
+  root </> "browserify.js"
+
+-- | The tmpdir we use while unpacking.
+browserifyTempDir :: LoomHome -> FilePath
+browserifyTempDir home =
+  loomHomeFilePath home </> "tmp"
+
+-- | A version string for our JS post-processing monstrosity.
+-- This is concocted from the hashes of all the hashes.
+browserifyVersion :: [Char]
+browserifyVersion =
+  printf "%x" . hash $
+      "loom" -- Replace this constant to force a version change.
+    : TE.decodeUtf8 browserifyScript
+    : (fmap (unSha1 . ndSha1) browserifyDeps)
+
+browserifyScript :: ByteString
+browserifyScript =
+  $(embedFile "data/browserify.js")
 
 browserifyDeps :: [NpmDependency]
 browserifyDeps =
@@ -133,8 +218,7 @@ browserifyDeps =
     , ("read-only-stream"          , "2.0.0",   "2724fd6a8113d73764ac288d4386270c1dbf17f0")
     , ("readable-stream"           , "2.2.6",   "8b43aed76e71483938d12a8d46c6cf1a00b1f816")
     , ("repeat-string"             , "1.6.1",   "8dcae470e1c88abc2d600fff4a776286da75e637")
-    , ("resolve"                   , "1.1.7",   "1f0442c9e0cbb8136e87b9305f932f46c7f28235")
-    , ("resolve"                   , "1.3.2",   "203114d82ad2c5ed9e8e0411b3932875e889e97b")
+    , ("resolve"                   , "1.1.7",   "203114d82ad2c5ed9e8e0411b3932875e889e97b")
     , ("right-align"               , "0.1.3",   "61339b722fe6a3515689210d24e14c96148613ef")
     , ("ripemd160"                 , "1.0.1",   "93a4bbd4942bc574b69a8fa57c71de10ecca7d6e")
     , ("sha.js"                    , "2.4.8",   "37068c2c476b6baf402d14a49c67f597921f634f")
@@ -168,3 +252,11 @@ browserifyDeps =
     , ("xtend"                     , "4.0.1",   "a5c6d532be656e23db820efb943a1f04998d63af")
     , ("yargs"                     , "3.10.0",  "f7ee7bd857dd7c1d2d38c0e74efbd681d1431fd1")
     ]
+
+safeIO :: IO a -> IO (Either SomeException a)
+safeIO =
+  A.waitCatch <=< A.async
+
+safeEitherTIO :: (SomeException -> x) -> EitherT x IO a -> EitherT x IO a
+safeEitherTIO f e =
+  either (left . f) hoistEither =<< (liftIO . safeIO $ runEitherT e)
