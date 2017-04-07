@@ -46,8 +46,9 @@ installBrowserify home = do
     (pure (Browserify bin))
     (do liftIO $ createDirectoryIfMissing True tmpdir
         tmp <- liftIO $ createTempDirectory tmpdir "loom-"
+        let nodes = tmp </> "node_modules"
         tars <- fetchJsNpm home browserifyDeps
-        unpackJs (JsUnpackDir tmp) tars
+        unpackJs (JsUnpackDir nodes) tars
         liftIO $ createDirectoryIfMissing True (takeDirectory dir)
         liftIO $ renameDirectory tmp dir
         pure (Browserify bin))
@@ -188,7 +189,7 @@ browserifyDeps =
     , ("read-only-stream"          , "2.0.0",   "2724fd6a8113d73764ac288d4386270c1dbf17f0")
     , ("readable-stream"           , "2.2.6",   "8b43aed76e71483938d12a8d46c6cf1a00b1f816")
     , ("repeat-string"             , "1.6.1",   "8dcae470e1c88abc2d600fff4a776286da75e637")
-    , ("resolve"                   , "1.3.2",   "203114d82ad2c5ed9e8e0411b3932875e889e97b")
+    , ("resolve"                   , "1.1.7",   "203114d82ad2c5ed9e8e0411b3932875e889e97b")
     , ("right-align"               , "0.1.3",   "61339b722fe6a3515689210d24e14c96148613ef")
     , ("ripemd160"                 , "1.0.1",   "93a4bbd4942bc574b69a8fa57c71de10ecca7d6e")
     , ("sha.js"                    , "2.4.8",   "37068c2c476b6baf402d14a49c67f597921f634f")
