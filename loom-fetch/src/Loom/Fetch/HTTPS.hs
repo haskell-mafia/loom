@@ -12,6 +12,7 @@ module Loom.Fetch.HTTPS (
   ) where
 
 
+import           Control.Concurrent (threadDelay)
 import           Control.Monad.IO.Class (MonadIO (..))
 
 import           Data.ByteString (ByteString)
@@ -108,7 +109,7 @@ httpsFetcher tmpdir f rt rp = do
     let uri = f a
     req <- maybe (left (BadUri uri)) pure (HTTPS.parseRequest (unUri uri))
     (fp, h) <- liftIO (openTempFile tmpdir "loom-")
-    lbs <- fmap HTTPS.responseBody (httpsFetch mgr rt rp req {
+    lbs <- fmap HTTPS.responseBody (httpsFetch 1 mgr rt rp req {
         -- Force TLS, regardless of the provided URI
         HTTPS.secure = True
       })
@@ -117,12 +118,13 @@ httpsFetcher tmpdir f rt rp = do
     pure fp
 
 httpsFetch ::
-     HTTPS.Manager
+     Int
+  -> HTTPS.Manager
   -> RetryPolicy
   -> RedirectPolicy
   -> HTTPS.Request
   -> EitherT HTTPSError IO (HTTPS.Response LB.ByteString)
-httpsFetch mgr rt rp req = do
+httpsFetch att mgr rt rp req = do
   e <- liftIO . HTTPS.withResponse req {
     -- Throw no exceptions on bad response code
       HTTPS.checkResponse = (\_ _ -> pure ())
@@ -133,7 +135,7 @@ httpsFetch mgr rt rp req = do
         HTTPS.Status 302 _ -> do
           either
             (pure . Left)
-            (runEitherT . uncurry (httpsFetch mgr rt))
+            (runEitherT . uncurry (httpsFetch att mgr rt))
             (do let hdrs = HTTPS.responseHeaders res
                 req' <- maybe (Left RedirectNoLocation) pure $ do
                   (_, loc) <- find ((== "Location") . fst) hdrs
@@ -144,5 +146,29 @@ httpsFetch mgr rt rp req = do
           bss <- HTTPS.brConsume $ HTTPS.responseBody res
           pure (Right res { HTTPS.responseBody = LB.fromChunks bss })
         HTTPS.Status x msg ->
-          pure (Left (BadResponseCode x msg))
+          ifM
+            (liftIO $ retry att rt)
+            (runEitherT $ httpsFetch (att+1) mgr rt rp req)
+            (pure (Left (BadResponseCode x msg)))
   hoistEither e
+
+-- | Apply retry policy.
+retry :: Int -> RetryPolicy -> IO Bool
+retry att rt =
+  case rt of
+    ExponentialBackoffX x ->
+      -- Figure out attempt number
+      if x - att > 0
+        then do threadDelay (expBackoff att)
+                pure True
+        else pure False
+
+-- | Delay between first and second attempts in microseconds, to be exponentiated.
+initialBackoff :: Int
+initialBackoff =
+  1000 {- 1ms -}
+
+expBackoff :: Int -> Int
+expBackoff att =
+  let expo = fromIntegral initialBackoff ^^ att :: Double
+  in floor expo

@@ -25,7 +25,6 @@ library
                     , http-client                     == 0.5.*
                     , http-client-tls                 == 0.3.*
                     , http-types                      >= 0.8        && < 0.10
-                    , retry                           == 0.7.*
                     , tar                             == 0.5.*
                     , temporary                       == 1.2.*
                     , text                            >= 1.1        && < 1.3
