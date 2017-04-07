@@ -20,7 +20,7 @@ import           System.IO (IO, FilePath)
 githubFetcher :: IO (Fetcher GithubDependency HTTPSError FilePath)
 githubFetcher = do
   tmpdir <- getTemporaryDirectory
-  httpsFetcher tmpdir githubUri githubRedirectPolicy
+  httpsFetcher tmpdir githubUri githubRetryPolicy githubRedirectPolicy
 
 githubUri :: GithubDependency -> Uri
 githubUri (GithubDependency (GithubRepo user repo) (GitRef ref) _sha1) =
@@ -29,3 +29,7 @@ githubUri (GithubDependency (GithubRepo user repo) (GitRef ref) _sha1) =
 githubRedirectPolicy :: RedirectPolicy
 githubRedirectPolicy =
   tlsTldRedirectPolicy "github.com"
+
+githubRetryPolicy :: RetryPolicy
+githubRetryPolicy =
+  ExponentialBackoffX 3
