@@ -1,25 +1,80 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Loom.Js.Browserify (
-    browserifyDeps
+    Browserify
+  , installBrowserify
+  , browserifyVersion
+  , browserifyDeps
   ) where
 
+
+import           Control.Monad.IO.Class (MonadIO(..))
+
+import           Data.Hashable (Hashable (..))
 
 import           Loom.Core.Data
 import           Loom.Js
 
 import           P
 
+import           System.Directory (createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
+import           System.FilePath ((</>), takeDirectory)
 import           System.IO  (IO, FilePath)
+import           System.IO.Temp (createTempDirectory)
+
+import           Text.Printf (printf)
 
 import           X.Control.Monad.Trans.Either
 
 
-installBrowserify :: LoomHome -> EitherT JsError IO [FetchedDependency]
+-- | A token to be passed around when Browserify is to be run.
+newtype Browserify = Browserify {
+    _browserifyPath :: FilePath
+  } deriving (Eq, Ord, Show)
+
+-- | Ensure the desired version of Browserify is installed.
+-- This means simply constructing the 'Browserify' token if already installed,
+-- or fetching and unpacking everything.
+installBrowserify :: LoomHome -> EitherT JsError IO Browserify
 installBrowserify home = do
-  undefined
+  let dir = browserifyDestination home
+      bin = browserifyEntryPoint dir
+      tmpdir = browserifyTempDir home
+  ifM
+    (liftIO (doesDirectoryExist dir))
+    (pure (Browserify bin))
+    (do liftIO $ createDirectoryIfMissing True tmpdir
+        tmp <- liftIO $ createTempDirectory tmpdir "loom-"
+        tars <- fetchJsNpm home browserifyDeps
+        unpackJs (JsUnpackDir tmp) tars
+        liftIO $ createDirectoryIfMissing True (takeDirectory dir)
+        liftIO $ renameDirectory tmp dir
+        pure (Browserify bin))
 
+-- | The directory we expect browserify installed into.
+browserifyDestination :: LoomHome -> FilePath
+browserifyDestination home =
+  loomHomeFilePath home </> "js" </> "browserify-" <> browserifyVersion
 
+-- | The browserify entry point.
+browserifyEntryPoint :: FilePath -> FilePath
+browserifyEntryPoint root =
+  -- TODO this does not exist
+  root </> "thing"
+
+-- | The tmpdir we use while unpacking.
+browserifyTempDir :: LoomHome -> FilePath
+browserifyTempDir home =
+  loomHomeFilePath home </> "tmp"
+
+-- | A version string for our JS post-processing monstrosity.
+-- This is concocted from the hashes of all the hashes.
+browserifyVersion :: [Char]
+browserifyVersion =
+  printf "%x" . hash $
+      "loom" -- Replace this constant to force a version change.
+    : (fmap (unSha1 . ndSha1) browserifyDeps)
 
 browserifyDeps :: [NpmDependency]
 browserifyDeps =
@@ -133,7 +188,6 @@ browserifyDeps =
     , ("read-only-stream"          , "2.0.0",   "2724fd6a8113d73764ac288d4386270c1dbf17f0")
     , ("readable-stream"           , "2.2.6",   "8b43aed76e71483938d12a8d46c6cf1a00b1f816")
     , ("repeat-string"             , "1.6.1",   "8dcae470e1c88abc2d600fff4a776286da75e637")
-    , ("resolve"                   , "1.1.7",   "1f0442c9e0cbb8136e87b9305f932f46c7f28235")
     , ("resolve"                   , "1.3.2",   "203114d82ad2c5ed9e8e0411b3932875e889e97b")
     , ("right-align"               , "0.1.3",   "61339b722fe6a3515689210d24e14c96148613ef")
     , ("ripemd160"                 , "1.0.1",   "93a4bbd4942bc574b69a8fa57c71de10ecca7d6e")
