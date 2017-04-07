@@ -7,6 +7,7 @@ module Loom.Fetch.HTTPS (
   , httpsFetch
   , RedirectPolicy (..)
   , redirectOk
+  , RetryPolicy (..)
   , tlsTldRedirectPolicy
   ) where
 
@@ -83,6 +84,10 @@ redirectOk (RedirectPolicy cnt port tls hostf) req = do
   unless (hostf (HTTPS.host req)) (Left (RedirectBadHost (HTTPS.host req)))
   pure (RedirectPolicy (cnt-1) port tls hostf)
 
+data RetryPolicy =
+    ExponentialBackoffX Int
+  deriving (Eq, Ord, Show)
+
 -- | A fairly strict redirect policy, requiring the hostname of any
 -- redirect to retain the original host as a suffix. It also requires
 -- TLS over 443, with a low redirect count.
@@ -95,15 +100,15 @@ tlsTldRedirectPolicy host =
     , redirectHostPred = SB.isSuffixOf host
     }
 
-httpsFetcher :: FilePath -> (a -> Uri) -> RedirectPolicy -> IO (Fetcher a HTTPSError FilePath)
-httpsFetcher tmpdir f rp = do
+httpsFetcher :: FilePath -> (a -> Uri) -> RetryPolicy -> RedirectPolicy -> IO (Fetcher a HTTPSError FilePath)
+httpsFetcher tmpdir f rt rp = do
   mgr <- HTTPS.newTlsManager
   createDirectoryIfMissing True tmpdir
   pure . Fetcher $ \a -> do
     let uri = f a
     req <- maybe (left (BadUri uri)) pure (HTTPS.parseRequest (unUri uri))
     (fp, h) <- liftIO (openTempFile tmpdir "loom-")
-    lbs <- fmap HTTPS.responseBody (httpsFetch mgr rp req {
+    lbs <- fmap HTTPS.responseBody (httpsFetch mgr rt rp req {
         -- Force TLS, regardless of the provided URI
         HTTPS.secure = True
       })
@@ -113,10 +118,11 @@ httpsFetcher tmpdir f rp = do
 
 httpsFetch ::
      HTTPS.Manager
+  -> RetryPolicy
   -> RedirectPolicy
   -> HTTPS.Request
   -> EitherT HTTPSError IO (HTTPS.Response LB.ByteString)
-httpsFetch mgr rp req = do
+httpsFetch mgr rt rp req = do
   e <- liftIO . HTTPS.withResponse req {
     -- Throw no exceptions on bad response code
       HTTPS.checkResponse = (\_ _ -> pure ())
@@ -127,7 +133,7 @@ httpsFetch mgr rp req = do
         HTTPS.Status 302 _ -> do
           either
             (pure . Left)
-            (runEitherT . uncurry (httpsFetch mgr))
+            (runEitherT . uncurry (httpsFetch mgr rt))
             (do let hdrs = HTTPS.responseHeaders res
                 req' <- maybe (Left RedirectNoLocation) pure $ do
                   (_, loc) <- find ((== "Location") . fst) hdrs

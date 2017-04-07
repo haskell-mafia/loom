@@ -20,7 +20,7 @@ import           System.IO (IO, FilePath)
 npmFetcher :: IO (Fetcher NpmDependency HTTPSError FilePath)
 npmFetcher = do
   tmpdir <- getTemporaryDirectory
-  httpsFetcher tmpdir npmUri npmRedirectPolicy
+  httpsFetcher tmpdir npmUri npmRetryPolicy npmRedirectPolicy
 
 npmUri :: NpmDependency -> Uri
 npmUri (NpmDependency (NpmPackage pack) (NpmPackageVersion vers) _sha1) =
@@ -29,3 +29,7 @@ npmUri (NpmDependency (NpmPackage pack) (NpmPackageVersion vers) _sha1) =
 npmRedirectPolicy :: RedirectPolicy
 npmRedirectPolicy =
   tlsTldRedirectPolicy "registry.npmjs.org"
+
+npmRetryPolicy :: RetryPolicy
+npmRetryPolicy =
+  ExponentialBackoffX 3
