@@ -58,8 +58,10 @@ data LoomConfigRaw =
     , loomConfigRawDependencies :: [FilePath]
     , loomConfigRawComponents :: [FilePattern]
     , loomConfigRawSass :: [FilePattern]
+    , loomConfigRawJsPaths :: [FilePattern]
     , loomConfigRawJsNpm :: [NpmDependency]
     , loomConfigRawJsGithub :: [GithubDependency]
+    , loomConfigRawPursPaths :: [FilePattern]
     , loomConfigRawPursGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
@@ -91,8 +93,10 @@ resolveConfig root = do
         (loomConfigRawName rc)
         (loomConfigRawComponents rc)
         (loomConfigRawSass rc)
+        (loomConfigRawJsPaths rc)
         (loomConfigRawJsNpm rc)
         (loomConfigRawJsGithub rc)
+        (loomConfigRawPursPaths rc)
         (loomConfigRawPursGithub rc)
   pure . Loom (config' rc1) . fmap config' $ rcs
 
@@ -125,11 +129,17 @@ parseTomlConfigV1 t =
     <*> (maybe (pure []) (parseFilePatterns "sass.paths") $
       t ^? key "sass" . _NTable . key "paths" . _NTValue . _VArray
       )
+    <*> (maybe (pure []) (parseFilePatterns "js.paths") $
+      t ^? key "js" . _NTable . key "paths" . _NTValue . _VArray
+      )
     <*> (maybe (pure []) (parseNpmDeps "js.dependencies.npm") $
       t ^? key "js" . _NTable . key "dependencies" . _NTable . key "npm" . _NTValue . _VArray
       )
     <*> (maybe (pure []) (parseGithubDeps "js.dependencies.github") $
       t ^? key "js" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseFilePatterns "purs.paths") $
+      t ^? key "purs" . _NTable . key "paths" . _NTValue . _VArray
       )
     <*> (maybe (pure []) (parseGithubDeps "purs.dependencies.github") $
       t ^? key "purs" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray

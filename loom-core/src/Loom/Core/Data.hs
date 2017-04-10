@@ -127,8 +127,10 @@ data LoomConfig =
     , loomConfigName :: LoomName
     , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
+    , loomConfigJsPaths :: [FilePattern]
     , loomConfigJsDepsNpm :: [NpmDependency]
     , loomConfigJsDepsGithub :: [GithubDependency]
+    , loomConfigPursPaths :: [FilePattern]
     , loomConfigPursDepsGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
@@ -264,7 +266,7 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
 
 loomWatchPatterns :: Loom -> [FilePattern]
 loomWatchPatterns (Loom c cs) =
-  c : cs >>= \(LoomConfig r _ comps sass _ _ _) ->
+  c : cs >>= \(LoomConfig r _ comps sass _ _ _ _ _) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
     in
