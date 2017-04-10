@@ -9,12 +9,32 @@
 [sass]
   paths = ["scss/*"]
 
+[js]
+  paths = [
+      "app/src/js/*"
+    ]
+
+[js.bundle.first]
+  paths = [
+      "app/src/first/js/*"
+    ]
+
 [js.dependencies]
   npm = [
       ["d3", "4.7.4", "a2f40eb57decc51bc469010d48ae74a20e025772"]
     ]
   github = [
       ["isaacs/rimraf", "tags/v2.6.1", "813139ac3628ae0b47136de18939cbb623e21475"]
+    ]
+
+[purs]
+  paths = [
+      "app/src/purs/*"
+    ]
+
+[purs.bundle.first]
+  paths = [
+      "app/src/first/purs/*"
     ]
 
 [purs.dependencies]

@@ -10,6 +10,7 @@ module Loom.Config.Toml (
 import           Control.Lens ((^?), preview)
 import           Control.Monad.IO.Class (liftIO)
 
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -41,6 +42,25 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
 
 [sass]
   paths = ["scss/*"]
+
+[js]
+  paths = ["js/*"]
+
+[js.bundle.first]
+  paths = "js/first/*"]
+
+[js.dependencies]
+  npm = [
+      ["react", "v1.0.0", "badfeed"]
+    ]
+
+[purs]
+  paths = ["purs/*"]
+
+[purs.dependencies]
+  github = [
+      ["purescript/purescript-prelude", "tags/v1.0.0", "deadbeef"]
+    ]
 --}
 
 data LoomConfigTomlError =
@@ -59,9 +79,11 @@ data LoomConfigRaw =
     , loomConfigRawComponents :: [FilePattern]
     , loomConfigRawSass :: [FilePattern]
     , loomConfigRawJsPaths :: [FilePattern]
+    , loomConfigRawJsBundles :: [Bundle]
     , loomConfigRawJsNpm :: [NpmDependency]
     , loomConfigRawJsGithub :: [GithubDependency]
     , loomConfigRawPursPaths :: [FilePattern]
+    , loomConfigRawPursBundles :: [Bundle]
     , loomConfigRawPursGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
@@ -94,9 +116,11 @@ resolveConfig root = do
         (loomConfigRawComponents rc)
         (loomConfigRawSass rc)
         (loomConfigRawJsPaths rc)
+        (loomConfigRawJsBundles rc)
         (loomConfigRawJsNpm rc)
         (loomConfigRawJsGithub rc)
         (loomConfigRawPursPaths rc)
+        (loomConfigRawPursBundles rc)
         (loomConfigRawPursGithub rc)
   pure . Loom (config' rc1) . fmap config' $ rcs
 
@@ -132,6 +156,9 @@ parseTomlConfigV1 t =
     <*> (maybe (pure []) (parseFilePatterns "js.paths") $
       t ^? key "js" . _NTable . key "paths" . _NTValue . _VArray
       )
+    <*> (maybe (pure []) parseBundleTable $
+      t ^? key "js" . _NTable . key "bundle" . _NTable
+      )
     <*> (maybe (pure []) (parseNpmDeps "js.dependencies.npm") $
       t ^? key "js" . _NTable . key "dependencies" . _NTable . key "npm" . _NTValue . _VArray
       )
@@ -140,6 +167,9 @@ parseTomlConfigV1 t =
       )
     <*> (maybe (pure []) (parseFilePatterns "purs.paths") $
       t ^? key "purs" . _NTable . key "paths" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) parseBundleTable $
+      t ^? key "purs" . _NTable . key "bundle" . _NTable
       )
     <*> (maybe (pure []) (parseGithubDeps "purs.dependencies.github") $
       t ^? key "purs" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
@@ -172,6 +202,13 @@ parseGithubDeps l vals =
           Left (ConfigInvalidField l)
     _ ->
       Left (ConfigInvalidField l)
+
+parseBundleTable :: Table -> Either LoomConfigTomlError [Bundle]
+parseBundleTable t =
+  for (HM.keys t) $ \b ->
+    Bundle (BundleName b)
+      <$> (maybe (pure []) (parseFilePatterns (b <> ".paths")) $
+            (t ^? key b . _NTable . key "paths" . _NTValue . _VArray))
 
 renderLoomConfigTomlError :: LoomConfigTomlError -> Text
 renderLoomConfigTomlError te =
