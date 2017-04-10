@@ -9,6 +9,7 @@ module Loom.Js (
   , fetchJsGithub
   , JsUnpackDir (..)
   , unpackJs
+  , JsModuleName (..)
   ) where
 
 
@@ -42,6 +43,10 @@ data JsError =
 
 newtype JsUnpackDir = JsUnpackDir {
     unJsUnpackDir :: FilePath
+  } deriving (Eq, Ord, Show)
+
+newtype JsModuleName = JsModuleName {
+    unJsModuleName :: Text
   } deriving (Eq, Ord, Show)
 
 renderJsError :: JsError -> Text
