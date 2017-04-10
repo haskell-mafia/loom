@@ -39,6 +39,8 @@ module Loom.Core.Data (
   , imageFilePathNoRoot
   , cssAssetPath
   , cssAssetFilePath
+  , jsAssetPath
+  , jsAssetFilePath
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
@@ -227,6 +229,13 @@ imageFilePathNoRoot :: ImageFile -> FilePath
 imageFilePathNoRoot (ImageFile n f) =
   (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
 
+jsAssetPath :: LoomSitePrefix -> AssetsPrefix -> JsFile -> Text
+jsAssetPath p apx j =
+  loomSitePrefix p <> (T.pack . jsAssetFilePath apx) j
+
+jsAssetFilePath :: AssetsPrefix -> JsFile -> FilePath
+jsAssetFilePath apx jsf =
+  assetsPrefix apx </> renderJsFile jsf
 
 compileFilePattern :: Text -> Either Text FilePattern
 compileFilePattern =
@@ -297,7 +306,7 @@ machinatorFilePattern =
 
 jsFilePattern :: FilePattern
 jsFilePattern =
-  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".js"
+  FilePattern $ G.recursiveWildcard <> G.literal "vanilla.js"
 
 pursFilePattern :: FilePattern
 pursFilePattern =

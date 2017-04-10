@@ -68,9 +68,9 @@ resolveComponent dir = do
           (fmap f sass)
           (fmap f (filterExamples proj))
           (fmap f mach)
+          (fmap f (fold imgs))
           (fmap f js)
           (fmap f purs)
-          (fmap f (fold imgs))
     _ ->
       left GlobInvariant
 
