@@ -24,15 +24,14 @@ import qualified Data.Text.Encoding as TE
 
 import           Loom.Core.Data
 import           Loom.Js
+import           Loom.Js.Node
 
 import           P
 
 import           System.Directory (createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
-import           System.Exit (ExitCode (..))
 import           System.FilePath ((</>), takeDirectory)
-import           System.IO  (IO, FilePath, putStrLn)
+import           System.IO  (IO, FilePath)
 import           System.IO.Temp (createTempDirectory)
-import           System.Process (readProcessWithExitCode)
 
 import           Text.Printf (printf)
 
@@ -46,15 +45,9 @@ newtype Browserify = Browserify {
 
 -- | Run browserify.
 -- function should probably take some inputs...
-runBrowserify :: Browserify -> EitherT JsError IO ()
-runBrowserify (Browserify script) = do
-  (ec, out, err) <- liftIO $ readProcessWithExitCode "node" [script] []
-  case ec of
-    ExitSuccess ->
-      -- probably should produce a single filepath or something instead of dumping to stdout
-      liftIO $ putStrLn out
-    ExitFailure x ->
-      left (JsBrowserifyError x (T.pack err))
+runBrowserify :: Node -> Browserify -> EitherT JsError IO ()
+runBrowserify node (Browserify script) = do
+  void $ runNode node [script] []
 
 -- | Ensure the desired version of Browserify is installed.
 -- This means simply constructing the 'Browserify' token if already installed,
