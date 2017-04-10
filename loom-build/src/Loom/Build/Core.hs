@@ -152,11 +152,13 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
     deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
     Purescript.unpackPurs psdir deps
 
-  withLog logger "js" . firstT LoomJsError $ do
+  js <- withLog logger "js" . firstT LoomJsError $ do
     let
       jsdir = Js.JsUnpackDir (loomTmpFilePath dir </> "js")
+    -- Fetch and unpack dependencies
     deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
     Js.unpackJs jsdir deps
+    pure []
 
   pure $
     LoomResult
@@ -166,6 +168,7 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       po
       outputCss
       images
+      js
 
 machinatorOutputToProjector ::
   Machinator.MachinatorOutput ->

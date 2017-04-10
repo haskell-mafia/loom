@@ -15,6 +15,8 @@ module Loom.Core.Data (
   , ComponentFile (..)
   , ImageFile (..)
   , CssFile (..)
+  , JsFile (..)
+  , PursFile (..)
   , LoomSitePrefix (..)
   , AssetsPrefix (..)
   , Tarball (..)
@@ -47,6 +49,8 @@ module Loom.Core.Data (
   , machinatorFilePattern
   , sassFilePattern
   , imageFilePatterns
+  , jsFilePattern
+  , pursFilePattern
   , siteFilePatterns
   , findFiles
   , findFiles'
@@ -144,6 +148,8 @@ data Component =
     , componentProjectorFiles :: [ComponentFile]
     , componentMachinatorFiles :: [ComponentFile]
     , componentImageFiles :: [ComponentFile]
+    , componentJsFiles :: [ComponentFile]
+    , componentPursFiles :: [ComponentFile]
     } deriving (Eq, Show)
 
 data ComponentFile =
@@ -264,6 +270,8 @@ componentFilePatterns =
      projectorFilePattern
   :  machinatorFilePattern
   :  sassFilePattern
+  :  jsFilePattern
+  :  pursFilePattern
   :  imageFilePatterns
   <> siteFilePatterns
 
@@ -286,6 +294,14 @@ sassFilePattern =
 machinatorFilePattern :: FilePattern
 machinatorFilePattern =
   FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".mcn"
+
+jsFilePattern :: FilePattern
+jsFilePattern =
+  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".js"
+
+pursFilePattern :: FilePattern
+pursFilePattern =
+  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".purs"
 
 siteFilePatterns :: [FilePattern]
 siteFilePatterns = [
@@ -355,4 +371,12 @@ data NpmDependency = NpmDependency {
     ndPackage :: NpmPackage
   , ndPackageVersion :: NpmPackageVersion
   , ndSha1 :: Sha1
+  } deriving (Eq, Ord, Show)
+
+newtype JsFile = JsFile {
+    renderJsFile :: FilePath
+  } deriving (Eq, Ord, Show)
+
+newtype PursFile = PursFile {
+    renderPursFile :: FilePath
   } deriving (Eq, Ord, Show)
