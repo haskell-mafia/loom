@@ -80,5 +80,11 @@ test-suite test-io
   build-depends:
                       base                            >= 3          && < 5
                     , ambiata-disorder-core
+                    , ambiata-disorder-eithert
+                    , ambiata-loom-core
                     , ambiata-loom-js
                     , ambiata-p
+                    , directory
+                    , QuickCheck                      == 2.8.*
+                    , temporary
+                    , text
