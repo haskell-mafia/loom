@@ -3,11 +3,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Loom.Js.Browserify (
-    Browserify
+    Browserify (..)
+  , BrowserifyMode (..)
+  , BrowserifyInput (..)
+  , BrowserifyOutput (..)
   , runBrowserify
   , installBrowserify
   , browserifyVersion
   , browserifyDeps
+  , browserifyInputToJson
   ) where
 
 
@@ -15,8 +19,12 @@ import qualified Control.Concurrent.Async as A
 import           Control.Exception (SomeException)
 import           Control.Monad.IO.Class (MonadIO(..))
 
+import           Data.Aeson ((.=))
+import qualified Data.Aeson as Ae
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as SB
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as LB
 import           Data.FileEmbed (embedFile)
 import           Data.Hashable (Hashable (..))
 import qualified Data.Text as T
@@ -24,15 +32,14 @@ import qualified Data.Text.Encoding as TE
 
 import           Loom.Core.Data
 import           Loom.Js
+import           Loom.Js.Node
 
 import           P
 
 import           System.Directory (createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
-import           System.Exit (ExitCode (..))
 import           System.FilePath ((</>), takeDirectory)
-import           System.IO  (IO, FilePath, putStrLn)
+import           System.IO  (IO, FilePath)
 import           System.IO.Temp (createTempDirectory)
-import           System.Process (readProcessWithExitCode)
 
 import           Text.Printf (printf)
 
@@ -41,20 +48,29 @@ import           X.Control.Monad.Trans.Either
 
 -- | A token to be passed around when Browserify is to be run.
 newtype Browserify = Browserify {
-    _browserifyPath :: FilePath
+    browserifyPath :: FilePath
   } deriving (Eq, Ord, Show)
 
--- | Run browserify.
--- function should probably take some inputs...
-runBrowserify :: Browserify -> EitherT JsError IO ()
-runBrowserify (Browserify script) = do
-  (ec, out, err) <- liftIO $ readProcessWithExitCode "node" [script] []
-  case ec of
-    ExitSuccess ->
-      -- probably should produce a single filepath or something instead of dumping to stdout
-      liftIO $ putStrLn out
-    ExitFailure x ->
-      left (JsBrowserifyError x (T.pack err))
+data BrowserifyMode =
+    BrowserifyDev
+  | BrowserifyProd
+  deriving (Eq, Ord, Show)
+
+data BrowserifyInput = BrowserifyInput {
+    browserifyMode :: BrowserifyMode
+  , browserifyPaths :: [JsUnpackDir]
+  , browserifyEntries :: [(FilePath, Maybe JsModuleName)]
+  } deriving (Eq, Ord, Show)
+
+newtype BrowserifyOutput = BrowserifyOutput {
+    unBrowserifyOutput :: Text
+  } deriving (Eq, Ord, Show)
+
+-- | Run browserify. Produces JS source code.
+runBrowserify :: Node -> Browserify -> BrowserifyInput -> EitherT JsError IO BrowserifyOutput
+runBrowserify node (Browserify script) binput = do
+  let stdin = B8.unpack . LB.toStrict . Ae.encode $ browserifyInputToJson binput
+  BrowserifyOutput <$> runNode node [script] stdin
 
 -- | Ensure the desired version of Browserify is installed.
 -- This means simply constructing the 'Browserify' token if already installed,
@@ -260,3 +276,14 @@ safeIO =
 safeEitherTIO :: (SomeException -> x) -> EitherT x IO a -> EitherT x IO a
 safeEitherTIO f e =
   either (left . f) hoistEither =<< (liftIO . safeIO $ runEitherT e)
+
+-- -----------------------------------------------------------------------------
+
+-- | Construct the JSON payload expected by our browserify.js script.
+browserifyInputToJson :: BrowserifyInput -> Ae.Value
+browserifyInputToJson (BrowserifyInput mode paths entries) =
+  Ae.object [
+      "isProduction" .= case mode of BrowserifyDev -> False; BrowserifyProd -> True
+    , "paths" .= Ae.toJSON (fmap unJsUnpackDir paths)
+    , "entries" .= Ae.object (fmap (\(path, mname) -> T.pack path .= maybe Ae.Null (Ae.toJSON . unJsModuleName) mname) entries)
+    ]
