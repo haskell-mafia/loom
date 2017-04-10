@@ -5,6 +5,8 @@ module Loom.Js (
     JsError (..)
   , renderJsError
   , fetchJs
+  , fetchJsNpm
+  , fetchJsGithub
   , JsUnpackDir (..)
   , unpackJs
   ) where
@@ -34,6 +36,8 @@ data JsError =
   | JsUnpackError [FetchError ()]
   | JsNodeMissing
   | JsNodeExitFailure Int Text Text
+  | JsException Text
+  | JsBrowserifyError Int Text
   deriving (Eq, Ord, Show)
 
 newtype JsUnpackDir = JsUnpackDir {
@@ -68,7 +72,12 @@ renderJsError je =
         , out
         , err
         ]
-
+    JsException t ->
+      "Exception while processing JS:\n"
+        <> t
+    JsBrowserifyError x err ->
+      "Error bundling JS (exit " <> renderIntegral x <> "):\n"
+        <> err
 
 fetchJs :: LoomHome -> [NpmDependency] -> [GithubDependency] -> EitherT JsError IO [FetchedDependency]
 fetchJs home npms ghub = do
