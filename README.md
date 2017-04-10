@@ -36,9 +36,14 @@ Other loom libraries can be referenced in the set of `dependencies`.
 This will include all their components/sass files as if they were directly referenced
 by _this_ project, and will be visible in the generated site.
 
+Javascript and Purescript files inside components will be
+automatically discovered and added to a `main` bundle.
+Users can also specify custom JS bundles. An example `first` bundle is
+provided below.
+
 Javascript dependencies can be sourced from the NPM registry, but we
 require the SHA1 hash of each dependencys source tarball alongside its
-version tag. This will be validated on fetch to prevent unexpected
+version tag. This will be validated on fetch to catch unexpected
 upstream changes. Dependency tarballs will be cached in `$HOME/.loom`.
 
 Javascript and Purescript dependencies can also be sourced from Github
@@ -64,6 +69,18 @@ SHA1 hash.
   # Optional
   paths = ["scss/*"]
 
+[js]
+  # Optional
+  paths = [
+      "app/src/js/common/*"
+    ]
+
+[js.bundle.first]
+  # Optional
+  paths = [
+      "app/src/js/first/*"
+    ]
+
 [js.dependencies]
   # Optional
   npm = [
@@ -71,6 +88,12 @@ SHA1 hash.
     ]
   github = [
       ["isaacs/rimraf", "tags/v2.6.1", "813139ac3628ae0b47136de18939cbb623e21475"]
+    ]
+
+[purs]
+  # Optional
+  paths = [
+      "app/src/purs"
     ]
 
 [purs.dependencies]
@@ -124,9 +147,21 @@ Where `$PROJECT` is the name of your project.
 
 - `sassc`
 
-  Currently [sassc](https://github.com/sass/sassc) is required to be on the `$PATH`.
+  Currently [sassc](https://github.com/sass/sassc) is required to be
+  on the `$PATH`.
   It can be installed with one of the following options:
 
   - For OSX users: `brew install sassc`
   - For Arch users: `pacman -S sassc`
   - Everyone else: https://github.com/sass/sassc#documentation
+
+- `node`
+
+  Currently [node](https://nodejs.org) is required to be on the `$PATH`.
+  Node is required to post-process Javascript and Purescript, and to
+  run Purescript test suites. It can be installed with one of the
+  following options:
+
+  - For OSX users: `brew install node`
+  - For Arch users: `pacman -S node`
+  - Everyone else: https://nodejs.org/en/download
