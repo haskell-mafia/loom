@@ -28,6 +28,8 @@ module Loom.Core.Data (
   , NpmPackageVersion (..)
   , GithubDependency (..)
   , NpmDependency (..)
+  , Bundle (..)
+  , BundleName (..)
   , loomFilePath
   , componentName
   , componentFilePath
@@ -127,8 +129,12 @@ data LoomConfig =
     , loomConfigName :: LoomName
     , loomConfigComponents :: [FilePattern]
     , loomConfigSass :: [FilePattern]
+    , loomConfigJsPaths :: [FilePattern]
+    , loomConfigJsBundles :: [Bundle]
     , loomConfigJsDepsNpm :: [NpmDependency]
     , loomConfigJsDepsGithub :: [GithubDependency]
+    , loomConfigPursPaths :: [FilePattern]
+    , loomConfigPursBundles :: [Bundle]
     , loomConfigPursDepsGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
@@ -264,7 +270,7 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
 
 loomWatchPatterns :: Loom -> [FilePattern]
 loomWatchPatterns (Loom c cs) =
-  c : cs >>= \(LoomConfig r _ comps sass _ _ _) ->
+  c : cs >>= \(LoomConfig r _ comps sass js jsb _ _ purs pursb _) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
     in
@@ -272,6 +278,10 @@ loomWatchPatterns (Loom c cs) =
           comps >>= \cp ->
             fmap (appendFilePattern cp) componentFilePatterns
         , sass
+        , js
+        , foldMap bundlePaths jsb
+        , purs
+        , foldMap bundlePaths pursb
         ]
 
 componentFilePatterns :: [FilePattern]
@@ -389,3 +399,12 @@ newtype JsFile = JsFile {
 newtype PursFile = PursFile {
     renderPursFile :: FilePath
   } deriving (Eq, Ord, Show)
+
+newtype BundleName = BundleName {
+    unBundleName :: Text
+  } deriving (Eq, Ord, Show)
+
+data Bundle = Bundle {
+    bundleName :: BundleName
+  , bundlePaths :: [FilePattern]
+  } deriving (Eq, Show)
