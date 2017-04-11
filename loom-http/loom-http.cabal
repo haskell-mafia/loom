@@ -18,13 +18,13 @@ library
                     , bytestring                      == 0.10.*
                     , directory                       == 1.2.*
                     , filepath                        >= 1.4        && < 1.6
-                    , http-types                      == 0.8.*
+                    , http-types                      >= 0.7        && < 0.10
                     , mime-types                      == 0.1.*
                     , text                            >= 1.1        && < 1.3
                     , transformers                    >= 0.4        && < 0.6
                     -- Duplicate definitions of hContentRange in warp and wai :(
                     -- https://github.com/yesodweb/wai/issues/439
-                    , wai                             >= 3.0        && < 3.0.4.0
+                    , wai                             >= 3.0        && < 3.3
 
   ghc-options:
                     -Wall

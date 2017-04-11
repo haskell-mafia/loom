@@ -37,7 +37,7 @@ executable loom
                     , filepath                        >= 1.4        && < 1.7
                     , text
                     , transformers                    >= 0.4        && < 0.6
-                    , warp                            == 3.0.*
+                    , warp                            >= 3.0        && < 3.3
 
 test-suite test-cli
   type:
