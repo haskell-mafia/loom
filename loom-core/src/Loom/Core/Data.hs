@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
 module Loom.Core.Data (
     FilePattern (..)
   , Loom (..)
@@ -65,7 +66,7 @@ import qualified Data.Text as T
 import           P
 
 import           System.FilePath (FilePath, (</>), makeRelative, normalise)
-import qualified System.FilePath.Glob as G
+import qualified "Glob" System.FilePath.Glob as G
 import qualified System.FilePath.Glob.Primitive as G
 import           System.IO (IO)
 
@@ -144,8 +145,10 @@ data LoomConfigResolved =
     , loomConfigResolvedName :: LoomName
     , loomConfigResolvedComponents :: [LoomFile]
     , loomConfigResolvedSass :: [LoomFile]
+    , loomConfigResolvedJs :: [LoomFile]
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
+    , loomConfigResolvedPurs :: [LoomFile]
     , loomConfigResolvedPursDepsGithub :: [GithubDependency]
     } deriving (Eq, Show)
 

@@ -84,8 +84,10 @@ resolveLoom config =
     <*> (pure . loomConfigName) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
+    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigJsPaths) config
     <*> pure (loomConfigJsDepsNpm config)
     <*> pure (loomConfigJsDepsGithub config)
+    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
     <*> pure (loomConfigPursDepsGithub config)
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
@@ -149,11 +151,22 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
           )
         pms
 
-  withLog logger "purs" . firstT LoomPursError $ do
+  purs <- withLog logger "purs" . firstT LoomPursError $ do
     let
-      psdir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+      psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+      psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
+      psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
+      psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
+      psPaths = foldMap loomConfigResolvedPurs configs
+    psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
+    let
+      psAll = psPathFiles <> fmap componentFilePath psComponentFiles
     deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
-    Purescript.unpackPurs psdir deps
+    Purescript.unpackPurs psDepDir deps
+    mko <- Purescript.compile psDepDir psAll psOutDir
+    res <- Purescript.bundlePurescript psOutDir mko
+    liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
+    pure (psOutFile, Just (Js.JsModuleName "purs"))
 
   js <- withLog logger "js" . firstT LoomJsError $ do
     let
@@ -167,19 +180,24 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
     brow <- Browserify.installBrowserify home
     -- Special case for the 'main' bundle.
     main <- do
-      let jsOut = outputJs "main"
-          binput = Browserify.BrowserifyInput {
-             -- TODO Prod is much slwoer than Dev, worth toggling for 'watch'
-             Browserify.browserifyMode = Browserify.BrowserifyProd
-           , Browserify.browserifyPaths = [jsDepDir]
-           , Browserify.browserifyEntries =
-               fold . with components $ \(cr, cs) ->
-                 with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
-                   let relative = "." </> componentFilePath cf -- The "." is necessary for browserify, it can't path
-                       prefixed = Js.JsModuleName (renderLoomName (loomConfigResolvedName cr) <> "/" <> T.pack path)
-                   in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
-                      (relative, Just prefixed)
-           }
+      let
+        jsOut = outputJs "main"
+        jsPaths = foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
+        jsComponentEntries =
+          fold . with components $ \(cr, cs) ->
+            with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
+              let relative = "." </> componentFilePath cf -- The "." is necessary for browserify, it can't path
+                  prefixed = Js.JsModuleName (renderLoomName (loomConfigResolvedName cr) <> "/" <> T.pack path)
+              in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
+                 (relative, Just prefixed)
+        binput = Browserify.BrowserifyInput {
+           -- TODO Prod is much slwoer than Dev, worth toggling this for 'watch'
+           Browserify.browserifyMode = Browserify.BrowserifyProd
+         , Browserify.browserifyPaths = jsDepDir : jsPaths
+         , Browserify.browserifyEntries =
+              purs
+            : jsComponentEntries
+         }
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
       pure jsOut
