@@ -103,7 +103,7 @@ tlsTldRedirectPolicy host =
 
 httpsFetcher :: FilePath -> (a -> Uri) -> RetryPolicy -> RedirectPolicy -> IO (Fetcher a HTTPSError FilePath)
 httpsFetcher tmpdir f rt rp = do
-  mgr <- HTTPS.newTlsManager
+  mgr <- HTTPS.newManager HTTPS.tlsManagerSettings
   createDirectoryIfMissing True tmpdir
   pure . Fetcher $ \a -> do
     let uri = f a
@@ -127,7 +127,7 @@ httpsFetch ::
 httpsFetch att mgr rt rp req = do
   e <- liftIO . HTTPS.withResponse req {
     -- Throw no exceptions on bad response code
-      HTTPS.checkResponse = (\_ _ -> pure ())
+      HTTPS.checkStatus = (\_ _ _ -> Nothing)
     -- Never follow redirects - should always be done by the consumer explicitly if appropriate
     , HTTPS.redirectCount = 0
     } mgr $ \res ->

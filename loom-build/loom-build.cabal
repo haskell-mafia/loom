@@ -18,6 +18,7 @@ library
                     , ambiata-loom-js
                     , ambiata-loom-machinator
                     , ambiata-loom-projector
+                    , ambiata-loom-purescript
                     , ambiata-loom-sass
                     , ambiata-twine
                     , ambiata-x-eithert
