@@ -146,7 +146,11 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
           )
         pms
 
-
+  withLog logger "purs" . firstT LoomPursError $ do
+    let
+      psdir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+    deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
+    Purescript.unpackPurs psdir deps
 
   withLog logger "js" . firstT LoomJsError $ do
     let
