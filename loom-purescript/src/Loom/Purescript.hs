@@ -1,7 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Loom.Purescript (
-    compilePurescript
+    PurescriptError (..)
+  , renderPurescriptError
+  , fetchPurs
+  , PurescriptUnpackDir (..)
+  , unpackPurs
+  , compilePurescript
   ) where
+
+
+import           Control.Monad.IO.Class (liftIO)
 
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
@@ -11,15 +20,62 @@ import qualified Data.Text.Encoding as T
 import qualified Language.PureScript as PS
 import qualified Language.PureScript.Make as PM
 
+import           Loom.Core.Data
+import qualified Loom.Fetch as LF
+import           Loom.Fetch.HTTPS (HTTPSError, renderHTTPSError)
+import           Loom.Fetch.HTTPS.Github (githubFetcher)
+
 import           P
 
-import           System.FilePath (FilePath)
-import           System.IO (IO)
+import qualified System.FilePath as FP
+import           System.IO (FilePath, IO)
 
-compilePurescript ::
-  [FilePath] ->
-  FilePath ->
-  IO (Either PS.MultipleErrors ())
+import           X.Control.Monad.Trans.Either (EitherT, sequenceEitherT)
+
+
+data PurescriptError =
+    PurescriptFetchError [LF.FetchError HTTPSError]
+  | PurescriptUnpackError [LF.FetchError ()]
+  deriving (Eq, Ord, Show)
+
+newtype PurescriptUnpackDir = PurescriptUnpackDir {
+    unPurescriptUnpackDir :: FilePath
+  } deriving (Eq, Ord, Show)
+
+renderPurescriptError :: PurescriptError -> Text
+renderPurescriptError pe =
+  case pe of
+    PurescriptFetchError fes ->
+      "Error while fetching Purescript dependencies:\n"
+        <> T.unlines (fmap (LF.renderFetchError renderHTTPSError) fes)
+    PurescriptUnpackError fes ->
+      "Error unpacking Purescript dependencies:\n"
+        <> T.unlines (fmap (LF.renderFetchError (const "")) fes)
+
+fetchPurs :: LoomHome -> [GithubDependency] -> EitherT PurescriptError IO [LF.FetchedDependency]
+fetchPurs home deps = do
+  github <- liftIO githubFetcher
+  let ghNamer = T.unpack . grRepo . ghdRepo
+  firstT PurescriptFetchError $ LF.fetchDepsSha1 home github ghNamer ghdSha1 deps
+
+unpackPurs :: PurescriptUnpackDir -> [LF.FetchedDependency] -> EitherT PurescriptError IO ()
+unpackPurs (PurescriptUnpackDir out) deps = do
+  firstT PurescriptUnpackError . void . sequenceEitherT . with deps $ \dep ->
+    firstT pure $ LF.unpackRenameDep (renameBaseDir (LF.fetchedName dep)) dep out
+
+-- Intended use:
+-- renameBaseDir "quux" "bar/foo" -> "quux/foo"
+renameBaseDir :: FilePath -> FilePath -> FilePath
+renameBaseDir new fp =
+  FP.joinPath $ case FP.splitPath fp of
+    [] ->
+      []
+    (_:xs) ->
+      (new:xs)
+
+-- -----------------------------------------------------------------------------
+
+compilePurescript :: [FilePath] -> FilePath -> IO (Either PS.MultipleErrors ())
 compilePurescript input outputDir = do
   moduleFiles <- readInput input
   (result, warnings) <- PM.runMake defaultPurescriptOptions $ do

@@ -23,10 +23,12 @@ import           Loom.Build.Logger
 import           Loom.Core.Data
 import           Loom.Js (JsError)
 import qualified Loom.Js as Js
-import           Loom.Projector (ProjectorError)
-import qualified Loom.Projector as Projector
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
 import qualified Loom.Machinator as Machinator
+import           Loom.Projector (ProjectorError)
+import qualified Loom.Projector as Projector
+import           Loom.Purescript (PurescriptError)
+import qualified Loom.Purescript as Purescript
 import           Loom.Sass (Sass, SassError)
 import qualified Loom.Sass as Sass
 
@@ -50,6 +52,7 @@ data LoomError =
   | LoomProjectorError ProjectorError
   | LoomMachinatorError MachinatorError
   | LoomJsError JsError
+  | LoomPursError PurescriptError
   deriving (Show)
 
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
@@ -143,6 +146,12 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
           )
         pms
 
+  withLog logger "purs" . firstT LoomPursError $ do
+    let
+      psdir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+    deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
+    Purescript.unpackPurs psdir deps
+
   withLog logger "js" . firstT LoomJsError $ do
     let
       jsdir = Js.JsUnpackDir (loomTmpFilePath dir </> "js")
@@ -196,6 +205,8 @@ renderLoomError le =
       Machinator.renderMachinatorError e
     LoomJsError e ->
       Js.renderJsError e
+    LoomPursError e ->
+      Purescript.renderPurescriptError e
 
 foldMapM :: (Foldable t, Monad m, Monoid b) => (b -> a -> m b) -> t a  -> m b
 foldMapM f =
