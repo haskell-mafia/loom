@@ -6,7 +6,10 @@ module Loom.Purescript (
   , fetchPurs
   , PurescriptUnpackDir (..)
   , unpackPurs
+  , CodeGenDir (..)
+  , JsBundle (..)
   , compilePurescript
+  , bundlePurescript
   ) where
 
 
@@ -18,6 +21,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 import qualified Language.PureScript as PS
+import qualified Language.PureScript.Bundle as PB
 import qualified Language.PureScript.Make as PM
 
 import           Loom.Core.Data
@@ -28,7 +32,8 @@ import           Loom.Fetch.HTTPS.Github (githubFetcher)
 import           P
 
 import qualified System.FilePath as FP
-import           System.IO (FilePath, IO)
+import qualified System.FilePath.Find as Find
+import           System.IO (FilePath, IO, readFile)
 
 import           X.Control.Monad.Trans.Either (EitherT, sequenceEitherT)
 
@@ -75,8 +80,16 @@ renameBaseDir new fp =
 
 -- -----------------------------------------------------------------------------
 
-compilePurescript :: [FilePath] -> FilePath -> IO (Either PS.MultipleErrors ())
-compilePurescript input outputDir = do
+newtype CodeGenDir = CodeGenDir {
+    unCodeGenDir :: FilePath
+  } deriving (Eq, Ord, Show)
+
+newtype JsBundle = JsBundle {
+    unJsBundle :: Text
+  } deriving (Eq, Ord, Show)
+
+compilePurescript :: [FilePath] -> CodeGenDir -> IO (Either PS.MultipleErrors ())
+compilePurescript input (CodeGenDir outputDir) = do
   moduleFiles <- readInput input
   (result, warnings) <- PM.runMake defaultPurescriptOptions $ do
     ms <- PS.parseModulesFromFiles id moduleFiles
@@ -92,11 +105,31 @@ compilePurescript input outputDir = do
   pure $ case result of
     Left errors ->
       Left (errors <> warnings)
-    Right _ ->
+    -- TODO serialising the externs would be wise, is used for incremental build
+    Right _externs ->
       if PS.nonEmpty warnings then
         Left warnings
       else
         pure ()
+
+bundlePurescript :: CodeGenDir -> IO JsBundle
+bundlePurescript (CodeGenDir dir) = do
+  -- List recursive
+  files <- Find.find (Find.fileName Find./~? ".*") (Find.extension Find.==? ".js") dir
+  let mkIdent fp =
+        PB.ModuleIdentifier
+          (FP.takeFileName (FP.takeDirectory (FP.makeRelative dir fp)))
+          (case FP.takeFileName fp of
+            "index.js" -> PB.Regular
+            "foreign.js" -> PB.Foreign
+            -- This is wrong but unlikely:
+            _ -> PB.Regular)
+  inputs <- for files $ \fp -> do
+    -- TODO remove lazy io
+    str <- readFile fp
+    pure (mkIdent fp, str)
+  either (fail . show) pure
+    ((JsBundle . T.pack) <$> PB.bundle inputs (fmap fst inputs) Nothing "PS")
 
 defaultPurescriptOptions :: PS.Options
 defaultPurescriptOptions =
