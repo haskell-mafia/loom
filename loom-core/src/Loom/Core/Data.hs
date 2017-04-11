@@ -15,6 +15,8 @@ module Loom.Core.Data (
   , ComponentFile (..)
   , ImageFile (..)
   , CssFile (..)
+  , JsFile (..)
+  , PursFile (..)
   , LoomSitePrefix (..)
   , AssetsPrefix (..)
   , Tarball (..)
@@ -37,6 +39,8 @@ module Loom.Core.Data (
   , imageFilePathNoRoot
   , cssAssetPath
   , cssAssetFilePath
+  , jsAssetPath
+  , jsAssetFilePath
   , compileFilePattern
   , renderFilePattern
   , appendFilePattern
@@ -47,6 +51,8 @@ module Loom.Core.Data (
   , machinatorFilePattern
   , sassFilePattern
   , imageFilePatterns
+  , jsFilePattern
+  , pursFilePattern
   , siteFilePatterns
   , findFiles
   , findFiles'
@@ -144,6 +150,8 @@ data Component =
     , componentProjectorFiles :: [ComponentFile]
     , componentMachinatorFiles :: [ComponentFile]
     , componentImageFiles :: [ComponentFile]
+    , componentJsFiles :: [ComponentFile]
+    , componentPursFiles :: [ComponentFile]
     } deriving (Eq, Show)
 
 data ComponentFile =
@@ -221,6 +229,13 @@ imageFilePathNoRoot :: ImageFile -> FilePath
 imageFilePathNoRoot (ImageFile n f) =
   (T.unpack . renderLoomName) n </> componentFilePathNoRoot f
 
+jsAssetPath :: LoomSitePrefix -> AssetsPrefix -> JsFile -> Text
+jsAssetPath p apx j =
+  loomSitePrefix p <> (T.pack . jsAssetFilePath apx) j
+
+jsAssetFilePath :: AssetsPrefix -> JsFile -> FilePath
+jsAssetFilePath apx jsf =
+  assetsPrefix apx </> renderJsFile jsf
 
 compileFilePattern :: Text -> Either Text FilePattern
 compileFilePattern =
@@ -264,6 +279,8 @@ componentFilePatterns =
      projectorFilePattern
   :  machinatorFilePattern
   :  sassFilePattern
+  :  jsFilePattern
+  :  pursFilePattern
   :  imageFilePatterns
   <> siteFilePatterns
 
@@ -286,6 +303,14 @@ sassFilePattern =
 machinatorFilePattern :: FilePattern
 machinatorFilePattern =
   FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".mcn"
+
+jsFilePattern :: FilePattern
+jsFilePattern =
+  FilePattern $ G.recursiveWildcard <> G.literal "vanilla.js"
+
+pursFilePattern :: FilePattern
+pursFilePattern =
+  FilePattern $ G.recursiveWildcard <> G.wildcard <> G.literal ".purs"
 
 siteFilePatterns :: [FilePattern]
 siteFilePatterns = [
@@ -355,4 +380,12 @@ data NpmDependency = NpmDependency {
     ndPackage :: NpmPackage
   , ndPackageVersion :: NpmPackageVersion
   , ndSha1 :: Sha1
+  } deriving (Eq, Ord, Show)
+
+newtype JsFile = JsFile {
+    renderJsFile :: FilePath
+  } deriving (Eq, Ord, Show)
+
+newtype PursFile = PursFile {
+    renderPursFile :: FilePath
   } deriving (Eq, Ord, Show)

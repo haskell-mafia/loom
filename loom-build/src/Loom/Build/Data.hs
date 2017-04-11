@@ -16,4 +16,5 @@ data LoomResult =
     , loomResultProjectorOutput :: ProjectorOutput
     , loomResultCss :: CssFile
     , loomResultImages :: [ImageFile]
+    , loomResultJs :: [JsFile]
     }

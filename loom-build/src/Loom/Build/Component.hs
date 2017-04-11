@@ -50,6 +50,8 @@ resolveComponent dir = do
         projectorFilePattern
       : machinatorFilePattern
       : sassFilePattern
+      : jsFilePattern
+      : pursFilePattern
       : imageFilePatterns
   unlessM (liftIO . doesDirectoryExist $ dir') $
     left $ ComponentMissing dir
@@ -59,7 +61,7 @@ resolveComponent dir = do
     filterExamples = filter (not . matches siteFilePatterns . makeRelative dir')
   -- FIX More validation?
   case files of
-    (proj : mach : sass : imgs) ->
+    (proj : mach : sass : js : purs : imgs) ->
       pure $
         Component
           dir
@@ -67,6 +69,8 @@ resolveComponent dir = do
           (fmap f (filterExamples proj))
           (fmap f mach)
           (fmap f (fold imgs))
+          (fmap f js)
+          (fmap f purs)
     _ ->
       left GlobInvariant
 

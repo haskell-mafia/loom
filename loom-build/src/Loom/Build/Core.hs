@@ -16,6 +16,7 @@ import           Control.Monad.IO.Class (liftIO)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 import           Loom.Build.Component
 import           Loom.Build.Data
@@ -23,6 +24,8 @@ import           Loom.Build.Logger
 import           Loom.Core.Data
 import           Loom.Js (JsError)
 import qualified Loom.Js as Js
+import qualified Loom.Js.Node as Node
+import qualified Loom.Js.Browserify as Browserify
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
 import qualified Loom.Machinator as Machinator
 import           Loom.Projector (ProjectorError)
@@ -34,7 +37,7 @@ import qualified Loom.Sass as Sass
 
 import           P
 
-import           System.FilePath ((</>))
+import           System.FilePath ((</>), (<.>))
 import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
@@ -152,11 +155,35 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
     deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
     Purescript.unpackPurs psdir deps
 
-  withLog logger "js" . firstT LoomJsError $ do
+  js <- withLog logger "js" . firstT LoomJsError $ do
     let
-      jsdir = Js.JsUnpackDir (loomTmpFilePath dir </> "js")
+      jsDepDir = Js.JsUnpackDir (loomTmpFilePath dir </> "js")
+      outputJs b = JsFile $ loomTmpFilePath dir </> b <.> "js"
+    -- Fetch and unpack dependencies
     deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
-    Js.unpackJs jsdir deps
+    Js.unpackJs jsDepDir deps
+    -- Produce each bundle and write out to disk.
+    node <- Node.findNodeOnPath
+    brow <- Browserify.installBrowserify home
+    -- Special case for the 'main' bundle.
+    main <- do
+      let jsOut = outputJs "main"
+          binput = Browserify.BrowserifyInput {
+             -- TODO Prod is much slwoer than Dev, worth toggling for 'watch'
+             Browserify.browserifyMode = Browserify.BrowserifyProd
+           , Browserify.browserifyPaths = [jsDepDir]
+           , Browserify.browserifyEntries =
+               fold . with components $ \(cr, cs) ->
+                 with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
+                   let relative = "." </> componentFilePath cf -- The "." is necessary for browserify, it can't path
+                       prefixed = Js.JsModuleName (renderLoomName (loomConfigResolvedName cr) <> "/" <> T.pack path)
+                   in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
+                      (relative, Just prefixed)
+           }
+      reso <- Browserify.runBrowserify node brow binput
+      liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
+      pure jsOut
+    pure [main]
 
   pure $
     LoomResult
@@ -166,6 +193,7 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       po
       outputCss
       images
+      js
 
 machinatorOutputToProjector ::
   Machinator.MachinatorOutput ->

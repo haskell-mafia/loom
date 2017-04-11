@@ -45,6 +45,8 @@ prop_site =
                         [ComponentFile f1 "x.prj"]
                         [ComponentFile f1 "x.mcn"]
                         [ComponentFile f1 "x.svg"]
+                        []
+                        []
                     ])
                 ]
             assertFileExists f =
@@ -64,7 +66,8 @@ prop_site =
                mempty
                mempty
                (CssFile $ dir1 </> "test.css")
-               [ImageFile (LoomName "c1") (ComponentFile f1 "x.svg")])
+               [ImageFile (LoomName "c1") (ComponentFile f1 "x.svg")]
+               [])
         fmap J.conjoin . lift . sequence $
           [ assertFileExists $ dirOut </> "index.html"
           , assertFileExists $ dirOut </> "components" </> "index.html"

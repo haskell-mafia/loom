@@ -100,7 +100,7 @@ defaultLoomSiteRoot c =
     c </> "site"
 
 generateLoomSite :: LoomSitePrefix -> LoomSiteRoot -> AssetsPrefix -> LoomResult -> EitherT LoomSiteError IO ()
-generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images) = do
+generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images js) = do
   let
     css =
       CssFile . File.takeFileName . renderCssFile $ cssIn
@@ -116,6 +116,8 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
       cssIn
   safeIO . for_ images $ \img ->
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
+  safeIO . for_ js $ \j ->
+    copyFile (renderJsFile j) (out </> jsAssetFilePath apx j)
   void . flip Map.traverseWithKey components $ \ln cs ->
     for_ cs $ \c -> do
       sc <- resolveSiteComponent prefix apx [css] images mo po c

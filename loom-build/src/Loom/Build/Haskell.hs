@@ -25,7 +25,7 @@ import qualified Loom.Machinator as Machinator
 
 import           P
 
-import           System.Directory (canonicalizePath, createDirectoryIfMissing)
+import           System.Directory (canonicalizePath, copyFile, createDirectoryIfMissing)
 import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory, takeFileName)
 import           System.IO (IO)
 import qualified System.IO.Error as IO.Error
@@ -39,7 +39,7 @@ data LoomHaskellError =
   deriving (Show)
 
 generateHaskell :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
-generateHaskell output spx apx (LoomResult name _ mo po inputCss images) = do
+generateHaskell output spx apx (LoomResult name _ mo po inputCss images inputJs) = do
   void . firstT LoomHaskellMachinatorError $
     Machinator.generateMachinatorHaskell
       (output </> "src")
@@ -47,25 +47,37 @@ generateHaskell output spx apx (LoomResult name _ mo po inputCss images) = do
       mo
   let
     outputCss = CssFile $ output </> (takeFileName . renderCssFile) inputCss
+    outputJs = with inputJs $ \jsfile -> JsFile $ output </> takeFileName (renderJsFile jsfile)
   void . firstT LoomHaskellProjectorError $
     Projector.generateProjectorHaskell (output </> "src") spx apx [outputCss] images po
   liftIO $
+    copyJs inputJs outputJs
+  liftIO $
     prefixCssImageAssets spx apx images outputCss inputCss
   liftIO $
-    createAssetSymlinks output apx outputCss images
+    createAssetSymlinks output apx outputCss images outputJs
   liftIO $
-    generateAssetHaskell name output spx apx outputCss images
+    generateAssetHaskell name output spx apx outputCss images outputJs
   liftIO $
-    generateCabal name output mo po apx outputCss images
+    generateCabal name output mo po apx outputCss images outputJs
 
-generateAssetHaskell :: LoomName -> FilePath -> LoomSitePrefix -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
-generateAssetHaskell name output spx apx css images = do
+generateAssetHaskell ::
+     LoomName
+  -> FilePath
+  -> LoomSitePrefix
+  -> AssetsPrefix
+  -> CssFile
+  -> [ImageFile]
+  -> [JsFile]
+  -> IO ()
+generateAssetHaskell name output spx apx css images js = do
   let
     f = output </> "src" </> assetModulePath name
     q p t = "(\"" <> p <> "\", $(embedFile \"" <> T.pack t <> "\"))"
     q2 p t = "(\"" <> p <> "\", \"" <> T.pack (output </> t) <> "\")"
     images' = with images $ \i -> (,) (imageAssetPath spx apx i) (imageAssetFilePath apx i)
     css' = (,) (cssAssetPath spx apx css) (cssAssetFilePath apx css)
+    js' = with js $ \j -> (,) (jsAssetPath spx apx j) (jsAssetFilePath apx j)
   createDirectoryIfMissing True . takeDirectory $ f
   T.writeFile f $
     T.unlines [
@@ -95,6 +107,18 @@ generateAssetHaskell name output spx apx css images = do
       , "  assetPaths cssAssets"
       , ""
       , "#if CABAL"
+      , "jsAssets :: Assets"
+      , "jsAssets ="
+      , "  fromList [  " <> (T.intercalate "\n    , " . fmap (uncurry q)) js'
+      , "    ]"
+      , "#else"
+      , "jsAssets :: AssetsDev"
+      , "jsAssets ="
+      , "  fromListDev [  " <> (T.intercalate "\n    , " . fmap (uncurry q2)) js'
+      , "    ]"
+      , "#endif"
+      , ""
+      , "#if CABAL"
       , "imagesAssets :: Assets"
       , "imagesAssets ="
       , "  fromList [  " <> (T.intercalate "\n    , " . fmap (uncurry q)) images'
@@ -116,8 +140,8 @@ generateAssetHaskell name output spx apx css images = do
       , "    (cssAssets <> imagesAssets)"
       ]
 
-createAssetSymlinks :: FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> IO ()
-createAssetSymlinks output apx css images = do
+createAssetSymlinks :: FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> [JsFile] -> IO ()
+createAssetSymlinks output apx css images js = do
   let
     link i o = do
       createDirectoryIfMissing True . takeDirectory $ o
@@ -127,6 +151,12 @@ createAssetSymlinks output apx css images = do
   link (renderCssFile css) (output </> cssAssetFilePath apx css)
   for_ images $ \i ->
     link (imageFilePath i) (output </> imageAssetFilePath apx i)
+  for_ js $ \j ->
+    link (renderJsFile j) (output </> jsAssetFilePath apx j)
+
+copyJs :: [JsFile] -> [JsFile] -> IO ()
+copyJs =
+  zipWithM_ (copyFile `on` renderJsFile)
 
 generateCabal ::
   LoomName ->
@@ -136,12 +166,13 @@ generateCabal ::
   AssetsPrefix ->
   CssFile ->
   [ImageFile] ->
+  [JsFile] ->
   IO ()
-generateCabal name output mo po apx css images = do
+generateCabal name output mo po apx css images js = do
   let
     n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "-loom"
     sourceFiles =
-      cssAssetFilePath apx css : fmap (imageAssetFilePath apx) images
+      cssAssetFilePath apx css : fmap (imageAssetFilePath apx) images <> fmap (jsAssetFilePath apx) js
   T.writeFile (output </> T.unpack n <> ".cabal") $
     T.unlines [
         "name:          " <> n
