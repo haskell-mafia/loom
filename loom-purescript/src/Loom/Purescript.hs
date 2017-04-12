@@ -33,6 +33,7 @@ import           Loom.Fetch.HTTPS.Github (githubFetcher)
 
 import           P
 
+import qualified System.Directory as D
 import qualified System.FilePath as FP
 import qualified System.FilePath.Find as Find
 import           System.IO (FilePath, IO, readFile)
@@ -105,6 +106,7 @@ compile (PurescriptUnpackDir depsDir) input out = do
 
 compilePurescript :: [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
 compilePurescript input (CodeGenDir outputDir) = do
+  liftIO $ D.createDirectoryIfMissing True outputDir
   moduleFiles <- liftIO $ readInput input
   (result, warnings) <- liftIO . PM.runMake defaultPurescriptOptions $ do
     ms <- PS.parseModulesFromFiles id moduleFiles
