@@ -146,6 +146,7 @@ data LoomConfigResolved =
     , loomConfigResolvedSass :: [LoomFile]
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
+    , loomConfigResolvedPurs :: [LoomFile]
     , loomConfigResolvedPursDepsGithub :: [GithubDependency]
     } deriving (Eq, Show)
 

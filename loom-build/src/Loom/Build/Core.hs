@@ -86,6 +86,7 @@ resolveLoom config =
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
     <*> pure (loomConfigJsDepsNpm config)
     <*> pure (loomConfigJsDepsGithub config)
+    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
     <*> pure (loomConfigPursDepsGithub config)
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
@@ -155,10 +156,11 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
       psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
       psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
+      psPathFiles = foldMap loomConfigResolvedPurs configs
+      psAll = fmap loomFilePath psPathFiles <> fmap componentFilePath psComponentFiles
     deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
     Purescript.unpackPurs psDepDir deps
-    -- todo lift
-    Purescript.compile psDepDir (fmap componentFilePath psComponentFiles) psOutDir
+    Purescript.compile psDepDir psAll psOutDir
     res <- Purescript.bundlePurescript psOutDir
     liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
     pure (psOutFile, Just (Js.JsModuleName "PS"))
