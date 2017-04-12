@@ -100,13 +100,18 @@ newtype JsBundle = JsBundle {
     unJsBundle :: Text
   } deriving (Eq, Ord, Show)
 
+data ErrorLevel =
+    WarningsAreErrors
+  | IgnoreWarnings
+
 compile :: PurescriptUnpackDir -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
 compile depsDir input out = do
   deps <- liftIO $ findSrcPurs depsDir
-  compilePurescript (deps <> input) out
+  compilePurescript IgnoreWarnings deps out
+  compilePurescript WarningsAreErrors (deps <> input) out
 
-compilePurescript :: [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
-compilePurescript input (CodeGenDir outputDir) = do
+compilePurescript :: ErrorLevel -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
+compilePurescript err input (CodeGenDir outputDir) = do
   liftIO $ D.createDirectoryIfMissing True outputDir
   moduleFiles <- liftIO $ readInput input
   (result, warnings) <- liftIO . PM.runMake defaultPurescriptOptions $ do
@@ -119,17 +124,21 @@ compilePurescript input (CodeGenDir outputDir) = do
        makeActions =
          PM.buildMakeActions outputDir filePathMap foreigns False
     PS.make makeActions . fmap snd $ ms
-  -- Treat warnings as errors!
   hoistEither . first packMultipleMakeErrors $
-    case result of
-      Left errors ->
-        Left ((errors <> warnings))
-      -- TODO serialising the externs would be wise, is used for incremental build
-      Right _externs ->
-        if PS.nonEmpty warnings then
-          Left warnings
-        else
-          pure ()
+    case err of
+      WarningsAreErrors ->
+        -- Treat warnings as errors!
+        case result of
+          Left errors ->
+            Left ((errors <> warnings))
+          -- TODO serialising the externs would be wise, is used for incremental build
+          Right _externs ->
+            if PS.nonEmpty warnings then
+              Left warnings
+            else
+              pure ()
+      IgnoreWarnings ->
+        void result
 
 bundlePurescript :: CodeGenDir -> EitherT PurescriptError IO JsBundle
 bundlePurescript (CodeGenDir dir) = do
