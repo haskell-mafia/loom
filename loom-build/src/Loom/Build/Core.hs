@@ -149,11 +149,19 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
           )
         pms
 
-  withLog logger "purs" . firstT LoomPursError $ do
+  purs <- withLog logger "purs" . firstT LoomPursError $ do
     let
-      psdir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+      psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+      psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
+      psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
+      psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
     deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
-    Purescript.unpackPurs psdir deps
+    Purescript.unpackPurs psDepDir deps
+    -- todo lift
+    Purescript.compile psDepDir (fmap componentFilePath psComponentFiles) psOutDir
+    res <- Purescript.bundlePurescript psOutDir
+    liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
+    pure (psOutFile, Just (Js.JsModuleName "PS"))
 
   js <- withLog logger "js" . firstT LoomJsError $ do
     let
@@ -173,12 +181,13 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
              Browserify.browserifyMode = Browserify.BrowserifyProd
            , Browserify.browserifyPaths = [jsDepDir]
            , Browserify.browserifyEntries =
-               fold . with components $ \(cr, cs) ->
+                purs
+              : (fold . with components $ \(cr, cs) ->
                  with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
                    let relative = "." </> componentFilePath cf -- The "." is necessary for browserify, it can't path
                        prefixed = Js.JsModuleName (renderLoomName (loomConfigResolvedName cr) <> "/" <> T.pack path)
                    in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
-                      (relative, Just prefixed)
+                      (relative, Just prefixed))
            }
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
