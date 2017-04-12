@@ -100,8 +100,8 @@ newtype JsBundle = JsBundle {
   } deriving (Eq, Ord, Show)
 
 compile :: PurescriptUnpackDir -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
-compile (PurescriptUnpackDir depsDir) input out = do
-  deps <- liftIO $ findByExtension "purs" depsDir
+compile depsDir input out = do
+  deps <- liftIO $ findSrcPurs depsDir
   compilePurescript (deps <> input) out
 
 compilePurescript :: [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
@@ -174,6 +174,19 @@ readInput :: [FilePath] -> IO [(FilePath, [Char])]
 readInput inputFiles =
   forM inputFiles $ \inFile ->
     (,) inFile . T.unpack . T.decodeUtf8 <$> BS.readFile inFile
+
+findSrcPurs :: PurescriptUnpackDir -> IO [FilePath]
+findSrcPurs (PurescriptUnpackDir depsDir) =
+  Find.find recur (Find.extension Find.==? ".purs") depsDir
+  where
+    recur = do
+      d <- Find.depth
+      f <- Find.fileName
+      let notHidden = pure f Find./~? ".*"
+          depthOne = pure (d <= 1)
+          isSrc = pure (d == 2 && FP.takeFileName f == "src")
+          depthN = pure (d > 2)
+      notHidden Find.&&? (depthOne Find.||? isSrc Find.||? depthN)
 
 findByExtension :: [Char] -> FilePath -> IO [FilePath]
 findByExtension ext =
