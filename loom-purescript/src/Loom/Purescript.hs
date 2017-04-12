@@ -76,6 +76,7 @@ fetchPurs home deps = do
 
 unpackPurs :: PurescriptUnpackDir -> [LF.FetchedDependency] -> EitherT PurescriptError IO ()
 unpackPurs (PurescriptUnpackDir out) deps = do
+  liftIO $ D.createDirectoryIfMissing True out
   firstT PurescriptUnpackError . void . sequenceEitherT . with deps $ \dep ->
     firstT pure $ LF.unpackRenameDep (renameBaseDir (LF.fetchedName dep)) dep out
 
