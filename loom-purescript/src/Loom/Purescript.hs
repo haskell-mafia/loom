@@ -179,8 +179,9 @@ bundlePurescript' (CodeGenDir dir) alljs entries = do
     -- TODO remove lazy io
     str <- readFile fp
     pure (mi, str)
-  hoistEither . first packBundleError $
-    ((JsBundle . T.pack) <$> PB.bundle inputs entryPts Nothing "PS")
+  t <- hoistEither . first packBundleError $
+    (T.pack <$> PB.bundle inputs entryPts Nothing "PS")
+  pure (JsBundle (T.unlines [t, "module.exports = PS;"]))
 
 defaultPurescriptOptions :: PS.Options
 defaultPurescriptOptions =
