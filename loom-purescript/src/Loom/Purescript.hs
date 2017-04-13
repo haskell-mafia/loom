@@ -8,6 +8,7 @@ module Loom.Purescript (
   , unpackPurs
   , CodeGenDir (..)
   , JsBundle (..)
+  , MakeOutput (..)
   , compile
   , compilePurescript
   , bundlePurescript
@@ -17,7 +18,9 @@ module Loom.Purescript (
 import           Control.Monad.IO.Class (liftIO)
 
 import qualified Data.ByteString as BS
+import qualified Data.List as L
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -34,6 +37,7 @@ import           Loom.Fetch.HTTPS.Github (githubFetcher)
 import           P
 
 import qualified System.Directory as D
+import           System.FilePath ((</>))
 import qualified System.FilePath as FP
 import qualified System.FilePath.Find as Find
 import           System.IO (FilePath, IO, readFile)
@@ -104,13 +108,22 @@ data ErrorLevel =
     WarningsAreErrors
   | IgnoreWarnings
 
-compile :: PurescriptUnpackDir -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
+data MakeOutput = MakeOutput {
+    makeOutputDeps :: [PS.ModuleName]
+  , makeOutputSrc :: [PS.ModuleName]
+  } deriving (Show)
+
+compile :: PurescriptUnpackDir -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO MakeOutput
 compile depsDir input out = do
   deps <- liftIO $ findSrcPurs depsDir
-  compilePurescript IgnoreWarnings deps out
-  compilePurescript WarningsAreErrors (deps <> input) out
+  dext <- fmap PS.efModuleName <$> compilePurescript IgnoreWarnings deps out
+  mext <- fmap PS.efModuleName <$> compilePurescript WarningsAreErrors (deps <> input) out
+  pure MakeOutput {
+      makeOutputDeps = dext
+    , makeOutputSrc = mext L.\\ dext
+    }
 
-compilePurescript :: ErrorLevel -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO ()
+compilePurescript :: ErrorLevel -> [FilePath] -> CodeGenDir -> EitherT PurescriptError IO [PS.ExternsFile]
 compilePurescript err input (CodeGenDir outputDir) = do
   liftIO $ D.createDirectoryIfMissing True outputDir
   moduleFiles <- liftIO $ readInput input
@@ -132,32 +145,42 @@ compilePurescript err input (CodeGenDir outputDir) = do
           Left errors ->
             Left ((errors <> warnings))
           -- TODO serialising the externs would be wise, is used for incremental build
-          Right _externs ->
+          Right externs ->
             if PS.nonEmpty warnings then
               Left warnings
             else
-              pure ()
+              pure externs
       IgnoreWarnings ->
-        void result
+        result
 
-bundlePurescript :: CodeGenDir -> EitherT PurescriptError IO JsBundle
-bundlePurescript (CodeGenDir dir) = do
-  files <- liftIO $ findByExtension "js" dir
-  let mkIdent fp =
-        PB.ModuleIdentifier
-          (FP.takeFileName (FP.takeDirectory (FP.makeRelative dir fp)))
-          (case FP.takeFileName fp of
-            "index.js" -> PB.Regular
-            "foreign.js" -> PB.Foreign
-            -- This is wrong but unlikely:
-            _ -> PB.Regular)
-      readIdent = traverse $ \fp -> do
-        -- TODO remove lazy io
-        str <- readFile fp
-        pure (mkIdent fp, str)
-  inputs <- liftIO $ readIdent files
+bundlePurescript :: CodeGenDir -> MakeOutput -> EitherT PurescriptError IO JsBundle
+bundlePurescript dir (MakeOutput deps src) = do
+  bundlePurescript' dir (deps <> src) src
+
+bundlePurescript' ::
+     CodeGenDir
+  -> [PS.ModuleName]
+  -> [PS.ModuleName]
+  -> EitherT PurescriptError IO JsBundle
+bundlePurescript' (CodeGenDir dir) alljs entries = do
+  files <- S.fromList <$> liftIO (findByExtension "js" dir)
+  let mkIdents mn =
+        let ms = PS.runModuleName mn
+            mi = PB.ModuleIdentifier ms
+            index = dir </> ms </> "index.js"
+            forrn = dir </> ms </> "foreign.js"
+        in fold [
+            if S.member index files then [(index, mi PB.Regular)] else []
+          , if S.member forrn files then [(forrn, mi PB.Foreign)] else []
+          ]
+      allIdents = foldMap mkIdents alljs
+      entryPts = fmap snd $ foldMap mkIdents entries
+  inputs <- liftIO . for allIdents $ \(fp, mi) -> do
+    -- TODO remove lazy io
+    str <- readFile fp
+    pure (mi, str)
   hoistEither . first packBundleError $
-    ((JsBundle . T.pack) <$> PB.bundle inputs (fmap fst inputs) Nothing "PS")
+    ((JsBundle . T.pack) <$> PB.bundle inputs entryPts Nothing "PS")
 
 defaultPurescriptOptions :: PS.Options
 defaultPurescriptOptions =

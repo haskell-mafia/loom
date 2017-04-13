@@ -160,8 +160,8 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       psAll = fmap loomFilePath psPathFiles <> fmap componentFilePath psComponentFiles
     deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
     Purescript.unpackPurs psDepDir deps
-    Purescript.compile psDepDir psAll psOutDir
-    res <- Purescript.bundlePurescript psOutDir
+    mko <- Purescript.compile psDepDir psAll psOutDir
+    res <- Purescript.bundlePurescript psOutDir mko
     liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
     pure (psOutFile, Just (Js.JsModuleName "PS"))
 
