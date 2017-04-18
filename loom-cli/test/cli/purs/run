@@ -1,0 +1,28 @@
+#!/bin/sh -eu
+
+. test/cli/core/env.sh
+
+ROOT="$(pwd)"
+cd test/cli/purs
+rm -rf dist
+export LOOM_SITE_PREFIX="http://test/prefix/"
+export LOOM_OUTPUT_HASKELL="dist/haskell"
+export LOOM_OUTPUT_SITE="dist/site"
+$LOOM build
+
+file_exists() {
+  if [ ! -e "$1" ]; then
+    echo "Could not find $1"
+    exit 1
+  fi
+}
+
+contains() {
+  grep -q "$2" "$1" || (echo "Could not find '$2' in '$1'" && exit 1)
+}
+
+file_exists "${LOOM_OUTPUT_HASKELL}/main.js"
+# contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
+cd "$LOOM_OUTPUT_HASKELL"
+js=$(node -e "eval(require('fs').readFileSync('main.js').toString());console.log(require('purs')['Foo'].foo5);")
+[ "$js" == "  foo" ]

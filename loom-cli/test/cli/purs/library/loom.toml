@@ -1,0 +1,27 @@
+[loom]
+  version = 1
+  name = "library"
+
+[component]
+  paths = ["components/*"]
+
+[js]
+  paths = ["app/js/src"]
+
+[js.dependencies]
+  npm = [
+      ["left-pad", "1.1.3", "612f61c033f3a9e08e939f1caebeea41b6f3199a"]
+    ]
+
+[purs.dependencies]
+  github = [
+      ["purescript/purescript-prelude", "tags/v1.1.0", "c77adca5dcad09ef6e99ea76b74ce45b67fb899c"]
+    , ["purescript/purescript-strings", "tags/v1.1.0", "f45bac6710f9c961618f9b3fbdba6cc6a24e83b7"]
+    , ["purescript/purescript-maybe", "tags/v1.0.0", "253f7de613fe816945612a46a8bae210fb366a33"]
+    , ["purescript/purescript-control", "tags/v1.0.0", "0d4e04bace6b4717e9c745a62b31e3bc409d1cdb"]
+    , ["purescript/purescript-invariant", "tags/v1.0.0", "e0c7cd14e226de7449a843782c50cd9d03577234"]
+    , ["purescript/purescript-monoid", "tags/v1.0.0", "c12cc75643cbd9c1c066a4b964570286e7e5077f"]
+    , ["purescript/purescript-either", "tags/v1.0.0", "4b399854e8279f1ee83fcd8c265b8c02856d269b"]
+    , ["purescript/purescript-bifunctors", "tags/v1.0.0", "0eb78b63ee000077ffe1dc60097f4881800d2fd2"]
+    , ["purescript/purescript-foldable-traversable", "tags/v1.0.0", "1b8b6587e364e20c7f628fd3fbc108f065fc5802"]
+    ]
