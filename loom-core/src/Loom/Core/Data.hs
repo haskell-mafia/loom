@@ -30,6 +30,7 @@ module Loom.Core.Data (
   , GithubDependency (..)
   , NpmDependency (..)
   , Bundle (..)
+  , unBundle
   , BundleName (..)
   , loomFilePath
   , componentName
@@ -61,6 +62,7 @@ module Loom.Core.Data (
   , findFiles'
   ) where
 
+import           Data.Map.Strict (Map)
 import qualified Data.Text as T
 
 import           P
@@ -145,6 +147,7 @@ data LoomConfigResolved =
     , loomConfigResolvedComponents :: [LoomFile]
     , loomConfigResolvedSass :: [LoomFile]
     , loomConfigResolvedJs :: [LoomFile]
+    , loomConfigResolvedJsBundles :: Map BundleName [LoomFile]
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
     , loomConfigResolvedPurs :: [LoomFile]
@@ -410,3 +413,7 @@ data Bundle = Bundle {
   , bundleMain :: FilePattern
   , bundlePaths :: [FilePattern]
   } deriving (Eq, Show)
+
+unBundle :: Bundle -> (BundleName, [FilePattern])
+unBundle (Bundle b f) =
+  (b, f)

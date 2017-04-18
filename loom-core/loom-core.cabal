@@ -13,6 +13,7 @@ description:           loom-core
 library
   build-depends:
                       base                            >= 3          && < 5
+                    , containers
                     , ambiata-p
                     , filepath                        >= 1.4        && < 1.6
                     , Glob                            == 0.7.*

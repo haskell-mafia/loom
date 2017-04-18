@@ -85,6 +85,7 @@ resolveLoom config =
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigJsPaths) config
+    <*> fmap Map.fromList (traverse (traverse (fmap join . findFiles (loomConfigRoot config)) . unBundle) (loomConfigJsBundles config))
     <*> pure (loomConfigJsDepsNpm config)
     <*> pure (loomConfigJsDepsGithub config)
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
@@ -201,7 +202,19 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
       pure jsOut
-    pure [main]
+    bundles <- fmap Map.elems . flip Map.traverseWithKey (loomConfigResolvedJsBundles config) $ \bn paths -> do
+      let
+        jsOut = outputJs (T.unpack (unBundleName bn))
+        binput = Browserify.BrowserifyInput {
+            Browserify.browserifyMode = Browserify.BrowserifyProd
+          , Browserify.browserifyPaths = [jsDepDir]
+          , Browserify.browserifyEntries =
+              _
+          }
+      reso <- Browserify.runBrowserify node brow binput
+      liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
+      pure jsOut
+    pure (main : bundles)
 
   pure $
     LoomResult
