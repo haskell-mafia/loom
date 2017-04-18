@@ -4,12 +4,15 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Test.IO.Loom.Purescript where
 
+import           Control.Monad.IO.Class (liftIO)
+
 import qualified Data.Text.IO as T
 
 import           Loom.Purescript
 
 import           Disorder.Core (ExpectedTestSpeed (..), disorderCheckEnvAll, neg)
 import           Disorder.Core.IO (testIO)
+import           Disorder.Either (testEitherT)
 
 import           P
 
@@ -21,39 +24,34 @@ import qualified Test.QuickCheck as QC
 
 
 prop_purescript_success =
-  testIO $
-    withTempDirectory "dist" "purescript" $ \dir -> do
-      let
-        f = dir </> "a.purs"
-      T.writeFile f "module A where"
-      r <- compilePurescript [f] dir
-      pure $ checkPurescriptErrors r
+  QC.once . testIO . withTempDirectory "dist" "purescript" $ \dir ->
+    withTempDirectory "dist" "purescript" $ \tmp ->
+      testEitherT renderPurescriptError $ do
+        let
+          f = dir </> "a.purs"
+        liftIO $ T.writeFile f "module A where"
+        void $ compile (PurescriptUnpackDir tmp) [f] (CodeGenDir dir)
+        pure (QC.property True)
 
 prop_purescript_warnings =
-  testIO $
-    withTempDirectory "dist" "purescript" $ \dir -> do
-      let
-        f = dir </> "a.purs"
-      T.writeFile f "module A where\n\nb = \"\""
-      r <- compilePurescript [f] dir
-      pure . neg $ checkPurescriptErrors r
+  QC.once . neg . testIO . withTempDirectory "dist" "purescript" $ \dir ->
+    withTempDirectory "dist" "purescript" $ \tmp ->
+      testEitherT renderPurescriptError $ do
+        let
+          f = dir </> "a.purs"
+        liftIO $ T.writeFile f "module A where\n\nb = \"\""
+        void $ compile (PurescriptUnpackDir tmp) [f] (CodeGenDir dir)
+        pure (QC.property True)
 
 prop_purescript_failure =
-  testIO $
-    withTempDirectory "dist" "purescript" $ \dir -> do
-      let
-        f = dir </> "a.purs"
-      T.writeFile f "bad"
-      r <- compilePurescript [f] dir
-      pure . neg $ checkPurescriptErrors r
-
-checkPurescriptErrors r =
-  case r of
-    Left errors ->
-      QC.counterexample (show errors) False
-    Right () ->
-      QC.property True
-
+  QC.once . neg . testIO . withTempDirectory "dist" "purescript" $ \dir ->
+    withTempDirectory "dist" "purescript" $ \tmp ->
+      testEitherT renderPurescriptError $ do
+        let
+          f = dir </> "a.purs"
+        liftIO $ T.writeFile f "bad"
+        void $ compile (PurescriptUnpackDir tmp) [f] (CodeGenDir dir)
+        pure (QC.property True)
 
 
 return []
