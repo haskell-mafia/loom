@@ -48,6 +48,8 @@ generateHaskell output spx apx (LoomResult name _ mo po inputCss images inputJs)
   let
     outputCss = CssFile $ output </> (takeFileName . renderCssFile) inputCss
     outputJs = with inputJs $ \jsfile -> JsFile $ output </> takeFileName (renderJsFile jsfile)
+  liftIO $
+    createDirectoryIfMissing True output
   void . firstT LoomHaskellProjectorError $
     Projector.generateProjectorHaskell (output </> "src") spx apx [outputCss] images po
   liftIO $

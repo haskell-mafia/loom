@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
 module Loom.Build.Component (
     ComponentError (..)
   , renderComponentError
@@ -17,7 +18,7 @@ import           Loom.Core.Data
 import           P
 
 import           System.Directory (doesDirectoryExist)
-import qualified System.FilePath.Glob as Glob
+import qualified "Glob" System.FilePath.Glob as Glob
 import           System.FilePath (makeRelative)
 import           System.IO (FilePath, IO)
 
