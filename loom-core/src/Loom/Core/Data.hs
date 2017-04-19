@@ -30,7 +30,6 @@ module Loom.Core.Data (
   , GithubDependency (..)
   , NpmDependency (..)
   , Bundle (..)
-  , unBundle
   , BundleName (..)
   , loomFilePath
   , componentName
@@ -147,7 +146,7 @@ data LoomConfigResolved =
     , loomConfigResolvedComponents :: [LoomFile]
     , loomConfigResolvedSass :: [LoomFile]
     , loomConfigResolvedJs :: [LoomFile]
-    , loomConfigResolvedJsBundles :: Map BundleName [LoomFile]
+    , loomConfigResolvedJsBundles :: [(BundleName, [LoomFile], [LoomFile])]
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
     , loomConfigResolvedPurs :: [LoomFile]
@@ -413,7 +412,3 @@ data Bundle = Bundle {
   , bundleMain :: FilePattern
   , bundlePaths :: [FilePattern]
   } deriving (Eq, Show)
-
-unBundle :: Bundle -> (BundleName, [FilePattern])
-unBundle (Bundle b f) =
-  (b, f)

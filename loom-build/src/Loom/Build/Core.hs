@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 module Loom.Build.Core (
     LoomBuildConfig
   , LoomError (..)
@@ -85,11 +86,17 @@ resolveLoom config =
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigComponents) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigSass) config
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigJsPaths) config
-    <*> fmap Map.fromList (traverse (traverse (fmap join . findFiles (loomConfigRoot config)) . unBundle) (loomConfigJsBundles config))
+    <*> traverse (resolveBundle (loomConfigRoot config)) (loomConfigJsBundles config)
     <*> pure (loomConfigJsDepsNpm config)
     <*> pure (loomConfigJsDepsGithub config)
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
     <*> pure (loomConfigPursDepsGithub config)
+
+resolveBundle :: LoomRoot -> Bundle -> IO (BundleName, [LoomFile], [LoomFile])
+resolveBundle root (Bundle bn main others) = do
+  m <-  fmap join (findFiles root [main])
+  os <- fmap join (findFiles root others)
+  pure (bn, m, os)
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
 buildLoomResolved ::
@@ -202,14 +209,15 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
       pure jsOut
-    bundles <- fmap Map.elems . flip Map.traverseWithKey (loomConfigResolvedJsBundles config) $ \bn paths -> do
+    bundles <- for (loomConfigResolvedJsBundles config) $ \(bn, mains, paths) -> do
       let
         jsOut = outputJs (T.unpack (unBundleName bn))
+        jsPaths = fmap (Js.JsUnpackDir . loomFilePath) paths
         binput = Browserify.BrowserifyInput {
             Browserify.browserifyMode = Browserify.BrowserifyProd
-          , Browserify.browserifyPaths = [jsDepDir]
+          , Browserify.browserifyPaths = jsDepDir : jsPaths
           , Browserify.browserifyEntries =
-              _
+              with mains (\lf -> (loomFilePath lf, Nothing))
           }
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
