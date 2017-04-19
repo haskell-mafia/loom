@@ -281,3 +281,79 @@ with an *anonymous function* or *lambda*, as per the example below:
     <span>{ text name }</span>
 }
 ```
+
+
+## How do I make new values?
+
+Back to our earlier function example:
+
+```prj
+{ functionName "a" "b" }
+```
+
+We have a couple of `String` values, `"a"` and `"b"`. We've made them up on the spot (instead of receiving them as inputs to the template). We can do this for both in-built types (like String), and our own custom [Machinator data](./machinator.md) types.
+
+### Predefined Types
+
+- `String`
+
+  Constructed with quotation marks only, eg. `"foo"`. If you want to use a quote mark within a string, use a `\`, eg. `"It's \"nice\" to meet you."`
+
+- `List`
+
+  Constructed with square brackets, eg. `["Hello", "World"]`.
+
+- `Bool`
+
+  Construct with `True` or `False`, like you do with any other Machinator `data` type (see below).
+
+
+### Custom Types
+
+Here are a couple of custom types, defined in a `data.mcn` somewhere:
+
+```mcn
+data Shape =
+    Square
+  | Circle
+
+record FigureDescription = {
+    title : String
+  , summary : List String
+  }
+```
+
+And a template called `modules/drawing/shape`
+
+```prj
+\ shape : Shape ->
+  desc : FigureDescription ->
+  Html =
+<div> {- whatever -} </div>
+```
+
+You can use this template like so (in an mock, for example):
+
+```prj
+{
+  modules/drawing/shape
+    Square
+    (FigureDescription "Square" ["A square.", "It's interesting!"])
+}
+```
+
+Breaking this down:
+
+- `modules/drawing/shape`
+
+  As in the earlier sections, this is a function. It takes two arguments.
+
+- `Square`
+
+  Make a `Shape` data value by calling the `Square` constructor.
+
+- `FigureDescription "Square" ["A square.", "It's interesting!"]`
+
+  The `FigureDescription` is a constructor that expects two arguments (as if it were
+  a `String -> List String -> FigureDescription` function), in the order the
+  record fields were declared (`string`, then `summary`).
