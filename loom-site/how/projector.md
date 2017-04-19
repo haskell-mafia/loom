@@ -144,6 +144,11 @@ _ `{ ... }`
   in this case the "name" value that we matched way back from the "Input"
   constructor.
 
+- `{- Some comment here -}`
+
+  A comment or note you want to add that's ignored by Projector and *doesn't*
+  show up in the HTML output (unlike the usual `<!-- ... -->`).
+
 
 ## How do I call another template?
 
