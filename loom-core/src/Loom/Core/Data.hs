@@ -61,7 +61,6 @@ module Loom.Core.Data (
   , findFiles'
   ) where
 
-import           Data.Map.Strict (Map)
 import qualified Data.Text as T
 
 import           P
