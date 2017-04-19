@@ -217,7 +217,7 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
             Browserify.browserifyMode = Browserify.BrowserifyProd
           , Browserify.browserifyPaths = jsDepDir : jsPaths
           , Browserify.browserifyEntries =
-              with mains (\lf -> (loomFilePath lf, Nothing))
+              with mains (\lf -> ("." </> loomFilePath lf, Nothing))
           }
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))

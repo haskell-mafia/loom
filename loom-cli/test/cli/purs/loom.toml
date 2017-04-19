@@ -11,6 +11,12 @@
       ["left-pad", "1.1.3", "612f61c033f3a9e08e939f1caebeea41b6f3199a"]
     ]
 
+[js.bundle.first]
+  main = "app/js/first.js"
+  paths = [
+      "app/js/first"
+    ]
+
 [purs]
   paths = ["app/purs/src"]
 
