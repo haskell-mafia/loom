@@ -81,6 +81,7 @@ _ `{ ... }`
 
   Using `{` indicates the start of an "expression block", where certain kinds of
   logic can be preformed on value that might be passed to the template.
+  (These expressions need to be things that produce `Html` values.)
 
 - `case input of`
 
@@ -103,10 +104,13 @@ _ `{ ... }`
 
   Declaring normal html attributes is fine.
 
-- `class="{...}"`
+- `class="{{...}}"`
 
-  Attribute strings can also can expressions, which can only return "String"
-  values and not "Html" (which makes sense if you think about how hml works).
+  Attribute strings can also be expressions, which can only return "String"
+  values and not "Html" (which makes sense if you think about how html works).
+  This double-curly (`{{ ... }}`) here in the _attribute_ means something
+  that takes a string and gives you a string as a result; this double-curly
+  will crop up again below as meaning something different.
 
 - `case size of`
 
@@ -146,9 +150,10 @@ _ `{ ... }`
 
 - `{{ name }}`
 
-  A special kind of expression block for rendering string values as html,
-  in this case the "name" value that we matched way back from the "Input"
-  constructor.
+  A special kind of expression block that, when we're producing HTML, is
+  for rendering string values as html. In this case we're taking the
+  "name" value that we matched way back from the "Input" constructor,
+  and producing an chunk of HTML text.
 
 
 ## How do I call another template?
