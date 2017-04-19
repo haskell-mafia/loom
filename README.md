@@ -76,6 +76,7 @@ SHA1 hash.
     ]
 
 [js.bundle.first]
+  main = "app/src/js/first.js"
   # Optional
   paths = [
       "app/src/js/first/*"

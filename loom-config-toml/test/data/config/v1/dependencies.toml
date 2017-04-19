@@ -15,6 +15,7 @@
     ]
 
 [js.bundle.first]
+  main = "app/src/first.js"
   paths = [
       "app/src/first/js/*"
     ]
@@ -30,11 +31,6 @@
 [purs]
   paths = [
       "app/src/purs/*"
-    ]
-
-[purs.bundle.first]
-  paths = [
-      "app/src/first/purs/*"
     ]
 
 [purs.dependencies]

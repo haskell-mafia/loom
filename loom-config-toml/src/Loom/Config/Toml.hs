@@ -47,7 +47,8 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
   paths = ["js/*"]
 
 [js.bundle.first]
-  paths = "js/first/*"]
+  paths = ["js/first/*"]
+  main = "js/first.js"
 
 [js.dependencies]
   npm = [
@@ -70,6 +71,7 @@ data LoomConfigTomlError =
   | ConfigInvalidField Text
   | ConfigInvalidPattern Text
   | ConfigFileNotFound FilePath
+  | BundleNoMain Text
     deriving (Eq, Show)
 
 data LoomConfigRaw =
@@ -83,7 +85,6 @@ data LoomConfigRaw =
     , loomConfigRawJsNpm :: [NpmDependency]
     , loomConfigRawJsGithub :: [GithubDependency]
     , loomConfigRawPursPaths :: [FilePattern]
-    , loomConfigRawPursBundles :: [Bundle]
     , loomConfigRawPursGithub :: [GithubDependency]
     } deriving (Eq, Show)
 
@@ -120,7 +121,6 @@ resolveConfig root = do
         (loomConfigRawJsNpm rc)
         (loomConfigRawJsGithub rc)
         (loomConfigRawPursPaths rc)
-        (loomConfigRawPursBundles rc)
         (loomConfigRawPursGithub rc)
   pure . Loom (config' rc1) . fmap config' $ rcs
 
@@ -168,9 +168,6 @@ parseTomlConfigV1 t =
     <*> (maybe (pure []) (parseFilePatterns "purs.paths") $
       t ^? key "purs" . _NTable . key "paths" . _NTValue . _VArray
       )
-    <*> (maybe (pure []) parseBundleTable $
-      t ^? key "purs" . _NTable . key "bundle" . _NTable
-      )
     <*> (maybe (pure []) (parseGithubDeps "purs.dependencies.github") $
       t ^? key "purs" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
       )
@@ -207,7 +204,9 @@ parseBundleTable :: Table -> Either LoomConfigTomlError [Bundle]
 parseBundleTable t =
   for (HM.keys t) $ \b ->
     Bundle (BundleName b)
-      <$> (maybe (pure []) (parseFilePatterns (b <> ".paths")) $
+      <$> (maybe (Left (BundleNoMain b)) parseFilePattern
+            (t ^? key b . _NTable . key "main" . _NTValue . _VString))
+      <*> (maybe (pure []) (parseFilePatterns (b <> ".paths")) $
             (t ^? key b . _NTable . key "paths" . _NTValue . _VArray))
 
 renderLoomConfigTomlError :: LoomConfigTomlError -> Text
@@ -225,3 +224,5 @@ renderLoomConfigTomlError te =
       mconcat ["Loom configuration contains an invalid pattern: ", e]
     ConfigFileNotFound f ->
       mconcat ["Loom configuration file not found: ", T.pack f]
+    BundleNoMain b ->
+      mconcat ["Bundle '", b, "' has no main entry point."]
