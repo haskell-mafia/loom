@@ -35,7 +35,6 @@ prop_loom_config_toml_parse_ok =
           []
           []
           []
-          []
           )
         []
     , check "test/data/config/v1/basic.toml" . Right $ Loom
@@ -44,7 +43,6 @@ prop_loom_config_toml_parse_ok =
           (LoomName "basic")
           [p "components/*"]
           [p "scss/*"]
-          []
           []
           []
           []
@@ -60,11 +58,10 @@ prop_loom_config_toml_parse_ok =
           [p "components/*"]
           [p "scss/*"]
           [p "app/src/js/*"]
-          [Bundle (BundleName "first") [p "app/src/first/js/*"]]
+          [Bundle (BundleName "first") (p "app/src/first.js") [p "app/src/first/js/*"]]
           [NpmDependency (NpmPackage "d3") (NpmPackageVersion "4.7.4") (Sha1 "a2f40eb57decc51bc469010d48ae74a20e025772")]
           [GithubDependency (GithubRepo "isaacs" "rimraf") (GitRef "tags/v2.6.1") (Sha1 "813139ac3628ae0b47136de18939cbb623e21475")]
           [p "app/src/purs/*"]
-          [Bundle (BundleName "first") [p "app/src/first/purs/*"]]
           [GithubDependency (GithubRepo "purescript" "purescript-newtype") (GitRef "tags/v2.0.0") (Sha1 "2276bd44ff5b7440c455839833c69f40cc8d8616")]
           )
       [
@@ -73,7 +70,6 @@ prop_loom_config_toml_parse_ok =
           (LoomName "dependencies_2")
           [p "components/*"]
           [p "scss/*"]
-          []
           []
           []
           []
