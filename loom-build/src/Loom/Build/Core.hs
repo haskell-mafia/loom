@@ -92,11 +92,11 @@ resolveLoom config =
     <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
     <*> pure (loomConfigPursDepsGithub config)
 
-resolveBundle :: LoomRoot -> Bundle -> IO (BundleName, [LoomFile], [LoomFile])
+resolveBundle :: LoomRoot -> Bundle -> IO (BundleName, ([LoomFile], [LoomFile]))
 resolveBundle root (Bundle bn main others) = do
   m <-  fmap join (findFiles root [main])
   os <- fmap join (findFiles root others)
-  pure (bn, m, os)
+  pure (bn, (m, os))
 
 -- FIX This function currently makes _no_ attempt at caching results. Yet
 buildLoomResolved ::
@@ -209,7 +209,12 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
       reso <- Browserify.runBrowserify node brow binput
       liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
       pure jsOut
-    bundles <- for (loomConfigResolvedJsBundles config) $ \(bn, mains, paths) -> do
+    let
+      bundleMap = Map.unionsWith (<>) $
+          Map.fromList (loomConfigResolvedJsBundles config)
+        : fmap Map.fromList (fmap (loomConfigResolvedJsBundles . fst) components)
+
+    bundles <- fmap Map.elems . flip Map.traverseWithKey bundleMap $ \bn (mains, paths) -> do
       let
         jsOut = outputJs (T.unpack (unBundleName bn))
         jsPaths = fmap (Js.JsUnpackDir . loomFilePath) paths

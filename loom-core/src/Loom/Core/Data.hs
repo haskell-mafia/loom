@@ -145,7 +145,7 @@ data LoomConfigResolved =
     , loomConfigResolvedComponents :: [LoomFile]
     , loomConfigResolvedSass :: [LoomFile]
     , loomConfigResolvedJs :: [LoomFile]
-    , loomConfigResolvedJsBundles :: [(BundleName, [LoomFile], [LoomFile])]
+    , loomConfigResolvedJsBundles :: [(BundleName, ([LoomFile], [LoomFile]))]
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
     , loomConfigResolvedPurs :: [LoomFile]
