@@ -34,6 +34,7 @@ Perhaps something a little more interesting:
             Large ->
               "large"
         }">
+          {- TODO localisation -}
           My name is: {{ name }}
         </a>
   }
@@ -134,6 +135,11 @@ _ `{ ... }`
   to the right when writing a case, and go back to the left to start a
   new case. These rules also apply to lambdas.
 
+- `{- TODO localisation -}`
+
+  A comment or note you want to add that's ignored by Projector and *doesn't*
+  show up in the HTML output (unlike the usual `<!-- ... -->`).
+
 - `My name is:`
 
   Some normal text to be rendered in html.
@@ -143,11 +149,6 @@ _ `{ ... }`
   A special kind of expression block for rendering string values as html,
   in this case the "name" value that we matched way back from the "Input"
   constructor.
-
-- `{- Some comment here -}`
-
-  A comment or note you want to add that's ignored by Projector and *doesn't*
-  show up in the HTML output (unlike the usual `<!-- ... -->`).
 
 
 ## How do I call another template?
