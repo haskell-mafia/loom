@@ -62,6 +62,10 @@ that are available in every machinator file.
 
   This is specifically just a stream of characters
 
+- `Bool`
+
+  A Boolean, constructed with and matched by `True` and `False`
+
 - `Html`
 
   This could be any raw html block
