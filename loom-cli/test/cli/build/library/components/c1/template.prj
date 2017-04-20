@@ -1,6 +1,6 @@
 \ test : Test -> Html =
 { other/components/c1/foo }
-<img src="{ other/components/c1/favicon/ico }" />
+<img src="{{ other/components/c1/favicon/ico }}" />
 <div>
  {
    case test of

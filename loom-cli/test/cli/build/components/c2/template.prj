@@ -7,5 +7,5 @@
     Bar c ->
       <span>{ c }</span>
     Baz alt ->
-      <img src="{ test_build/components/c2/image/svg }" alt="{ alt }"/>
+      <img src="{{ test_build/components/c2/image/svg }}" alt="{{ alt }}"/>
 }
