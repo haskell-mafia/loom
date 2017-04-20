@@ -1,2 +1,2 @@
 'use strict';
-module.exports = require('left')('foo', 5);
+module.exports = require('write-pad')('foo', 5);
