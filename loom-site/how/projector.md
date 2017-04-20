@@ -34,6 +34,7 @@ Perhaps something a little more interesting:
             Large ->
               "large"
         }">
+          {- TODO localisation -}
           My name is: {{ name }}
         </a>
   }
@@ -80,6 +81,7 @@ _ `{ ... }`
 
   Using `{` indicates the start of an "expression block", where certain kinds of
   logic can be preformed on value that might be passed to the template.
+  (These expressions need to be things that produce `Html` values.)
 
 - `case input of`
 
@@ -102,10 +104,13 @@ _ `{ ... }`
 
   Declaring normal html attributes is fine.
 
-- `class="{...}"`
+- `class="{{...}}"`
 
-  Attribute strings can also can expressions, which can only return "String"
-  values and not "Html" (which makes sense if you think about how hml works).
+  Attribute strings can also be expressions, which can only return "String"
+  values and not "Html" (which makes sense if you think about how html works).
+  This double-curly (`{{ ... }}`) here in the _attribute_ means something
+  that takes a string and gives you a string as a result; this double-curly
+  will crop up again below as meaning something different.
 
 - `case size of`
 
@@ -134,20 +139,21 @@ _ `{ ... }`
   to the right when writing a case, and go back to the left to start a
   new case. These rules also apply to lambdas.
 
+- `{- TODO localisation -}`
+
+  A comment or note you want to add that's ignored by Projector and *doesn't*
+  show up in the HTML output (unlike the usual `<!-- ... -->`).
+
 - `My name is:`
 
   Some normal text to be rendered in html.
 
 - `{{ name }}`
 
-  A special kind of expression block for rendering string values as html,
-  in this case the "name" value that we matched way back from the "Input"
-  constructor.
-
-- `{- Some comment here -}`
-
-  A comment or note you want to add that's ignored by Projector and *doesn't*
-  show up in the HTML output (unlike the usual `<!-- ... -->`).
+  A special kind of expression block that, when we're producing HTML, is
+  for rendering string values as html. In this case we're taking the
+  "name" value that we matched way back from the "Input" constructor,
+  and producing an chunk of HTML text.
 
 
 ## How do I call another template?
@@ -275,3 +281,79 @@ with an *anonymous function* or *lambda*, as per the example below:
     <span>{ text name }</span>
 }
 ```
+
+
+## How do I make new values?
+
+Back to our earlier function example:
+
+```prj
+{ functionName "a" "b" }
+```
+
+We have a couple of `String` values, `"a"` and `"b"`. We've made them up on the spot (instead of receiving them as inputs to the template). We can do this for both in-built types (like String), and our own custom [Machinator data](./machinator.md) types.
+
+### Predefined Types
+
+- `String`
+
+  Constructed with quotation marks only, eg. `"foo"`. If you want to use a quote mark within a string, use a `\`, eg. `"It's \"nice\" to meet you."`
+
+- `List`
+
+  Constructed with square brackets, eg. `["Hello", "World"]`.
+
+- `Bool`
+
+  Construct with `True` or `False`, like you do with any other Machinator `data` type (see below).
+
+
+### Custom Types
+
+Here are a couple of custom types, defined in a `data.mcn` somewhere:
+
+```mcn
+data Shape =
+    Square
+  | Circle
+
+record FigureDescription = {
+    title : String
+  , summary : List String
+  }
+```
+
+And a template called `modules/drawing/shape`
+
+```prj
+\ shape : Shape ->
+  desc : FigureDescription ->
+  Html =
+<div> {- whatever -} </div>
+```
+
+You can use this template like so (in an mock, for example):
+
+```prj
+{
+  modules/drawing/shape
+    Square
+    (FigureDescription "Square" ["A square.", "It's interesting!"])
+}
+```
+
+Breaking this down:
+
+- `modules/drawing/shape`
+
+  As in the earlier sections, this is a function. It takes two arguments.
+
+- `Square`
+
+  Make a `Shape` data value by calling the `Square` constructor.
+
+- `FigureDescription "Square" ["A square.", "It's interesting!"]`
+
+  The `FigureDescription` is a constructor that expects two arguments (as if it were
+  a `String -> List String -> FigureDescription` function), in the order the
+  record fields were declared (`string`, then `summary`).

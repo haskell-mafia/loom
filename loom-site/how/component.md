@@ -51,7 +51,15 @@ background-image: url('components/my-component/test.png');
 
 ### From projector?
 
-You can't. This is a bug and needs to be fixed.
+Assets are as exposed as functions, eg. if you have a `bikeshed/components/my-component/test.png`, it'll be a function you can call like:
+
+```prj
+{ bikeshed/components/my-component/test/png }
+```
+
+(Note the `test/png` for the filename + extension.)
+
+
 ### <a id="examples">Examples</a>
 
 Examples are rendered inline on a component page as an inline snippet.
