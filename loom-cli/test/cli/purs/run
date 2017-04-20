@@ -5,6 +5,7 @@
 ROOT="$(pwd)"
 cd test/cli/purs
 rm -rf dist
+rm -rf .loom
 export LOOM_SITE_PREFIX="http://test/prefix/"
 export LOOM_OUTPUT_HASKELL="dist/haskell"
 export LOOM_OUTPUT_SITE="dist/site"
@@ -24,5 +25,6 @@ contains() {
 file_exists "${LOOM_OUTPUT_HASKELL}/main.js"
 # contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
 cd "$LOOM_OUTPUT_HASKELL"
+set -x
 js=$(node -e "eval(require('fs').readFileSync('main.js').toString());console.log(require('purs')['Foo'].foo5);")
-[ "$js" == "  foo" ]
+[ "$js" == "foo  " ]
