@@ -187,7 +187,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
 
   js <- withLog logger "js" . firstT LoomJsError $ do
     let
-      jsDepDir = Js.JsUnpackDir (loomTmpFilePath dir </> "js")
+      jsDepDir = Js.JsUnpackDir (loomTmpFilePath dir </> "js" </> "node_modules")
       outputJs b = JsFile $ loomTmpFilePath dir </> b <.> "js"
     -- Fetch and unpack dependencies
     deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
