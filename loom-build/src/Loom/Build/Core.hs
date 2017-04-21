@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 module Loom.Build.Core (
     LoomBuildConfig
+  , LoomMode (..)
   , LoomError (..)
   , LoomResult (..)
   , initialiseBuild
@@ -43,6 +44,12 @@ import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
 
+-- | Can improve the performance of the build, and generate useful developer artifacts
+-- Please handle with care - we _never_ want to miss bugs in developer mode
+data LoomMode =
+    LoomDevelopment
+  | LoomProduction
+
 data LoomBuildConfig =
   LoomBuildConfig Sass
 
@@ -67,16 +74,17 @@ initialiseBuild =
 buildLoom ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
+  LoomMode ->
   LoomHome ->
   LoomTmp ->
   Loom ->
   EitherT LoomError IO LoomResult
-buildLoom logger buildConfig home dir (Loom loomConfig' loomConfigs') = do
+buildLoom logger buildConfig mode home dir (Loom loomConfig' loomConfigs') = do
   resolved <- liftIO $
     LoomResolved
       <$> resolveLoom loomConfig'
       <*> mapM resolveLoom loomConfigs'
-  buildLoomResolved logger buildConfig home dir resolved
+  buildLoomResolved logger buildConfig mode home dir resolved
 
 resolveLoom :: LoomConfig -> IO LoomConfigResolved
 resolveLoom config =
@@ -102,11 +110,12 @@ resolveBundle root (Bundle bn main others) = do
 buildLoomResolved ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
+  LoomMode ->
   LoomHome ->
   LoomTmp ->
   LoomResolved ->
   EitherT LoomError IO LoomResult
-buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config others) = do
+buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved config others) = do
   let
     configs =
       -- Need to make sure the dependencies are in reverse order
@@ -199,8 +208,12 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
               in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
                  (relative, Just prefixed)
         binput = Browserify.BrowserifyInput {
-           -- TODO Prod is much slwoer than Dev, worth toggling this for 'watch'
-           Browserify.browserifyMode = Browserify.BrowserifyProd
+           Browserify.browserifyMode =
+             case mode of
+               LoomDevelopment ->
+                 Browserify.BrowserifyDev
+               LoomProduction ->
+                 Browserify.BrowserifyProd
          , Browserify.browserifyPaths = jsDepDir : jsPaths
          , Browserify.browserifyEntries =
               purs
@@ -219,7 +232,12 @@ buildLoomResolved logger (LoomBuildConfig sass) home dir (LoomResolved config ot
         jsOut = outputJs (T.unpack (unBundleName bn))
         jsPaths = fmap (Js.JsUnpackDir . loomFilePath) paths
         binput = Browserify.BrowserifyInput {
-            Browserify.browserifyMode = Browserify.BrowserifyProd
+            Browserify.browserifyMode =
+              case mode of
+                LoomDevelopment ->
+                  Browserify.BrowserifyDev
+                LoomProduction ->
+                  Browserify.BrowserifyProd
           , Browserify.browserifyPaths = jsDepDir : jsPaths
           , Browserify.browserifyEntries =
               with mains (\lf -> ("." </> loomFilePath lf, Nothing))

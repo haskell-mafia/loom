@@ -74,6 +74,7 @@ main = do
           buildLoom'
             (newSimpleLogger stderr)
             buildConfig
+            LoomProduction
             config
             home
             sitePrefix
@@ -103,6 +104,7 @@ watch port = do
             buildLoom'
               (newSimpleLogger stderr)
               buildConfig
+              LoomDevelopment
               config
               home
               sitePrefix
@@ -135,13 +137,14 @@ watch port = do
 buildLoom' ::
   Logger IO ->
   LoomBuildConfig ->
+  LoomMode ->
   Loom ->
   LoomHome ->
   LoomSitePrefix ->
   AssetsPrefix ->
   BuildConfig ->
   EitherT LoomCliError IO ()
-buildLoom' logger buildConfig config home sitePrefix apx (BuildConfig haskellRoot siteRoot) = do
+buildLoom' logger buildConfig mode config home sitePrefix apx (BuildConfig haskellRoot siteRoot) = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -149,7 +152,7 @@ buildLoom' logger buildConfig config home sitePrefix apx (BuildConfig haskellRoo
   firstT LoomSiteError $
     generateLoomSiteStatic sitePrefix siteRoot
   r <- firstT LoomError $
-    buildLoom (hoistLogger liftIO logger) buildConfig home (LoomTmp ".loom") config
+    buildLoom (hoistLogger liftIO logger) buildConfig mode home (LoomTmp ".loom") config
   withLogIO logger "haskell" . firstT LoomHaskellError $
     -- NOTE: Site prefix is intentionally different for haskell than generated site
     generateHaskell haskellRoot (LoomSitePrefix "/") apx r
