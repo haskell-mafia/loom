@@ -187,6 +187,8 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
 
   js <- withLog logger "js" . firstT LoomJsError $ do
     let
+      -- The "node_modules" component is mandatory - browserify expects to be able to require arbitrary modules.
+      -- This involves walking backwards and peeking in every node_modules directory it can find.
       jsDepDir = Js.JsUnpackDir (loomTmpFilePath dir </> "js" </> "node_modules")
       outputJs b = JsFile $ loomTmpFilePath dir </> b <.> "js"
     -- Fetch and unpack dependencies
