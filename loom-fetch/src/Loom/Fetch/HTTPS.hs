@@ -13,6 +13,7 @@ module Loom.Fetch.HTTPS (
 
 
 import           Control.Concurrent (threadDelay)
+import           Control.Exception (IOException, try)
 import           Control.Monad.IO.Class (MonadIO (..))
 
 import           Data.ByteString (ByteString)
@@ -47,6 +48,7 @@ data HTTPSError =
   | RedirectBadPort Int Int
   | RedirectBadHost ByteString
   | RedirectBadTLS Bool Bool
+  | HTTPSException Text
   deriving (Eq, Ord, Show)
 
 renderHTTPSError :: HTTPSError -> Text
@@ -69,6 +71,8 @@ renderHTTPSError he =
         "Invalid redirect: expected TLS"
       RedirectBadTLS False _ ->
         "Invalid redirect: unexpected TLS"
+      HTTPSException msg ->
+        "HTTPS exception: " <> msg
 
 data RedirectPolicy = RedirectPolicy {
     redirectCount :: !Int
@@ -125,7 +129,7 @@ httpsFetch ::
   -> HTTPS.Request
   -> EitherT HTTPSError IO (HTTPS.Response LB.ByteString)
 httpsFetch att mgr rt rp req = do
-  e <- liftIO . HTTPS.withResponse req {
+  e <- liftIO . tryIO . HTTPS.withResponse req {
     -- Throw no exceptions on bad response code
       HTTPS.checkStatus = (\_ _ _ -> Nothing)
     -- Never follow redirects - should always be done by the consumer explicitly if appropriate
@@ -150,7 +154,17 @@ httpsFetch att mgr rt rp req = do
             (liftIO $ retry att rt)
             (runEitherT $ httpsFetch (att+1) mgr rt rp req)
             (pure (Left (BadResponseCode x msg)))
-  hoistEither e
+  case e of
+    Left ex ->
+      ifM
+        (liftIO $ retry att rt)
+        (httpsFetch (att+1) mgr rt rp req)
+        (left (HTTPSException (T.pack $ show ex)))
+    Right re ->
+      hoistEither re
+  where
+    tryIO :: IO a -> IO (Either IOException a)
+    tryIO = try
 
 -- | Apply retry policy.
 retry :: Int -> RetryPolicy -> IO Bool
