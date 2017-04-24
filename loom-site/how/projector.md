@@ -282,6 +282,61 @@ with an *anonymous function* or *lambda*, as per the example below:
 }
 ```
 
+## How do I refer to CSS, JS, or image assets?
+
+Loom provides these as Projector variables.
+
+### `loom/css : List String`
+
+The `loom/css` list contains every stylesheet.
+
+We can iterate over the CSS list with `each`:
+
+```prj
+{ each loom/css \css -> <link rel="stylesheet" href="{{ css }}/> }
+```
+
+### `loom/js : List String`
+
+The `loom/js` list contains every JS file.
+
+We can iterate over the JS list with `each`:
+
+```prj
+{ each loom/js \js -> <script src="{{ js }}"/> }
+```
+
+### `loom/js/main : String`
+
+Each JS file is also provided as a variable.
+
+For example, we could call the `main` JS bundle like so:
+
+```prj
+<script src="{{ loom/js/main }}"/>
+```
+
+... and we could call the `first` JS bundle like so:
+
+```prj
+<script src="{{ loom/js/first }}"/>
+```
+
+
+### `component/name/here/image/svg : String`
+
+Images inside components are available under their component name,
+followed by their file name, followed by their extension.
+
+If `component/name/here` has a file named `ambiata.jpg`, we could
+refer to it like so:
+
+```prj
+<img src="{{ component/name/here/ambiata/jpg }}"/>
+```
+
+(Note that `.jpg` has been replaced by `/jpg`, because `.` is used for
+record syntax.)
 
 ## How do I make new values?
 
