@@ -122,11 +122,11 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
       cssIn
   safeIO . for_ images $ \img ->
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
-  safeIO . for_ js $ \j ->
+  safeIO . for_ js $ \(_bn, j) ->
     copyFile (renderJsFile j) (out </> jsAssetFilePath apx j)
   void . flip Map.traverseWithKey components $ \ln cs ->
     for_ cs $ \c -> do
-      sc <- resolveSiteComponent prefix apx [css] images mo po c
+      sc <- resolveSiteComponent prefix apx [css] images js mo po c
       mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c
   writeHtmlFile' $
     loomComponentsHtml prefix components
@@ -140,11 +140,12 @@ resolveSiteComponent ::
   -> AssetsPrefix
   -> [CssFile]
   -> [ImageFile]
+  -> [(BundleName, JsFile)]
   -> MachinatorOutput
   -> ProjectorOutput
   -> Component
   -> EitherT LoomSiteError IO SiteComponent
-resolveSiteComponent spfx apfx css images mo po c =
+resolveSiteComponent spfx apfx css images js mo po c =
   let
     root =
       loomFilePath . componentPath $ c
@@ -163,13 +164,14 @@ resolveSiteComponent spfx apfx css images mo po c =
           P.compileProjector
             (machinatorOutputToProjector mo)
             po
-            (P.ProjectorInput "ignore" root images [f])
+            (P.ProjectorInput "ignore" root images js [f])
         for (join . Map.elems . Projector.projectorOutputModuleExprs $ po') $
           fmap ((T.pack . File.takeBaseName $ f), fc,) .
             fmap projectorHtmlToBlaze . hoistEither . first LoomSiteProjectorInterpretError .
-              Projector.generateProjectorHtml (machinatorOutputToProjector mo) spfx apfx css images po
+              Projector.generateProjectorHtml (machinatorOutputToProjector mo) spfx apfx css images js po
     findPrj =
       catMaybes $ fmap (flip Map.lookup (Projector.projectorTermMap po)) (fmap componentFilePath (componentProjectorFiles c))
+
     loadReadme =
       fmap (Markdown.markdown Markdown.defaultMarkdownSettings)
         <$> readFileSafe (root </> "README.md")

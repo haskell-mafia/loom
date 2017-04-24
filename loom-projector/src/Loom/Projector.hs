@@ -75,6 +75,7 @@ data ProjectorInput =
       projectorLoomName :: Text
     , projectorModuleRoot :: FilePath
     , projectorLoomImageFile :: [ImageFile]
+    , projectorLoomJs :: [(BundleName, JsFile)]
     , projectorModuleTemplates :: [FilePath]
     } deriving (Show)
 
@@ -121,8 +122,7 @@ compileProjector ::
 compileProjector
   udts
   (ProjectorOutput (BuildArtefacts nmap1 oh1) um)
-  (ProjectorInput prefix root images inputs) = do
-
+  (ProjectorInput prefix root images js inputs) = do
   templates <- for inputs $ \input ->
     fmap ((,) input) .
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
@@ -134,7 +134,7 @@ compileProjector
     Projector.runBuildIncremental
       (Projector.Build (moduleNamer prefix root) (Map.keys udts))
       (Projector.UserDataTypes decls)
-      (userConstants images)
+      (userConstants images js)
       oh1
       (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
@@ -150,13 +150,14 @@ generateProjectorHtml ::
   -> AssetsPrefix
   -> [CssFile]
   -> [ImageFile]
+  -> [(BundleName, JsFile)]
   -> ProjectorOutput
   -> Projector.HtmlExpr (HtmlType, SrcAnnotation)
   -> Either ProjectorInterpretError Projector.Html
-generateProjectorHtml mo spfx apfx css images (ProjectorOutput (BuildArtefacts _ h) _um) =
+generateProjectorHtml mo spfx apfx css images js (ProjectorOutput (BuildArtefacts _ h) _um) =
   first ProjectorInterpretError . Projector.interpret
     (Projector.machinatorDecls . join $ Map.elems mo)
-    (Projector.extractModuleExprs h <> Projector.platformConstants (platformConstants spfx apfx css images))
+    (Projector.extractModuleExprs h <> Projector.platformConstants (platformConstants spfx apfx css images js))
 
 generateProjectorHaskell ::
      FilePath
@@ -164,11 +165,12 @@ generateProjectorHaskell ::
   -> AssetsPrefix
   -> [CssFile]
   -> [ImageFile]
+  -> [(BundleName, JsFile)]
   -> ProjectorOutput
   -> EitherT ProjectorHaskellError IO [FilePath]
-generateProjectorHaskell output spfx apfx css images (ProjectorOutput ba _um) = do
+generateProjectorHaskell output spfx apfx css images js (ProjectorOutput ba _um) = do
   fs <- hoistEither . first ProjectorHaskellError $
-    Projector.codeGen Projector.haskellBackend codeGenNamer (platformConstants spfx apfx css images) ba
+    Projector.codeGen Projector.haskellBackend codeGenNamer (platformConstants spfx apfx css images js) ba
   for fs $ \(f, t) -> do
     liftIO $
       createDirectoryIfMissing True (output </> takeDirectory f)
@@ -247,16 +249,27 @@ readFileSafe :: MonadIO m => FilePath -> m (Maybe Text)
 readFileSafe =
   liftIO . handleIf isDoesNotExistError (const $ pure Nothing) . fmap Just . T.readFile
 
-userConstants :: [ImageFile] -> Projector.UserConstants
-userConstants images =
+userConstants :: [ImageFile] -> [(BundleName, JsFile)] -> Projector.UserConstants
+userConstants images js =
   Projector.UserConstants . Map.fromList $
-    (cssName, cssType) : fmap ((, imageType) . imageName) images
+       (cssName, cssType)
+    :  (jsName, jsType)
+    :  fmap ((, imageType) . imageName) images
+    <> fmap (bimap jsIndividualName (const stringT)) js
 
-platformConstants :: LoomSitePrefix -> AssetsPrefix -> [CssFile] -> [ImageFile] -> Projector.PlatformConstants
-platformConstants spfx apfx css images =
+platformConstants ::
+     LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> [(BundleName, JsFile)]
+  -> Projector.PlatformConstants
+platformConstants spfx apfx css images js =
   Projector.PlatformConstants . Map.fromList $
-      (cssName, mkStringList (fmap (cssAssetPath spfx apfx) css))
-    : fmap (\i -> (imageName i, mkString (imageAssetPath spfx apfx i))) images
+       (cssName, mkStringList (fmap (cssAssetPath spfx apfx) css))
+    :  (jsName, mkStringList (fmap (jsAssetPath spfx apfx . snd) js))
+    :  fmap (\i -> (imageName i, mkString (imageAssetPath spfx apfx i))) images
+    <> fmap (\(b, f) -> (jsIndividualName b, mkString (jsAssetPath spfx apfx f))) js
 
 cssName :: Projector.Name
 cssName =
@@ -265,6 +278,18 @@ cssName =
 cssType :: Projector.HtmlType
 cssType =
   Projector.TList stringT
+
+jsName :: Projector.Name
+jsName =
+  Projector.Name "loom/js"
+
+jsType :: Projector.HtmlType
+jsType =
+  Projector.TList stringT
+
+jsIndividualName :: BundleName -> Projector.Name
+jsIndividualName (BundleName b) =
+  Projector.Name ("loom/js/" <> b)
 
 imageType :: Projector.HtmlType
 imageType =
