@@ -1,0 +1,3 @@
+{ each loom/js \js -> <script src="{{ js }}"/> }
+<script src="{{ loom/js/first }}"/>
+<script src="{{ loom/js/main }}"/>
