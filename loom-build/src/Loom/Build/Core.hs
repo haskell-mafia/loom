@@ -40,7 +40,7 @@ import qualified Loom.Sass as Sass
 import           P
 
 import           System.FilePath ((</>), (<.>))
-import           System.IO (IO)
+import           System.IO (IO, FilePath)
 
 import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
 
@@ -128,126 +128,20 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
     images = components >>= \(cr, cs) ->
       bind (\c -> fmap (ImageFile (loomConfigResolvedName cr)) . componentImageFiles $ c) cs
 
-  outputCss <- withLog logger "sass" $ do
-    let
-      outputCss = CssFile $ loomTmpFilePath dir </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
-      inputs =
-        mconcat . mconcat $ [
-            fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
-          , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
-          ]
-    firstT LoomSassError $
-      Sass.compileSass sass Sass.SassCompressed outputCss inputs
-    pure outputCss
+  outputCss <- withLog logger "sass" $
+    buildCss sass dir config configs components
 
-  mo <- withLog logger "machinator" $ do
-    let
-      mms = with components $ \(cr, cs) ->
-        MachinatorInput
-          (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
-          (loomRootFilePath . loomConfigResolvedRoot $ cr)
-          (bind (fmap componentFilePath . componentMachinatorFiles) cs)
-    firstT LoomMachinatorError $
-      Machinator.compileMachinator mms
+  mo <- withLog logger "machinator" $
+    buildMachinator components
 
-  po <- withLog logger "projector" $ do
-    let
-      pms = with components $ \(cr, cs) ->
-        Projector.ProjectorInput
-          (renderLoomName . loomConfigResolvedName $ cr)
-          (loomRootFilePath . loomConfigResolvedRoot $ cr)
-          images
-          (bind (fmap componentFilePath . componentProjectorFiles) cs)
-    firstT LoomProjectorError $
-      foldMapM
-        (Projector.compileProjector
-          (Map.fromList .
-            fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
-            Map.toList . Machinator.machinatorOutputDefinitions $ mo
-            )
-          )
-        pms
+  po <- withLog logger "projector" $
+    buildProjector components images mo
 
-  purs <- withLog logger "purs" . firstT LoomPursError $ do
-    let
-      psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
-      psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
-      psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
-      psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
-      psPaths = foldMap loomConfigResolvedPurs configs
-    psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
-    let
-      psAll = psPathFiles <> fmap componentFilePath psComponentFiles
-    deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
-    Purescript.unpackPurs psDepDir deps
-    mko <- Purescript.compile psDepDir psAll psOutDir
-    res <- Purescript.bundlePurescript psOutDir mko
-    liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
-    pure (psOutFile, Just (Js.JsModuleName "purs"))
+  purs <- withLog logger "purs" $
+    buildPurescript home dir config configs components
 
-  js <- withLog logger "js" . firstT LoomJsError $ do
-    let
-      -- The "node_modules" component is mandatory - browserify expects to be able to require arbitrary modules.
-      -- This involves walking backwards and peeking in every node_modules directory it can find.
-      jsDepDir = Js.JsUnpackDir (loomTmpFilePath dir </> "js" </> "node_modules")
-      outputJs b = JsFile $ loomTmpFilePath dir </> b <.> "js"
-    -- Fetch and unpack dependencies
-    deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
-    Js.unpackJs jsDepDir deps
-    -- Produce each bundle and write out to disk.
-    node <- Node.findNodeOnPath
-    brow <- Browserify.installBrowserify home
-    -- Special case for the 'main' bundle.
-    main <- do
-      let
-        jsOut = outputJs "main"
-        jsPaths = foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
-        jsComponentEntries =
-          fold . with components $ \(cr, cs) ->
-            with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
-              let relative = "." </> componentFilePath cf -- The "." is necessary for browserify, it can't path
-                  prefixed = Js.JsModuleName (renderLoomName (loomConfigResolvedName cr) <> "/" <> T.pack path)
-              in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
-                 (relative, Just prefixed)
-        binput = Browserify.BrowserifyInput {
-           Browserify.browserifyMode =
-             case mode of
-               LoomDevelopment ->
-                 Browserify.BrowserifyDev
-               LoomProduction ->
-                 Browserify.BrowserifyProd
-         , Browserify.browserifyPaths = jsDepDir : jsPaths
-         , Browserify.browserifyEntries =
-              purs
-            : jsComponentEntries
-         }
-      reso <- Browserify.runBrowserify node brow binput
-      liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
-      pure jsOut
-    let
-      bundleMap = Map.unionsWith (<>) $
-          Map.fromList (loomConfigResolvedJsBundles config)
-        : fmap Map.fromList (fmap (loomConfigResolvedJsBundles . fst) components)
-
-    bundles <- fmap Map.elems . flip Map.traverseWithKey bundleMap $ \bn (mains, paths) -> do
-      let
-        jsOut = outputJs (T.unpack (unBundleName bn))
-        jsPaths = fmap (Js.JsUnpackDir . loomFilePath) paths
-        binput = Browserify.BrowserifyInput {
-            Browserify.browserifyMode =
-              case mode of
-                LoomDevelopment ->
-                  Browserify.BrowserifyDev
-                LoomProduction ->
-                  Browserify.BrowserifyProd
-          , Browserify.browserifyPaths = jsDepDir : jsPaths
-          , Browserify.browserifyEntries =
-              with mains (\lf -> ("." </> loomFilePath lf, Nothing))
-          }
-      reso <- Browserify.runBrowserify node brow binput
-      liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
-      pure jsOut
-    pure (main : bundles)
+  js <- withLog logger "js" $
+    buildJs mode home dir config configs components purs
 
   pure $
     LoomResult
@@ -258,6 +152,190 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
       outputCss
       images
       js
+
+buildCss ::
+     Sass
+  -> LoomTmp
+  -> LoomConfigResolved
+  -> [LoomConfigResolved]
+  -> [(LoomConfigResolved, [Component])]
+  -> EitherT LoomError IO CssFile
+buildCss sass dir config configs components = do
+  let
+    outputCss = CssFile $ loomTmpFilePath dir </> (T.unpack . renderLoomName . loomConfigResolvedName) config <> ".css"
+    inputs =
+      mconcat . mconcat $ [
+          fmap (\c -> fmap loomFilePath . loomConfigResolvedSass $ c) configs
+        , fmap (fmap componentFilePath . componentSassFiles) . bind snd $ components
+        ]
+  firstT LoomSassError $
+    Sass.compileSass sass Sass.SassCompressed outputCss inputs
+  pure outputCss
+
+buildMachinator :: [(LoomConfigResolved, [Component])] -> EitherT LoomError IO Machinator.MachinatorOutput
+buildMachinator components = do
+  let
+    mms = with components $ \(cr, cs) ->
+      MachinatorInput
+        (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
+        (loomRootFilePath . loomConfigResolvedRoot $ cr)
+        (bind (fmap componentFilePath . componentMachinatorFiles) cs)
+  firstT LoomMachinatorError $
+    Machinator.compileMachinator mms
+
+buildProjector ::
+     [(LoomConfigResolved, [Component])]
+  -> [ImageFile]
+  -> Machinator.MachinatorOutput
+  -> EitherT LoomError IO Projector.ProjectorOutput
+buildProjector components images mo = do
+  let
+    pms = with components $ \(cr, cs) ->
+      Projector.ProjectorInput
+        (renderLoomName . loomConfigResolvedName $ cr)
+        (loomRootFilePath . loomConfigResolvedRoot $ cr)
+        images
+        (bind (fmap componentFilePath . componentProjectorFiles) cs)
+  firstT LoomProjectorError $
+    foldMapM
+      (Projector.compileProjector
+        (Map.fromList .
+          fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
+          Map.toList . Machinator.machinatorOutputDefinitions $ mo
+          )
+        )
+      pms
+
+buildPurescript ::
+     LoomHome
+  -> LoomTmp
+  -> LoomConfigResolved
+  -> [LoomConfigResolved]
+  -> [(LoomConfigResolved, [Component])]
+  -> EitherT LoomError IO (FilePath, Maybe Js.JsModuleName)
+buildPurescript home dir config configs components =
+  firstT LoomPursError $ do
+    let
+      psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+      psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
+      psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
+      psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
+      psPaths = foldMap loomConfigResolvedPurs configs -- FIXME this should probably include config too?
+    psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
+    let
+      psAll = psPathFiles <> fmap componentFilePath psComponentFiles
+    deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
+    Purescript.unpackPurs psDepDir deps
+    mko <- Purescript.compile psDepDir psAll psOutDir
+    res <- Purescript.bundlePurescript psOutDir mko
+    liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
+    pure (psOutFile, Just (Js.JsModuleName "purs"))
+
+buildJs ::
+     LoomMode
+  -> LoomHome
+  -> LoomTmp
+  -> LoomConfigResolved
+  -> [LoomConfigResolved]
+  -> [(LoomConfigResolved, [Component])]
+  -> (FilePath, Maybe Js.JsModuleName)
+  -> EitherT LoomError IO [JsFile]
+buildJs mode home dir config configs components purs =
+  firstT LoomJsError $ do
+    -- Fetch and unpack dependencies
+    deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
+    Js.unpackJs (jsDepDir dir) deps
+    -- Produce each bundle and write out to disk.
+    node <- Node.findNodeOnPath
+    brow <- Browserify.installBrowserify home
+    (:)
+      <$> buildJsMain mode node brow dir config configs components purs
+      <*> buildJsBundles mode node brow dir config configs components
+
+outputJs :: LoomTmp -> FilePath -> JsFile
+outputJs dir b =
+  JsFile $ loomTmpFilePath dir </> b <.> "js"
+
+jsDepDir :: LoomTmp -> Js.JsUnpackDir
+jsDepDir dir =
+  -- The "node_modules" component is mandatory - browserify expects to be able to require arbitrary modules.
+  -- This involves walking backwards and peeking in every node_modules directory it can find.
+  Js.JsUnpackDir (loomTmpFilePath dir </> "js" </> "node_modules")
+
+-- Special case for the 'main' bundle.
+buildJsMain ::
+     LoomMode
+  -> Node.Node
+  -> Browserify.Browserify
+  -> LoomTmp
+  -> LoomConfigResolved
+  -> [LoomConfigResolved]
+  -> [(LoomConfigResolved, [Component])]
+  -> (FilePath, Maybe Js.JsModuleName)
+  -> EitherT JsError IO JsFile
+buildJsMain mode node brow dir _config configs components purs = do
+  let
+    jsOut = outputJs dir "main"
+              -- FIXME should be adding paths from config here
+    jsPaths = foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
+    jsComponentEntries =
+      fold . with components $ \(cr, cs) ->
+        with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
+          let relative = "." </> componentFilePath cf -- The "." is necessary for browserify, it can't path
+              prefixed = Js.JsModuleName (renderLoomName (loomConfigResolvedName cr) <> "/" <> T.pack path)
+          in -- e.g. ("./modules/confirm-button/vanilla.js", "bikeshed/modules/general/confirm-button")
+             (relative, Just prefixed)
+    binput = Browserify.BrowserifyInput {
+       Browserify.browserifyMode =
+         case mode of
+           LoomDevelopment ->
+             Browserify.BrowserifyDev
+           LoomProduction ->
+             Browserify.BrowserifyProd
+     , Browserify.browserifyPaths = jsDepDir dir : jsPaths
+     , Browserify.browserifyEntries =
+          purs
+        : jsComponentEntries
+     }
+  reso <- Browserify.runBrowserify node brow binput
+  liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
+  pure jsOut
+
+-- All the other bundles.
+buildJsBundles ::
+     LoomMode
+  -> Node.Node
+  -> Browserify.Browserify
+  -> LoomTmp
+  -> LoomConfigResolved
+  -> [LoomConfigResolved]
+  -> [(LoomConfigResolved, [Component])]
+  -> EitherT JsError IO [JsFile]
+buildJsBundles mode node brow dir config _configs components = do
+  let
+    bundleMap = Map.unionsWith (<>) $
+        Map.fromList (loomConfigResolvedJsBundles config)
+      : fmap Map.fromList (fmap (loomConfigResolvedJsBundles . fst) components)
+
+  fmap Map.elems . flip Map.traverseWithKey bundleMap $ \bn (mains, paths) -> do
+    let
+      jsOut = outputJs dir (T.unpack (unBundleName bn))
+      jsPaths = fmap (Js.JsUnpackDir . loomFilePath) paths
+      binput = Browserify.BrowserifyInput {
+          Browserify.browserifyMode =
+            case mode of
+              LoomDevelopment ->
+                Browserify.BrowserifyDev
+              LoomProduction ->
+                Browserify.BrowserifyProd
+        , Browserify.browserifyPaths = jsDepDir dir : jsPaths
+        , Browserify.browserifyEntries =
+            with mains (\lf -> ("." </> loomFilePath lf, Nothing))
+        }
+    reso <- Browserify.runBrowserify node brow binput
+    liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
+    pure jsOut
+
 
 machinatorOutputToProjector ::
   Machinator.MachinatorOutput ->
