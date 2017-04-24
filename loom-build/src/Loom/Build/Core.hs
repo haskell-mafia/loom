@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
@@ -17,6 +18,11 @@ import           Control.Monad.IO.Class (liftIO)
 
 import           Data.Map (Map)
 import qualified Data.Map as Map
+#if MIN_VERSION_containers(0, 5, 9)
+import qualified Data.Map.Merge.Strict as Map
+#else
+import qualified Data.Map.Strict.Merge as Map
+#endif
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -42,7 +48,7 @@ import           P
 import           System.FilePath ((</>), (<.>))
 import           System.IO (IO, FilePath)
 
-import           X.Control.Monad.Trans.Either (EitherT, newEitherT)
+import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT)
 
 -- | Can improve the performance of the build, and generate useful developer artifacts
 -- Please handle with care - we _never_ want to miss bugs in developer mode
@@ -64,6 +70,7 @@ data LoomError =
   | LoomMachinatorError MachinatorError
   | LoomJsError JsError
   | LoomPursError PurescriptError
+  | LoomDependencyMismatch Text Sha1 Sha1
   deriving (Show)
 
 initialiseBuild :: EitherT LoomBuildInitialiseError IO LoomBuildConfig
@@ -213,7 +220,8 @@ buildPurescript ::
   -> [LoomConfigResolved]
   -> [(LoomConfigResolved, [Component])]
   -> EitherT LoomError IO (FilePath, Maybe Js.JsModuleName)
-buildPurescript home dir config configs components =
+buildPurescript home dir config configs components = do
+  deps <- hoistEither (resolvePursDependencies config configs)
   firstT LoomPursError $ do
     let
       psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
@@ -224,12 +232,44 @@ buildPurescript home dir config configs components =
     psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
     let
       psAll = psPathFiles <> fmap componentFilePath psComponentFiles
-    deps <- Purescript.fetchPurs home (loomConfigResolvedPursDepsGithub config)
-    Purescript.unpackPurs psDepDir deps
+    fetchedDeps <- Purescript.fetchPurs home deps
+    Purescript.unpackPurs psDepDir fetchedDeps
     mko <- Purescript.compile psDepDir psAll psOutDir
     res <- Purescript.bundlePurescript psOutDir mko
     liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
     pure (psOutFile, Just (Js.JsModuleName "purs"))
+
+resolvePursDependencies :: LoomConfigResolved -> [LoomConfigResolved] -> Either LoomError [GithubDependency]
+resolvePursDependencies config configs =
+  let allDeps :: [[GithubDependency]]
+      allDeps = loomConfigResolvedPursDepsGithub config : fmap loomConfigResolvedPursDepsGithub configs
+  in resolveGithubDeps allDeps
+
+resolveGithubDeps :: [[GithubDependency]] -> Either LoomError [GithubDependency]
+resolveGithubDeps allDeps =
+  let mkMap :: [GithubDependency] -> Map Text GithubDependency
+      mkMap = Map.fromList . fmap (\g@(GithubDependency repo _ref _sha) -> (grRepo repo, g))
+      check k g1 g2 =
+        if g1 == g2
+          then pure g1
+          else Left (LoomDependencyMismatch k (ghdSha1 g1) (ghdSha1 g2))
+  in fmap Map.elems (unionsWithM check (fmap mkMap allDeps))
+
+resolveNpmDeps :: [[NpmDependency]] -> Either LoomError [NpmDependency]
+resolveNpmDeps allDeps =
+  let mkMap :: [NpmDependency] -> Map Text NpmDependency
+      mkMap = Map.fromList . fmap (\n@(NpmDependency pack _ver _sha) -> (unNpmPackage pack, n))
+      check k n1 n2 =
+        if n1 == n2
+          then pure n1
+          else Left (LoomDependencyMismatch k (ndSha1 n1) (ndSha1 n2))
+  in fmap Map.elems (unionsWithM check (fmap mkMap allDeps))
+
+unionsWithM :: (Monad m, Foldable f, Ord k) => (k -> a -> a -> m a) -> f (Map k a) -> m (Map k a)
+unionsWithM k =
+  foldM
+    (Map.mergeA Map.preserveMissing Map.preserveMissing (Map.zipWithAMatched k))
+    mempty
 
 buildJs ::
      LoomMode
@@ -240,10 +280,11 @@ buildJs ::
   -> [(LoomConfigResolved, [Component])]
   -> (FilePath, Maybe Js.JsModuleName)
   -> EitherT LoomError IO [JsFile]
-buildJs mode home dir config configs components purs =
+buildJs mode home dir config configs components purs = do
+  (npm, gh) <- hoistEither (resolveJsDependencies config configs)
   firstT LoomJsError $ do
     -- Fetch and unpack dependencies
-    deps <- Js.fetchJs home (loomConfigResolvedJsDepsNpm config) (loomConfigResolvedJsDepsGithub config)
+    deps <- Js.fetchJs home npm gh
     Js.unpackJs (jsDepDir dir) deps
     -- Produce each bundle and write out to disk.
     node <- Node.findNodeOnPath
@@ -261,6 +302,12 @@ jsDepDir dir =
   -- The "node_modules" component is mandatory - browserify expects to be able to require arbitrary modules.
   -- This involves walking backwards and peeking in every node_modules directory it can find.
   Js.JsUnpackDir (loomTmpFilePath dir </> "js" </> "node_modules")
+
+resolveJsDependencies :: LoomConfigResolved -> [LoomConfigResolved] -> Either LoomError ([NpmDependency], [GithubDependency])
+resolveJsDependencies config configs =
+  let ghDeps = loomConfigResolvedJsDepsGithub config : fmap loomConfigResolvedJsDepsGithub configs
+      npmDeps = loomConfigResolvedJsDepsNpm config : fmap loomConfigResolvedJsDepsNpm configs
+  in (,) <$> resolveNpmDeps npmDeps <*> resolveGithubDeps ghDeps
 
 -- Special case for the 'main' bundle.
 buildJsMain ::
@@ -377,6 +424,12 @@ renderLoomError le =
       Js.renderJsError e
     LoomPursError e ->
       Purescript.renderPurescriptError e
+    LoomDependencyMismatch k (Sha1 h1) (Sha1 h2) ->
+      T.unlines [
+          "Dependency mismatch for '" <> k <> "'"
+        , "  " <> h1 <> " /= " <> h2
+        , "  (At present, all loom projects must have consistent external dependencies.)"
+        ]
 
 foldMapM :: (Foldable t, Monad m, Monoid b) => (b -> a -> m b) -> t a  -> m b
 foldMapM f =
