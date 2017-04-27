@@ -215,7 +215,9 @@ loomHomeHtml =
     H.div ! HA.class_ "loom-container-medium" $
       H.div ! HA.class_ "loom-vertical-grouping" $ do
         H.h1 ! HA.class_ "loom-h1" $ "Welcome to loom"
-        H.img ! HA.src "https://cloud.githubusercontent.com/assets/355756/23049526/c99ade24-f510-11e6-851c-3e7902ed310c.jpg"
+        H.img
+          ! HA.style "max-width: 100%;"
+          ! HA.src "https://cloud.githubusercontent.com/assets/355756/23049526/c99ade24-f510-11e6-851c-3e7902ed310c.jpg"
 
 loomHowHtml :: LoomSitePrefix -> HtmlFile
 loomHowHtml spx =
