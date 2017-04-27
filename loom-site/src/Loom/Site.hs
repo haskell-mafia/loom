@@ -416,6 +416,7 @@ htmlRawTemplate spx csss title body = do
   H.docType
   H.html $ do
     H.head $ do
+      H.meta ! HA.charset "utf-8"
       H.title . H.text . renderSiteTitle $ title
 
       for_ csss $ \css ->
