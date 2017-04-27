@@ -13,9 +13,9 @@ body {
   padding: 0;
   color: #333;
   background-color: #f2f2f2;
+  font-family: 'Helvetica Neue',Helvetica,Arial,Geneva,sans-serif;
+  font-size: 16px;
   line-height: 1.4;
-  font-family: "Helvetica Neue",Helvetica,Arial,Geneva,sans-serif;
-  font-size: 18px;
 }
 
 .loom-logo-small img {
@@ -37,9 +37,9 @@ body {
 }
 
 .loom-navigation-global:after {
-  content: "";
   display: table;
   clear: both;
+  content: '';
 }
 
 .loom-navigation-global__internal {
@@ -48,9 +48,9 @@ body {
 }
 
 .loom-navigation-global__internal:after {
-  content: "";
   display: table;
   clear: both;
+  content: '';
 }
 
 .loom-navigation-global__items {
@@ -96,26 +96,27 @@ body {
 }
 
 .loom-btn-link-primary {
-  color: #fff !important;
-  border: 1px solid #1a6975;
-  background: #1f7c8a;
-  padding: 8px 15px;
-  font-size: 18px;
   display: inline-block;
+  border: 1px solid #1a6975;
   border-radius: 3px;
   margin-bottom: 0;
-  padding: 0.3em 10px;
+  padding: 8px 15px;
+  padding: .3em 10px;
   cursor: pointer;
+  color: #fff !important;
+  background: #1f7c8a;
   background-image: none;
-  font-family: "Helvetica Neue",Helvetica,Arial,Geneva,sans-serif;
+  font-family: 'Helvetica Neue',Helvetica,Arial,Geneva,sans-serif;
+  font-size: 18px;
   line-height: 1.4;
   line-height: 1;
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
   text-decoration: none;
+
   -ms-touch-action: manipulation;
-  touch-action: manipulation;
+      touch-action: manipulation;
 }
 
 .loom-navigation-global__items__current a {
@@ -150,7 +151,7 @@ body {
   font-size: 36px;
 }
 
-.loom-h2 ,
+.loom-h2,
 .loom h2 {
   font-size: 22px;
 }
@@ -188,9 +189,9 @@ body {
 }
 
 .loom-pullout:after {
-  content: "";
   display: table;
   clear: both;
+  content: '';
 }
 
 .loom-vertical-grouping {
@@ -204,33 +205,92 @@ body {
 /* syntax highlighting */
 .loom-code {
   display: block;
-  unicode-bidi: embed;
   font-family: monospace;
   white-space: pre;
 }
+
 .loom-code a {
-  text-decoration: none;
   border-bottom: 1px dashed;
+  text-decoration: none;
 }
 
 .loom-code-punctuation {
   color: gray;
 }
+
 .loom-code-keyword {
-  color: #AC275C;
+  color: #ac275c;
 }
+
 .loom-code-type-definition {
-  color: #8679B0;
+  color: #8679b0;
 }
+
 .loom-code-type-usage {
-  color: #8679B0;
+  color: #8679b0;
 }
+
 .loom-code-constructor-definition {
-  color: #8679B0;
+  color: #8679b0;
 }
+
 .loom-code-field-definition {
   color: #555;
 }
+
 .loom-code-primitive {
-  color: #8679B0;
+  color: #8679b0;
 }
+
+// Pre
+
+code,
+pre {
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+code[class*="language-"],
+pre,
+pre[class*="language-"] {
+  color: #f8f8f2;
+  background: #272822;
+}
+
+pre,
+pre[class*="language-"] {
+  padding: 1em;
+  margin: $space-base 0;
+  overflow: auto;
+  border-radius: 2px;
+}
+
+
+// Inline code */
+
+:not(pre) > code,
+:not(pre) > code[class*="language-"] {
+  padding: .2em .3em;
+  border-radius: 2px;
+  white-space: normal;
+}
+
+:not(pre) > code {
+  color: #555;
+  background: rgba(0,0,0,.07);
+}
+
