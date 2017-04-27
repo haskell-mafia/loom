@@ -25,7 +25,7 @@ Perhaps something a little more interesting:
   {
     case input of
       Input name size ->
-        <a id="hello" class="{
+        <a id="hello" class="{{
           case size of
             Small ->
               "small"
@@ -33,7 +33,7 @@ Perhaps something a little more interesting:
               "medium"
             Large ->
               "large"
-        }">
+        }}">
           {- TODO localisation -}
           My name is: {{ name }}
         </a>
