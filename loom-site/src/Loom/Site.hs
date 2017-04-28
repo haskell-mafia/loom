@@ -72,6 +72,7 @@ data SiteNavigation =
   | SiteHow
   | SiteComponents
   | SiteData
+  | SiteTemplates
   deriving (Bounded, Eq, Enum, Show)
 
 newtype SiteTitle =
@@ -131,6 +132,8 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
     loomComponentsHtml prefix components
   writeHtmlFile' $
     loomDataHtml mo
+  writeHtmlFile' $
+    loomTemplateHtml po
 
 resolveSiteComponent ::
      LoomSitePrefix
@@ -307,8 +310,7 @@ loomComponentHtml spx (SiteComponent rm d ts es ps) ln c =
               H.div ! HA.class_ "loom-vertical-grouping" $ do
                 H.h2 ! HA.class_ "loom-h2" $ "Templates"
                 H.div ! HA.class_ "loom-pullout" $
-                  for_ ts $ \(ProjectorTerm name ty _expr) ->
-                    H.pre . H.text $ Projector.unName name <> " : " <> Projector.ppType ty
+                  for_ ts loomTemplateType
             unless (null ps) $
               H.div ! HA.class_ "loom-vertical-grouping" $ do
                 H.h2 ! HA.class_ "loom-h2" $ "Mocks"
@@ -372,6 +374,19 @@ loomDataDefinition def =
         _ ->
           "</span>"
 
+loomTemplateHtml :: ProjectorOutput -> HtmlFile
+loomTemplateHtml po =
+  HtmlFile "templates/index.html" SiteTemplates (SiteTitle "Templates") $
+    H.div ! HA.class_ "loom-container-medium" $ do
+      H.h1 ! HA.class_ "loom-h1 loom-page-header" $ "Templates"
+      for_ (Projector.projectorTermMap po) $ \term -> do
+        H.div ! HA.class_ "loom-pullout loom-code" $
+          loomTemplateType term
+
+loomTemplateType :: ProjectorTerm -> Html
+loomTemplateType (ProjectorTerm name ty _expr) =
+  H.pre . H.text $ Projector.unName name <> " : " <> Projector.ppType ty
+
 anchorDefinition :: Text -> Text
 anchorDefinition n =
   "t:" <> n
@@ -425,6 +440,8 @@ htmlTemplate spx css navm title body =
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
                       SiteData ->
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "data") $ "Data Types"
+                      SiteTemplates ->
+                        H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "templates") $ "Templates"
     H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
       body
 
