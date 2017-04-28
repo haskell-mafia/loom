@@ -7,6 +7,8 @@ module Loom.Projector (
   , ProjectorInterpretError (..)
   , ProjectorInput (..)
   , ProjectorOutput
+  , ProjectorTerm (..)
+  , projectorTermMap
   , MachinatorModules
   , projectorOutputModules
   , projectorOutputModuleExprs
@@ -79,22 +81,33 @@ data ProjectorInput =
 data ProjectorOutput =
   ProjectorOutput {
       _projectorOutputArtefacts :: BuildArtefacts
+    , projectorOutputUsefulMap :: Map FilePath ProjectorTerm
     }
+
+projectorTermMap :: ProjectorOutput -> Map FilePath ProjectorTerm
+projectorTermMap =
+  projectorOutputUsefulMap
+
+data ProjectorTerm = ProjectorTerm {
+    projectorTermName :: Projector.Name
+  , projectorTermType :: Projector.HtmlType
+  , projectorTermExpr :: Projector.HtmlExpr (HtmlType, SrcAnnotation)
+  } deriving (Eq, Ord, Show)
 
 instance Monoid ProjectorOutput where
   mempty =
-    ProjectorOutput (BuildArtefacts mempty mempty)
-  mappend (ProjectorOutput (BuildArtefacts d1 d3)) (ProjectorOutput (BuildArtefacts d2 d4)) =
-    ProjectorOutput (BuildArtefacts (d1 <> d2) (d3 <> d4))
+    ProjectorOutput (BuildArtefacts mempty mempty) mempty
+  mappend (ProjectorOutput (BuildArtefacts d1 d3) u1) (ProjectorOutput (BuildArtefacts d2 d4) u2) =
+    ProjectorOutput (BuildArtefacts (d1 <> d2) (d3 <> d4)) (u1 <> u2)
 
 projectorOutputModules :: ProjectorOutput -> [ModuleName]
-projectorOutputModules (ProjectorOutput (BuildArtefacts _nmap ms)) =
+projectorOutputModules (ProjectorOutput (BuildArtefacts _nmap ms) _um) =
   Map.keys ms
 
 projectorOutputModuleExprs ::
   ProjectorOutput ->
   Map ModuleName [HtmlExpr (HtmlType, SrcAnnotation)]
-projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _nmap ms)) =
+projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _nmap ms) _um) =
   fmap (fmap Projector.meExpr . Map.elems . Projector.moduleExprs) $ ms
 
 -- FIX Should be in machinator
@@ -107,7 +120,7 @@ compileProjector ::
   EitherT ProjectorError IO ProjectorOutput
 compileProjector
   udts
-  (ProjectorOutput (BuildArtefacts nmap1 oh1))
+  (ProjectorOutput (BuildArtefacts nmap1 oh1) um)
   (ProjectorInput prefix root images inputs) = do
 
   templates <- for inputs $ \input ->
@@ -126,7 +139,10 @@ compileProjector
       (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
-  pure $ ProjectorOutput (BuildArtefacts (nmap1 <> nmap2) oh2)
+  let
+    bas = BuildArtefacts (nmap1 <> nmap2) oh2
+    uma = um <> makeUsefulMap bas
+  pure $ ProjectorOutput (BuildArtefacts (nmap1 <> nmap2) oh2) uma
 
 generateProjectorHtml ::
      MachinatorModules
@@ -137,7 +153,7 @@ generateProjectorHtml ::
   -> ProjectorOutput
   -> Projector.HtmlExpr (HtmlType, SrcAnnotation)
   -> Either ProjectorInterpretError Projector.Html
-generateProjectorHtml mo spfx apfx css images (ProjectorOutput (BuildArtefacts _ h)) =
+generateProjectorHtml mo spfx apfx css images (ProjectorOutput (BuildArtefacts _ h) _um) =
   first ProjectorInterpretError . Projector.interpret
     (Projector.machinatorDecls . join $ Map.elems mo)
     (Projector.extractModuleExprs h <> Projector.platformConstants (platformConstants spfx apfx css images))
@@ -150,7 +166,7 @@ generateProjectorHaskell ::
   -> [ImageFile]
   -> ProjectorOutput
   -> EitherT ProjectorHaskellError IO [FilePath]
-generateProjectorHaskell output spfx apfx css images (ProjectorOutput ba) = do
+generateProjectorHaskell output spfx apfx css images (ProjectorOutput ba _um) = do
   fs <- hoistEither . first ProjectorHaskellError $
     Projector.codeGen Projector.haskellBackend codeGenNamer (platformConstants spfx apfx css images) ba
   for fs $ \(f, t) -> do
@@ -191,6 +207,13 @@ codeGenNamer =
 moduleNameFromFile :: FilePath -> ModuleName
 moduleNameFromFile =
   Projector.pathToModuleName (Projector.moduleNamerSimple Nothing)
+
+makeUsefulMap :: BuildArtefacts -> Map FilePath ProjectorTerm
+makeUsefulMap (BuildArtefacts (Projector.TemplateNameMap nmap) mmap) =
+  Map.fromList . catMaybes . with (Map.toList nmap) $ \(name, (modn, file)) -> do
+    modl <- Map.lookup modn mmap
+    Projector.ModuleExpr ty expr <- Map.lookup name (Projector.moduleExprs modl)
+    pure (file, ProjectorTerm name ty expr)
 
 requiredProjectorHaskellImports :: [ModuleName]
 requiredProjectorHaskellImports =

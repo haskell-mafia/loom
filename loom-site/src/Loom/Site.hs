@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 module Loom.Site (
     LoomSiteRoot (..)
   , LoomSiteError (..)
@@ -26,6 +27,7 @@ import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 
@@ -33,7 +35,7 @@ import           Loom.Build.Assets
 import           Loom.Build.Core
 import           Loom.Core.Data
 import           Loom.Machinator (MachinatorOutput (..))
-import           Loom.Projector (ProjectorOutput, ProjectorError, ProjectorInterpretError)
+import           Loom.Projector (ProjectorOutput, ProjectorError, ProjectorInterpretError, ProjectorTerm (..))
 import qualified Loom.Projector as Projector
 import qualified Loom.Projector as P
 
@@ -41,6 +43,8 @@ import qualified Machinator.Core.Data.Definition as MC
 import qualified Machinator.Core.Pretty as MP
 
 import           P
+
+import qualified Projector.Core as Projector
 
 import qualified System.Directory as Dir
 import           System.FilePath (FilePath, (</>))
@@ -68,6 +72,7 @@ data SiteNavigation =
   | SiteHow
   | SiteComponents
   | SiteData
+  | SiteTemplates
   deriving (Bounded, Eq, Enum, Show)
 
 newtype SiteTitle =
@@ -86,8 +91,9 @@ data SiteComponent =
       _siteComponentReadme :: Maybe Html
     -- FIX Machinator rendered not from disk
     , _siteComponentData :: [TL.Text]
-    , _siteComponentExamples :: [(Text, Html)]
-    , _siteComponentMocks :: [(Text, Html)]
+    , _siteComponentTerms :: [ProjectorTerm]
+    , _siteComponentExamples :: [(Text, Text, Html)]
+    , _siteComponentMocks :: [(Text, Text, Html)]
     }
 
 data HtmlFile =
@@ -126,6 +132,8 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
     loomComponentsHtml prefix components
   writeHtmlFile' $
     loomDataHtml mo
+  writeHtmlFile' $
+    loomTemplateHtml po
 
 resolveSiteComponent ::
      LoomSitePrefix
@@ -150,15 +158,18 @@ resolveSiteComponent spfx apfx css images mo po c =
     loadDirectory d = do
       fs <- safeIO . getDirectoryContents $ root </> d
       fmap mconcat . for (filter ((==) ".prj" . File.takeExtension) fs) $ \f -> do
+        fc <- safeIO $ T.readFile f
         po' <- firstT LoomSiteProjectorError $
           P.compileProjector
             (machinatorOutputToProjector mo)
             po
             (P.ProjectorInput "ignore" root images [f])
         for (join . Map.elems . Projector.projectorOutputModuleExprs $ po') $
-          fmap ((,) (T.pack . File.takeBaseName $ f)) .
+          fmap ((T.pack . File.takeBaseName $ f), fc,) .
             fmap projectorHtmlToBlaze . hoistEither . first LoomSiteProjectorInterpretError .
               Projector.generateProjectorHtml (machinatorOutputToProjector mo) spfx apfx css images po
+    findPrj =
+      catMaybes $ fmap (flip Map.lookup (Projector.projectorTermMap po)) (fmap componentFilePath (componentProjectorFiles c))
     loadReadme =
       fmap (Markdown.markdown Markdown.defaultMarkdownSettings)
         <$> readFileSafe (root </> "README.md")
@@ -166,6 +177,7 @@ resolveSiteComponent spfx apfx css images mo po c =
     SiteComponent
       <$> safeIO loadReadme
       <*> loadData
+      <*> pure findPrj
       <*> loadDirectory "example"
       <*> loadDirectory "mock"
 
@@ -274,7 +286,7 @@ loomComponentsHtml spx components =
                 H.text (templateName ln c)
 
 loomComponentHtml :: LoomSitePrefix -> SiteComponent -> LoomName -> Component -> [HtmlFile]
-loomComponentHtml spx (SiteComponent rm d es ps) ln c =
+loomComponentHtml spx (SiteComponent rm d ts es ps) ln c =
   let
     pageLink n =
       componentDirectory c ln </> "pages" </> T.unpack n <> ".html"
@@ -294,20 +306,27 @@ loomComponentHtml spx (SiteComponent rm d es ps) ln c =
                 H.h2 ! HA.class_ "loom-h2" $ "Data Types"
                 H.div ! HA.class_ "loom-pullout" $
                   H.pre . H.lazyText $ TL.unlines d
+            unless (null ts) $
+              H.div ! HA.class_ "loom-vertical-grouping" $ do
+                H.h2 ! HA.class_ "loom-h2" $ "Templates"
+                H.div ! HA.class_ "loom-pullout" $
+                  for_ ts loomTemplateType
             unless (null ps) $
               H.div ! HA.class_ "loom-vertical-grouping" $ do
                 H.h2 ! HA.class_ "loom-h2" $ "Mocks"
-                for_ ps $ \(n, _) ->
+                for_ ps $ \(n, _src, _) ->
                   H.div ! HA.class_ "loom-vertical-grouping-xs" $
                     H.a ! HA.class_ "loom-a loom-btn-link-primary"
                       ! HA.href (H.textValue . (<>) (loomSitePrefix spx) . T.pack . pageLink $ n)
                       $ H.text n
-            for_ es $ \(n, e) -> do
+            for_ es $ \(n, src, e) -> do
               H.h2 ! HA.class_ "loom-h2" $ H.text n
+              H.div ! HA.class_ "loom-pullout" $
+                H.pre . H.text $ src
               H.div ! HA.class_ "loom-vertical-grouping" $
                 H.div ! HA.class_ "loom-pullout" $ e
     pages =
-      with ps $ \(n, p) ->
+      with ps $ \(n, _src, p) ->
         HtmlRawFile (pageLink n) (SiteTitle n) p
   in
     root : pages
@@ -354,6 +373,19 @@ loomDataDefinition def =
           "</span></a>"
         _ ->
           "</span>"
+
+loomTemplateHtml :: ProjectorOutput -> HtmlFile
+loomTemplateHtml po =
+  HtmlFile "templates/index.html" SiteTemplates (SiteTitle "Templates") $
+    H.div ! HA.class_ "loom-container-medium" $ do
+      H.h1 ! HA.class_ "loom-h1 loom-page-header" $ "Templates"
+      for_ (Projector.projectorTermMap po) $ \term -> do
+        H.div ! HA.class_ "loom-pullout loom-code" $
+          loomTemplateType term
+
+loomTemplateType :: ProjectorTerm -> Html
+loomTemplateType (ProjectorTerm name ty _expr) =
+  H.pre . H.text $ Projector.unName name <> " : " <> Projector.ppType ty
 
 anchorDefinition :: Text -> Text
 anchorDefinition n =
@@ -408,6 +440,8 @@ htmlTemplate spx css navm title body =
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "components") $ "Components"
                       SiteData ->
                         H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "data") $ "Data Types"
+                      SiteTemplates ->
+                        H.a ! HA.class_ "loom-a" ! HA.href (H.textValue $ loomSitePrefix spx <> "templates") $ "Templates"
     H.main ! HA.class_ "loom-pane-main" ! H.customAttribute "role" "main" $
       body
 
