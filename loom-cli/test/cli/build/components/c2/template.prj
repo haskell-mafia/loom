@@ -1,5 +1,10 @@
 \ foo : Foo -> test : Test -> Html =
 
+{ each loom/js \js ->
+    <script src="{{ js }}"/> }
+
+<script src="{{ loom/js/main }}"/>
+
 { other/components/c1 test }
 
 {

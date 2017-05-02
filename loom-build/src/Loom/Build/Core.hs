@@ -141,14 +141,20 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
   mo <- withLog logger "machinator" $
     buildMachinator components
 
+  let
+    bundleMap = mkBundleMap config components
+    bundles =
+        (mainBundle, bundleOut dir mainBundle)
+      : with (Map.keys bundleMap) (\bn -> (bn, bundleOut dir bn))
+
   po <- withLog logger "projector" $
-    buildProjector components images mo
+    buildProjector components images bundles mo
 
   purs <- withLog logger "purs" $
     buildPurescript home dir config configs components
 
-  js <- withLog logger "js" $
-    buildJs mode home dir config configs components purs
+  _js <- withLog logger "js" $
+    buildJs mode home dir config configs components purs bundleMap
 
   pure $
     LoomResult
@@ -158,7 +164,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
       po
       outputCss
       images
-      js
+      bundles
 
 buildCss ::
      Sass
@@ -193,15 +199,17 @@ buildMachinator components = do
 buildProjector ::
      [(LoomConfigResolved, [Component])]
   -> [ImageFile]
+  -> [(BundleName, JsFile)]
   -> Machinator.MachinatorOutput
   -> EitherT LoomError IO Projector.ProjectorOutput
-buildProjector components images mo = do
+buildProjector components images js mo = do
   let
     pms = with components $ \(cr, cs) ->
       Projector.ProjectorInput
         (renderLoomName . loomConfigResolvedName $ cr)
         (loomRootFilePath . loomConfigResolvedRoot $ cr)
         images
+        js
         (bind (fmap componentFilePath . componentProjectorFiles) cs)
   firstT LoomProjectorError $
     foldMapM
@@ -212,6 +220,19 @@ buildProjector components images mo = do
           )
         )
       pms
+
+mkBundleMap ::
+     LoomConfigResolved
+  -> [(LoomConfigResolved, [Component])]
+  -> Map BundleName ([LoomFile], [LoomFile])
+mkBundleMap config components =
+  Map.unionsWith (<>) $
+      Map.fromList (loomConfigResolvedJsBundles config)
+    : fmap Map.fromList (fmap (loomConfigResolvedJsBundles . fst) components)
+
+mainBundle :: BundleName
+mainBundle =
+  BundleName "main"
 
 buildPurescript ::
      LoomHome
@@ -279,8 +300,9 @@ buildJs ::
   -> [LoomConfigResolved]
   -> [(LoomConfigResolved, [Component])]
   -> (FilePath, Maybe Js.JsModuleName)
+  -> Map BundleName ([LoomFile], [LoomFile])
   -> EitherT LoomError IO [JsFile]
-buildJs mode home dir config configs components purs = do
+buildJs mode home dir config configs components purs bundleMap = do
   (npm, gh) <- hoistEither (resolveJsDependencies config configs)
   firstT LoomJsError $ do
     -- Fetch and unpack dependencies
@@ -291,7 +313,7 @@ buildJs mode home dir config configs components purs = do
     brow <- Browserify.installBrowserify home
     (:)
       <$> buildJsMain mode node brow dir config configs components purs
-      <*> buildJsBundles mode node brow dir config configs components
+      <*> buildJsBundles mode node brow dir bundleMap
 
 outputJs :: LoomTmp -> FilePath -> JsFile
 outputJs dir b =
@@ -309,6 +331,10 @@ resolveJsDependencies config configs =
       npmDeps = loomConfigResolvedJsDepsNpm config : fmap loomConfigResolvedJsDepsNpm configs
   in (,) <$> resolveNpmDeps npmDeps <*> resolveGithubDeps ghDeps
 
+bundleOut :: LoomTmp -> BundleName -> JsFile
+bundleOut dir =
+  outputJs dir . T.unpack . unBundleName
+
 -- Special case for the 'main' bundle.
 buildJsMain ::
      LoomMode
@@ -322,7 +348,7 @@ buildJsMain ::
   -> EitherT JsError IO JsFile
 buildJsMain mode node brow dir _config configs components purs = do
   let
-    jsOut = outputJs dir "main"
+    jsOut = bundleOut dir (BundleName "main")
               -- FIXME should be adding paths from config here
     jsPaths = foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
     jsComponentEntries =
@@ -354,19 +380,12 @@ buildJsBundles ::
   -> Node.Node
   -> Browserify.Browserify
   -> LoomTmp
-  -> LoomConfigResolved
-  -> [LoomConfigResolved]
-  -> [(LoomConfigResolved, [Component])]
+  -> Map BundleName ([LoomFile], [LoomFile])
   -> EitherT JsError IO [JsFile]
-buildJsBundles mode node brow dir config _configs components = do
-  let
-    bundleMap = Map.unionsWith (<>) $
-        Map.fromList (loomConfigResolvedJsBundles config)
-      : fmap Map.fromList (fmap (loomConfigResolvedJsBundles . fst) components)
-
+buildJsBundles mode node brow dir bundleMap = do
   fmap Map.elems . flip Map.traverseWithKey bundleMap $ \bn (mains, paths) -> do
     let
-      jsOut = outputJs dir (T.unpack (unBundleName bn))
+      jsOut = bundleOut dir bn
       jsPaths = fmap (Js.JsUnpackDir . loomFilePath) paths
       binput = Browserify.BrowserifyInput {
           Browserify.browserifyMode =
