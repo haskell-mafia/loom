@@ -16,6 +16,7 @@ module Loom.Build.Core (
 
 import           Control.Monad.IO.Class (liftIO)
 
+import qualified Data.List as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
 #if MIN_VERSION_containers(0, 5, 9)
@@ -252,7 +253,7 @@ buildPurescript home dir config configs components = do
       psPaths = loomConfigResolvedPurs config <> foldMap loomConfigResolvedPurs configs
     psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
     let
-      psAll = psPathFiles <> fmap componentFilePath psComponentFiles
+      psAll = L.nub $ psPathFiles <> fmap componentFilePath psComponentFiles
     fetchedDeps <- Purescript.fetchPurs home deps
     Purescript.unpackPurs psDepDir fetchedDeps
     mko <- Purescript.compile psDepDir psAll psOutDir
@@ -349,7 +350,7 @@ buildJsMain ::
 buildJsMain mode node brow dir config configs components purs = do
   let
     jsOut = bundleOut dir (BundleName "main")
-    jsPaths =
+    jsPaths = L.nub $
          fmap (Js.JsUnpackDir . loomFilePath) (loomConfigResolvedJs config)
       <> foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
     jsComponentEntries =
