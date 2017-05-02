@@ -302,7 +302,7 @@ buildJs ::
   -> (FilePath, Maybe Js.JsModuleName)
   -> Map BundleName ([LoomFile], [LoomFile])
   -> EitherT LoomError IO [JsFile]
-buildJs mode home dir config configs components purs bundleMap =
+buildJs mode home dir config configs components purs bundleMap = do
   (npm, gh) <- hoistEither (resolveJsDependencies config configs)
   firstT LoomJsError $ do
     -- Fetch and unpack dependencies
