@@ -4,6 +4,7 @@
 module Loom.Projector (
     ProjectorError (..)
   , ProjectorHaskellError (..)
+  , ProjectorPurescriptError (..)
   , ProjectorInterpretError (..)
   , ProjectorInput (..)
   , ProjectorOutput
@@ -19,6 +20,7 @@ module Loom.Projector (
   , compileProjector
   , generateProjectorHtml
   , generateProjectorHaskell
+  , generateProjectorPurescript
   , moduleNameFromFile
   , requiredProjectorHaskellImports
   , renderProjectorError
@@ -44,7 +46,9 @@ import           Projector.Html (BuildArtefacts (..), DataModuleName (..), Modul
 import           Projector.Html.Data.Annotation (SrcAnnotation)
 import qualified Projector.Html as Projector
 import qualified Projector.Html.Backend.Haskell as Projector
+import qualified Projector.Html.Backend.Purescript as Projector
 import qualified Projector.Html.Core.Machinator as Projector
+import qualified Projector.Html.Data.Backend as Projector
 import qualified Projector.Html.Data.Module as Projector
 import qualified Projector.Html.Data.Prim as Projector
 import qualified Projector.Html.Interpreter as Projector
@@ -64,6 +68,10 @@ data ProjectorError =
 
 data ProjectorHaskellError =
     ProjectorHaskellError [Projector.HaskellError]
+  deriving (Eq, Show)
+
+data ProjectorPurescriptError =
+    ProjectorPurescriptError [Projector.PurescriptError]
   deriving (Eq, Show)
 
 data ProjectorInterpretError =
@@ -168,15 +176,42 @@ generateProjectorHaskell ::
   -> [(BundleName, JsFile)]
   -> ProjectorOutput
   -> EitherT ProjectorHaskellError IO [FilePath]
-generateProjectorHaskell output spfx apfx css images js (ProjectorOutput ba _um) = do
-  fs <- hoistEither . first ProjectorHaskellError $
-    Projector.codeGen Projector.haskellBackend codeGenNamer (platformConstants spfx apfx css images js) ba
+generateProjectorHaskell =
+  generateProjectorCode Projector.haskellBackend ProjectorHaskellError
+
+generateProjectorPurescript ::
+     FilePath
+  -> LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> [(BundleName, JsFile)]
+  -> ProjectorOutput
+  -> EitherT ProjectorPurescriptError IO [FilePath]
+generateProjectorPurescript =
+  generateProjectorCode Projector.purescriptBackend ProjectorPurescriptError
+
+generateProjectorCode ::
+     Projector.Backend SrcAnnotation e
+  -> ([e] -> x)
+  -> FilePath
+  -> LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> [(BundleName, JsFile)]
+  -> ProjectorOutput
+  -> EitherT x IO [FilePath]
+generateProjectorCode backend xmap output spfx apfx css images js (ProjectorOutput ba _um) = do
+  fs <- hoistEither . first xmap $
+    Projector.codeGen backend codeGenNamer (platformConstants spfx apfx css images js) ba
   for fs $ \(f, t) -> do
     liftIO $
       createDirectoryIfMissing True (output </> takeDirectory f)
     liftIO $
       T.writeFile (output </> f) t
     pure f
+
 
 moduleNamer :: Text -> FilePath -> Projector.ModuleNamer
 moduleNamer prefix root =

@@ -29,6 +29,7 @@ import qualified Data.Text.IO as T
 import           Loom.Build.Component
 import           Loom.Build.Data
 import           Loom.Build.Logger
+import qualified Loom.Build.Purescript as Purescript
 import           Loom.Core.Data
 import           Loom.Js (JsError)
 import qualified Loom.Js as Js
@@ -36,7 +37,7 @@ import qualified Loom.Js.Node as Node
 import qualified Loom.Js.Browserify as Browserify
 import           Loom.Machinator (MachinatorInput (..), MachinatorError)
 import qualified Loom.Machinator as Machinator
-import           Loom.Projector (ProjectorError)
+import           Loom.Projector (ProjectorError, ProjectorOutput)
 import qualified Loom.Projector as Projector
 import           Loom.Purescript (PurescriptError)
 import qualified Loom.Purescript as Purescript
@@ -151,7 +152,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
     buildProjector components images bundles mo
 
   purs <- withLog logger "purs" $
-    buildPurescript home dir config configs components
+    buildPurescript home dir config configs components po
 
   _js <- withLog logger "js" $
     buildJs mode home dir config configs components purs bundleMap
@@ -240,8 +241,9 @@ buildPurescript ::
   -> LoomConfigResolved
   -> [LoomConfigResolved]
   -> [(LoomConfigResolved, [Component])]
+  -> ProjectorOutput
   -> EitherT LoomError IO (FilePath, Maybe Js.JsModuleName)
-buildPurescript home dir config configs components = do
+buildPurescript home dir config configs components po = do
   deps <- hoistEither (resolvePursDependencies config configs)
   firstT LoomPursError $ do
     let
@@ -255,6 +257,7 @@ buildPurescript home dir config configs components = do
       psAll = psPathFiles <> fmap componentFilePath psComponentFiles
     fetchedDeps <- Purescript.fetchPurs home deps
     Purescript.unpackPurs psDepDir fetchedDeps
+    Purescript.generatePurescript output _ _ _ {- ARGH -}
     mko <- Purescript.compile psDepDir psAll psOutDir
     res <- Purescript.bundlePurescript psOutDir mko
     liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
