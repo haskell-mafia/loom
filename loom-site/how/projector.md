@@ -282,6 +282,41 @@ with an *anonymous function* or *lambda*, as per the example below:
 }
 ```
 
+### `isEmpty : List a -> Bool`
+
+This function returns `True` if a list is empty, and `False`
+otherwise.
+
+```prj
+\names : List String -> Html =
+{
+  case (isEmpty names) of
+    True ->
+      "no names!"
+    False ->
+      each names \x ->
+        <p>{{ x }}</p>
+}
+```
+
+### `fold :: List (List a) -> List a`
+
+This function will squash nested lists into a single list.
+
+It is mostly used internally, but can be called directly in a pinch.
+
+### `concat :: List String -> String`
+
+This function will concatenate a list of strings into a single string.
+
+It is mostly used internally, but can be called directly in a pinch.
+
+### `append :: String -> String -> String`
+
+This function will concatenate two strings together.
+
+It is mostly used internally, but can be called directly in a pinch.
+
 ## How do I refer to CSS, JS, or image assets?
 
 Loom provides these as Projector variables.
