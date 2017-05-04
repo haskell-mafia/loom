@@ -292,10 +292,10 @@ otherwise.
 {
   case (isEmpty names) of
     True ->
-	  "no names!"
-	False ->
-	  each names \x ->
-	    <p>{{ x }}</p>
+      "no names!"
+    False ->
+      each names \x ->
+        <p>{{ x }}</p>
 }
 ```
 
