@@ -262,8 +262,9 @@ requiredProjectorHaskellImports =
 requiredProjectorPurescriptImports :: [ModuleName]
 requiredProjectorPurescriptImports =
   [
-    Projector.ModuleName "Projector.Html.Runtime"
-  , Projector.ModuleName "Prelude"
+    -- FIXME this should be the projector runtime once it's in scope
+    --       this causes problems with user types like Int/Double
+    Projector.ModuleName "Prelude"
   ]
 
 renderProjectorError :: ProjectorError -> Text

@@ -44,12 +44,12 @@ generatePurescript ::
 generatePurescript (PurescriptUnpackDir output) inputCss images inputJs mo po = do
   void . firstT LoomPurescriptMachinatorError $
     Machinator.generateMachinatorPurescript
-      (output </> "src")
+      (output </> "loom-data" </> "src")
       (Machinator.ModuleName . Projector.unModuleName <$> Projector.requiredProjectorPurescriptImports)
       mo
-  let
+{-  let
     --n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "loom"
-    n = "loom"
+    n = "loom-projector"
     outputCss = CssFile $ output </> (takeFileName . renderCssFile) inputCss
     outputJs' = with inputJs . fmap $ \jsfile -> JsFile $ output </> takeFileName (renderJsFile jsfile)
     output' = output </> T.unpack n </> "src"
@@ -58,4 +58,4 @@ generatePurescript (PurescriptUnpackDir output) inputCss images inputJs mo po = 
   liftIO $
     createDirectoryIfMissing True output
   void . firstT LoomPurescriptProjectorError $
-    Projector.generateProjectorPurescript output' spx apx [outputCss] images outputJs' po
+    Projector.generateProjectorPurescript output' spx apx [outputCss] images outputJs' po -}
