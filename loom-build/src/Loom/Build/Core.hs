@@ -71,6 +71,7 @@ data LoomError =
   | LoomMachinatorError MachinatorError
   | LoomJsError JsError
   | LoomPursError PurescriptError
+  | LoomPursError' Purescript.LoomPurescriptError -- FIXME this is dumb
   | LoomDependencyMismatch Text Sha1 Sha1
   deriving (Show)
 
@@ -152,7 +153,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
     buildProjector components images bundles mo
 
   purs <- withLog logger "purs" $
-    buildPurescript home dir config configs components po
+    buildPurescript home dir config configs components outputCss images bundles mo po
 
   _js <- withLog logger "js" $
     buildJs mode home dir config configs components purs bundleMap
@@ -241,23 +242,28 @@ buildPurescript ::
   -> LoomConfigResolved
   -> [LoomConfigResolved]
   -> [(LoomConfigResolved, [Component])]
+  -> CssFile
+  -> [ImageFile]
+  -> [(BundleName, JsFile)]
+  -> Machinator.MachinatorOutput
   -> ProjectorOutput
   -> EitherT LoomError IO (FilePath, Maybe Js.JsModuleName)
-buildPurescript home dir config configs components po = do
+buildPurescript home dir config configs components inputCss images inputJs mo po = do
   deps <- hoistEither (resolvePursDependencies config configs)
+  let
+    psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
+    psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
+    psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
+    psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
+    psPaths = foldMap loomConfigResolvedPurs configs -- FIXME this should probably include config too?
+  firstT LoomPursError' $
+    Purescript.generatePurescript psDepDir inputCss images inputJs mo po
   firstT LoomPursError $ do
-    let
-      psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
-      psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
-      psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
-      psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
-      psPaths = foldMap loomConfigResolvedPurs configs -- FIXME this should probably include config too?
     psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
     let
       psAll = psPathFiles <> fmap componentFilePath psComponentFiles
     fetchedDeps <- Purescript.fetchPurs home deps
     Purescript.unpackPurs psDepDir fetchedDeps
-    Purescript.generatePurescript output _ _ _ {- ARGH -}
     mko <- Purescript.compile psDepDir psAll psOutDir
     res <- Purescript.bundlePurescript psOutDir mko
     liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
@@ -446,6 +452,8 @@ renderLoomError le =
       Js.renderJsError e
     LoomPursError e ->
       Purescript.renderPurescriptError e
+    LoomPursError' e ->
+      T.pack (show e)
     LoomDependencyMismatch k (Sha1 h1) (Sha1 h2) ->
       T.unlines [
           "Dependency mismatch for '" <> k <> "'"

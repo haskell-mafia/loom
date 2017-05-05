@@ -8,38 +8,45 @@ module Loom.Build.Purescript (
 
 import           Control.Monad.IO.Class (liftIO)
 
-import qualified Data.Char as Char
 import qualified Data.Text as T
 
-import           Loom.Build.Data
 import           Loom.Core.Data
+import           Loom.Machinator (MachinatorPurescriptError, MachinatorOutput)
+import qualified Loom.Machinator as Machinator
 import           Loom.Projector (ProjectorPurescriptError)
 import qualified Loom.Projector as Projector
+import           Loom.Purescript
 
 import           P
 
 import           System.Directory (createDirectoryIfMissing)
 import           System.FilePath ((</>), takeFileName)
-import           System.IO (IO, FilePath)
+import           System.IO (IO)
 
 import           X.Control.Monad.Trans.Either (EitherT)
 
 
 data LoomPurescriptError =
-     LoomPurescriptProjectorError ProjectorPurescriptError
+    LoomPurescriptProjectorError ProjectorPurescriptError
+  | LoomPurescriptMachinatorError MachinatorPurescriptError
   deriving (Show)
 
 generatePurescript ::
-     FilePath
+     PurescriptUnpackDir
   -> CssFile
   -> [ImageFile]
   -> [(BundleName, JsFile)]
+  -> MachinatorOutput
   -> Projector.ProjectorOutput
   -> EitherT LoomPurescriptError IO ()
 -- FIXME real type signature should be like so
 -- LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomPurescriptError IO ()
-generatePurescript output inputCss images inputJs po = do
-  -- TODO MAchinator
+generatePurescript (PurescriptUnpackDir output) inputCss images inputJs mo po = do
+  void . firstT LoomPurescriptMachinatorError $
+    Machinator.generateMachinatorPurescript
+      (output </> "src")
+      (Machinator.ModuleName . Projector.unModuleName <$> Projector.requiredProjectorPurescriptImports)
+      mo
   let
     --n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "loom"
     n = "loom"

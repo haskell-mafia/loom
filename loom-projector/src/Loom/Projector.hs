@@ -23,6 +23,7 @@ module Loom.Projector (
   , generateProjectorPurescript
   , moduleNameFromFile
   , requiredProjectorHaskellImports
+  , requiredProjectorPurescriptImports
   , renderProjectorError
   , renderProjectorHaskellError
   , renderProjectorInterpretError
@@ -256,6 +257,13 @@ requiredProjectorHaskellImports :: [ModuleName]
 requiredProjectorHaskellImports =
   [
     Projector.ModuleName "Projector.Html.Runtime"
+  ]
+
+requiredProjectorPurescriptImports :: [ModuleName]
+requiredProjectorPurescriptImports =
+  [
+    Projector.ModuleName "Projector.Html.Runtime"
+  , Projector.ModuleName "Prelude"
   ]
 
 renderProjectorError :: ProjectorError -> Text

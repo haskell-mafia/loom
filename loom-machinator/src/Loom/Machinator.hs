@@ -3,12 +3,14 @@
 module Loom.Machinator (
     MachinatorError (..)
   , MachinatorHaskellError (..)
+  , MachinatorPurescriptError (..)
   , MachinatorInput (..)
   , MachinatorOutput (..)
   , ModuleName (..)
   , MC.Definition
   , machinatorOutputModules
   , compileMachinator
+  , generateMachinatorPurescript
   , generateMachinatorHaskell
   , renderMachinatorError
   , renderMachinatorHaskellError
@@ -25,6 +27,8 @@ import qualified Data.Text.IO as T
 import qualified Machinator.Core as MC
 import qualified Machinator.Haskell as MH
 import qualified Machinator.Haskell.Data.Types as MH
+import qualified Machinator.Purescript.Scheme.Types as MP
+import qualified Machinator.Purescript.Data.Types as MP
 
 import           P
 
@@ -42,6 +46,10 @@ data MachinatorError =
 
 data MachinatorHaskellError =
     MachinatorHaskellError MH.HaskellTypesError
+    deriving (Eq, Show)
+
+data MachinatorPurescriptError =
+    MachinatorPurescriptError MP.PurescriptTypesError
     deriving (Eq, Show)
 
 -- FIX Should come from Machinator
@@ -89,6 +97,19 @@ compileMachinatorIncremental (MachinatorOutput d1) (MachinatorInput name root in
     pure (filePathToModuleName n, df)
 
   pure $ MachinatorOutput (d1 <> Map.fromList ds)
+
+generateMachinatorPurescript ::
+     FilePath
+  -> [ModuleName]
+  -> MachinatorOutput
+  -> EitherT MachinatorPurescriptError IO [FilePath]
+generateMachinatorPurescript output imports (MachinatorOutput ds) = do
+  ps <- hoistEither . first MachinatorPurescriptError . MP.types MP.PurescriptTypesV1 . with (Map.toList ds) $ \(n, d) ->
+    (MC.DefinitionFile (moduleNameToFile "purs" n) d)
+  liftIO . for ps $ \(f, t) -> do
+    createDirectoryIfMissing True (output </> takeDirectory f)
+    T.writeFile (output </> f) . hackImports imports $ t
+    pure f
 
 generateMachinatorHaskell :: FilePath -> [ModuleName] -> MachinatorOutput -> EitherT MachinatorHaskellError IO [FilePath]
 generateMachinatorHaskell output imports (MachinatorOutput ds) = do
