@@ -29,14 +29,25 @@ data LoomPurescriptError =
      LoomPurescriptProjectorError ProjectorPurescriptError
   deriving (Show)
 
-generatePurescript :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomPurescriptError IO ()
-generatePurescript output spx apx (LoomResult name _ _mo po inputCss images inputJs) = do
+generatePurescript ::
+     FilePath
+  -> CssFile
+  -> [ImageFile]
+  -> [(BundleName, JsFile)]
+  -> Projector.ProjectorOutput
+  -> EitherT LoomPurescriptError IO ()
+-- FIXME real type signature should be like so
+-- LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomPurescriptError IO ()
+generatePurescript output inputCss images inputJs po = do
   -- TODO MAchinator
   let
-    n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "-loom"
+    --n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "loom"
+    n = "loom"
     outputCss = CssFile $ output </> (takeFileName . renderCssFile) inputCss
     outputJs' = with inputJs . fmap $ \jsfile -> JsFile $ output </> takeFileName (renderJsFile jsfile)
     output' = output </> T.unpack n </> "src"
+    spx = LoomSitePrefix "FIXME"
+    apx = AssetsPrefix "FIXME"
   liftIO $
     createDirectoryIfMissing True output
   void . firstT LoomPurescriptProjectorError $
