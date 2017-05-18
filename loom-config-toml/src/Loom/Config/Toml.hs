@@ -56,11 +56,19 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
     ]
 
 [purs]
-  paths = ["purs/*"]
+  paths = ["purs"]
 
 [purs.dependencies]
   github = [
       ["purescript/purescript-prelude", "tags/v1.0.0", "deadbeef"]
+    ]
+
+[purs.test]
+  paths = ["test"]
+
+[purs.test.dependencies]
+  github = [
+      ["purescript/purescript-quickcheck", "tags/v1.0.0", "63277c8df15822bf5c9e9f673e08ef8080baf0ba"]
     ]
 --}
 
@@ -84,8 +92,7 @@ data LoomConfigRaw =
     , loomConfigRawJsBundles :: [Bundle]
     , loomConfigRawJsNpm :: [NpmDependency]
     , loomConfigRawJsGithub :: [GithubDependency]
-    , loomConfigRawPursPaths :: [FilePattern]
-    , loomConfigRawPursGithub :: [GithubDependency]
+    , loomConfigRawPurs :: PurescriptBundle FilePattern
     } deriving (Eq, Show)
 
 defaultLoomFile :: FilePath
@@ -120,8 +127,7 @@ resolveConfig root = do
         (loomConfigRawJsBundles rc)
         (loomConfigRawJsNpm rc)
         (loomConfigRawJsGithub rc)
-        (loomConfigRawPursPaths rc)
-        (loomConfigRawPursGithub rc)
+        (loomConfigRawPurs rc)
   pure . Loom (config' rc1) . fmap config' $ rcs
 
 parseConfig :: Text -> Either LoomConfigTomlError LoomConfigRaw
@@ -165,11 +171,17 @@ parseTomlConfigV1 t =
     <*> (maybe (pure []) (parseGithubDeps "js.dependencies.github") $
       t ^? key "js" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
       )
-    <*> (maybe (pure []) (parseFilePatterns "purs.paths") $
-      t ^? key "purs" . _NTable . key "paths" . _NTValue . _VArray
+    <*> parseTomlPurescriptBundleV2 "purs" t
+
+-- FIX We need to go back and fix the v1/v2 split, but this is a good start
+parseTomlPurescriptBundleV2 :: Text -> Table -> Either LoomConfigTomlError (PurescriptBundle FilePattern)
+parseTomlPurescriptBundleV2 n t =
+  PurescriptBundle
+    <$> (maybe (pure []) (parseFilePatterns (n <> ".paths")) $
+      t ^? key n . _NTable . key "paths" . _NTValue . _VArray
       )
-    <*> (maybe (pure []) (parseGithubDeps "purs.dependencies.github") $
-      t ^? key "purs" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+    <*> (maybe (pure []) (parseGithubDeps (n <> ".dependencies.github")) $
+      t ^? key n . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
       )
 
 parseFilePatterns :: Text -> [TValue] -> Either LoomConfigTomlError [FilePattern]

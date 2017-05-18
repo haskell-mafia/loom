@@ -104,8 +104,10 @@ resolveLoom config =
     <*> traverse (resolveBundle (loomConfigRoot config)) (loomConfigJsBundles config)
     <*> pure (loomConfigJsDepsNpm config)
     <*> pure (loomConfigJsDepsGithub config)
-    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
-    <*> pure (loomConfigPursDepsGithub config)
+    <*> (PurescriptBundle
+      <$> (fmap join . findFiles (loomConfigRoot config) . purescriptBundleFiles . loomConfigPurs) config
+      <*> (pure . purescriptBundleDependencies . loomConfigPurs) config
+      )
 
 resolveBundle :: LoomRoot -> Bundle -> IO (BundleName, ([LoomFile], [LoomFile]))
 resolveBundle root (Bundle bn main others) = do
@@ -151,7 +153,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
     buildProjector components images bundles mo
 
   purs <- withLog logger "purs" $
-    buildPurescript home dir config configs components
+    buildPurescript home dir configs components
 
   _js <- withLog logger "js" $
     buildJs mode home dir config configs components purs bundleMap
@@ -237,19 +239,19 @@ mainBundle =
 buildPurescript ::
      LoomHome
   -> LoomTmp
-  -> LoomConfigResolved
   -> [LoomConfigResolved]
   -> [(LoomConfigResolved, [Component])]
   -> EitherT LoomError IO (FilePath, Maybe Js.JsModuleName)
-buildPurescript home dir config configs components = do
-  deps <- hoistEither (resolvePursDependencies config configs)
+buildPurescript home dir configs components = do
+  deps <- hoistEither . resolveGithubDeps . fmap (purescriptBundleDependencies . loomConfigResolvedPurs) $
+    configs
   firstT LoomPursError $ do
     let
       psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
       psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
       psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
       psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
-      psPaths = foldMap loomConfigResolvedPurs configs -- FIXME this should probably include config too?
+      psPaths = foldMap (purescriptBundleFiles . loomConfigResolvedPurs) configs
     psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
     let
       psAll = psPathFiles <> fmap componentFilePath psComponentFiles
@@ -259,12 +261,6 @@ buildPurescript home dir config configs components = do
     res <- Purescript.bundlePurescript psOutDir mko
     liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
     pure (psOutFile, Just (Js.JsModuleName "purs"))
-
-resolvePursDependencies :: LoomConfigResolved -> [LoomConfigResolved] -> Either LoomError [GithubDependency]
-resolvePursDependencies config configs =
-  let allDeps :: [[GithubDependency]]
-      allDeps = loomConfigResolvedPursDepsGithub config : fmap loomConfigResolvedPursDepsGithub configs
-  in resolveGithubDeps allDeps
 
 resolveGithubDeps :: [[GithubDependency]] -> Either LoomError [GithubDependency]
 resolveGithubDeps allDeps =
