@@ -276,14 +276,15 @@ loomWatchPatterns (Loom c cs) =
   c : cs >>= \(LoomConfig r _ comps sass js jsb _ _ purs _) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
+      rec ext = flip appendFilePattern (FilePattern (G.recursiveWildcard <> G.wildcard <> G.literal "." <> ext))
     in
       fmap (appendFilePattern rfp) . mconcat $ [
           comps >>= \cp ->
             fmap (appendFilePattern cp) componentFilePatterns
         , sass
-        , js
+        , fmap (rec (G.literal "js")) js
         , foldMap bundlePaths jsb
-        , purs
+        , fmap (rec (G.literal "purs")) purs
         ]
 
 componentFilePatterns :: [FilePattern]
