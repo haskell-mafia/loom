@@ -14,6 +14,7 @@ module Loom.Core.Data (
   , LoomConfigResolved (..)
   , Component (..)
   , ComponentFile (..)
+  , PurescriptBundle (..)
   , ImageFile (..)
   , CssFile (..)
   , JsFile (..)
@@ -134,8 +135,7 @@ data LoomConfig =
     , loomConfigJsBundles :: [Bundle]
     , loomConfigJsDepsNpm :: [NpmDependency]
     , loomConfigJsDepsGithub :: [GithubDependency]
-    , loomConfigPursPaths :: [FilePattern]
-    , loomConfigPursDepsGithub :: [GithubDependency]
+    , loomConfigPurs :: PurescriptBundle FilePattern
     } deriving (Eq, Show)
 
 data LoomConfigResolved =
@@ -148,8 +148,7 @@ data LoomConfigResolved =
     , loomConfigResolvedJsBundles :: [(BundleName, ([LoomFile], [LoomFile]))]
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
-    , loomConfigResolvedPurs :: [LoomFile]
-    , loomConfigResolvedPursDepsGithub :: [GithubDependency]
+    , loomConfigResolvedPurs :: PurescriptBundle LoomFile
     } deriving (Eq, Show)
 
 data Component =
@@ -167,6 +166,12 @@ data ComponentFile =
   ComponentFile {
       componentLoomFile :: LoomFile
     , componentRawFilePath :: FilePath
+    } deriving (Eq, Show)
+
+data PurescriptBundle a =
+  PurescriptBundle {
+      purescriptBundleFiles :: [a]
+    , purescriptBundleDependencies :: [GithubDependency]
     } deriving (Eq, Show)
 
 
@@ -273,7 +278,7 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
 
 loomWatchPatterns :: Loom -> [FilePattern]
 loomWatchPatterns (Loom c cs) =
-  c : cs >>= \(LoomConfig r _ comps sass js jsb _ _ purs _) ->
+  c : cs >>= \(LoomConfig r _ comps sass js jsb _ _ purs) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
       rec ext = flip appendFilePattern (FilePattern (G.recursiveWildcard <> G.wildcard <> G.literal "." <> ext))
@@ -284,7 +289,7 @@ loomWatchPatterns (Loom c cs) =
         , sass
         , fmap (rec (G.literal "js")) js
         , foldMap bundlePaths jsb
-        , fmap (rec (G.literal "purs")) purs
+        , fmap (rec (G.literal "purs")) . purescriptBundleFiles $ purs
         ]
 
 componentFilePatterns :: [FilePattern]
