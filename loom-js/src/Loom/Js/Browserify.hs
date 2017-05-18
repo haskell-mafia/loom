@@ -120,7 +120,7 @@ browserifyVersion =
 
 browserifyScript :: ByteString
 browserifyScript =
-  $(embedFile "data/browserify.js")
+  $(embedFile "../loom-js/data/browserify.js")
 
 browserifyDeps :: [NpmDependency]
 browserifyDeps =
