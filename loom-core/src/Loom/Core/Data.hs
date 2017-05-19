@@ -136,6 +136,7 @@ data LoomConfig =
     , loomConfigJsDepsNpm :: [NpmDependency]
     , loomConfigJsDepsGithub :: [GithubDependency]
     , loomConfigPurs :: PurescriptBundle FilePattern
+    , loomConfigPursTest :: PurescriptBundle FilePattern
     } deriving (Eq, Show)
 
 data LoomConfigResolved =
@@ -149,6 +150,7 @@ data LoomConfigResolved =
     , loomConfigResolvedJsDepsNpm :: [NpmDependency]
     , loomConfigResolvedJsDepsGithub :: [GithubDependency]
     , loomConfigResolvedPurs :: PurescriptBundle LoomFile
+    , loomConfigResolvedPursTest :: PurescriptBundle LoomFile
     } deriving (Eq, Show)
 
 data Component =
@@ -172,6 +174,7 @@ data PurescriptBundle a =
   PurescriptBundle {
       purescriptBundleFiles :: [a]
     , purescriptBundleDependencies :: [GithubDependency]
+    , purescriptBundleMain :: Maybe Text
     } deriving (Eq, Show)
 
 
@@ -278,7 +281,7 @@ appendFilePattern (FilePattern f1) (FilePattern f2) =
 
 loomWatchPatterns :: Loom -> [FilePattern]
 loomWatchPatterns (Loom c cs) =
-  c : cs >>= \(LoomConfig r _ comps sass js jsb _ _ purs) ->
+  c : cs >>= \(LoomConfig r _ comps sass js jsb _ _ purs pursTest) ->
     let
       rfp = FilePattern . G.literal . loomRootFilePath $ r
       rec ext = flip appendFilePattern (FilePattern (G.recursiveWildcard <> G.wildcard <> G.literal "." <> ext))
@@ -290,6 +293,7 @@ loomWatchPatterns (Loom c cs) =
         , fmap (rec (G.literal "js")) js
         , foldMap bundlePaths jsb
         , fmap (rec (G.literal "purs")) . purescriptBundleFiles $ purs
+        , fmap (rec (G.literal "purs")) . purescriptBundleFiles $ pursTest
         ]
 
 componentFilePatterns :: [FilePattern]

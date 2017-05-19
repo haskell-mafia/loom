@@ -33,3 +33,13 @@
     , ["purescript/purescript-bifunctors", "tags/v1.0.0", "0eb78b63ee000077ffe1dc60097f4881800d2fd2"]
     , ["purescript/purescript-foldable-traversable", "tags/v1.0.0", "1b8b6587e364e20c7f628fd3fbc108f065fc5802"]
     ]
+
+[purs.test]
+  main = "Test.Bar"
+  paths = ["app/purs/test"]
+
+[purs.test.dependencies]
+  github = [
+      ["purescript/purescript-console", "tags/v1.0.0", "bd72208da2c07ed33162b1807f324beff16c0720"]
+    , ["purescript/purescript-eff", "tags/v1.0.0", "d07731c117f94213d35b13964077241c5dd563bc"]
+    ]

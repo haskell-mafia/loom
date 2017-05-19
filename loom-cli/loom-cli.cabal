@@ -27,6 +27,7 @@ executable loom
                     , ambiata-loom-config-toml
                     , ambiata-loom-core
                     , ambiata-loom-http
+                    , ambiata-loom-js
                     , ambiata-loom-site
                     , ambiata-p
                     , ambiata-twine

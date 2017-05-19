@@ -18,6 +18,8 @@ import           Loom.Build.Watch
 import           Loom.Core.Data
 import           Loom.Config.Toml
 import           Loom.Http
+import qualified Loom.Js as Js
+import qualified Loom.Js.Node as Node
 import           Loom.Site
 
 import qualified Network.Wai.Handler.Warp as Warp
@@ -26,6 +28,7 @@ import           P
 
 import           System.Directory (getCurrentDirectory, getHomeDirectory)
 import           System.Environment (lookupEnv)
+import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 import           System.IO (BufferMode (..), FilePath, IO, hSetBuffering, stderr, stdout)
 import qualified System.IO as IO
@@ -40,6 +43,7 @@ import           X.Control.Monad.Trans.Either.Exit (orDie)
 
 data Command =
     Build
+  | Test
   | Watch Int
   deriving (Eq, Show)
 
@@ -80,6 +84,26 @@ main = do
             sitePrefix
             apx
             bc
+      Test -> do
+        node <- orDie Js.renderJsError $
+          Node.findNodeOnPath
+        home <- loomHomeEnv
+        cwd <- getCurrentDirectory
+        config <- orDie renderLoomConfigTomlError $
+          resolveConfig cwd
+        loom <- resolveLoom config
+        (nodePath, jsMain) <- orDie renderLoomError $
+          buildTest
+            (hoistLogger liftIO (newSimpleLogger stderr))
+            home
+            (LoomTmp ".loom")
+            loom
+        case jsMain of
+          Nothing ->
+            Exit.die "No purs.test.main module specified"
+          Just main' -> do
+            ec <- Node.runNodeMain node nodePath main'
+            Exit.exitWith ec
       Watch port ->
         watch port
 
@@ -187,6 +211,8 @@ parser =
   OA.subparser . mconcat $ [
       OA.command' "build" "Build a loom project from the current working directory" $
         pure Build
+    , OA.command' "test" "Test a loom project from the current working directory" $
+        pure Test
     , OA.command' "watch" "Start an HTTP server in the current loom project and watch the filesystem for changes" $
         Watch <$> portP
     ]

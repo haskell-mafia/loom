@@ -1,0 +1,15 @@
+[loom]
+  version = 1
+  dependencies = []
+  name = "test"
+
+[purs.test]
+  main = "Test.App"
+  paths = [
+      "app/test/purs/*"
+    ]
+
+[purs.test.dependencies]
+  github = [
+      ["purescript/purescript-newtype", "tags/v2.0.0", "2276bd44ff5b7440c455839833c69f40cc8d8616"]
+    ]
