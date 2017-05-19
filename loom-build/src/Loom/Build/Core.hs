@@ -16,6 +16,7 @@ module Loom.Build.Core (
 
 import           Control.Monad.IO.Class (liftIO)
 
+import qualified Data.List as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
 #if MIN_VERSION_containers(0, 5, 9)
@@ -249,10 +250,10 @@ buildPurescript home dir config configs components = do
       psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
       psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
       psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
-      psPaths = foldMap loomConfigResolvedPurs configs -- FIXME this should probably include config too?
+      psPaths = loomConfigResolvedPurs config <> foldMap loomConfigResolvedPurs configs
     psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
     let
-      psAll = psPathFiles <> fmap componentFilePath psComponentFiles
+      psAll = L.nub $ psPathFiles <> fmap componentFilePath psComponentFiles
     fetchedDeps <- Purescript.fetchPurs home deps
     Purescript.unpackPurs psDepDir fetchedDeps
     mko <- Purescript.compile psDepDir psAll psOutDir
@@ -346,11 +347,12 @@ buildJsMain ::
   -> [(LoomConfigResolved, [Component])]
   -> (FilePath, Maybe Js.JsModuleName)
   -> EitherT JsError IO JsFile
-buildJsMain mode node brow dir _config configs components purs = do
+buildJsMain mode node brow dir config configs components purs = do
   let
     jsOut = bundleOut dir (BundleName "main")
-              -- FIXME should be adding paths from config here
-    jsPaths = foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
+    jsPaths = L.nub $
+         fmap (Js.JsUnpackDir . loomFilePath) (loomConfigResolvedJs config)
+      <> foldMap (fmap (Js.JsUnpackDir . loomFilePath) . loomConfigResolvedJs) configs
     jsComponentEntries =
       fold . with components $ \(cr, cs) ->
         with (foldMap componentJsFiles cs) $ \cf@(ComponentFile (LoomFile _ path) _) ->
