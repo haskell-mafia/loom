@@ -127,6 +127,7 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
   void . flip Map.traverseWithKey components $ \ln cs ->
     for_ cs $ \c -> do
       sc <- resolveSiteComponent prefix apx [css] images js mo po c
+      copyComponentDataFiles root ln c
       mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c
   writeHtmlFile' $
     loomComponentsHtml prefix components
@@ -182,6 +183,16 @@ resolveSiteComponent spfx apfx css images js mo po c =
       <*> pure findPrj
       <*> loadDirectory "example"
       <*> loadDirectory "mock"
+
+copyComponentDataFiles :: LoomSiteRoot -> LoomName -> Component -> EitherT LoomSiteError IO ()
+copyComponentDataFiles (LoomSiteRoot root) ln c = do
+  fs <- safeIO . getDirectoryContents $ (loomFilePath . componentPath) c </> "data"
+  safeIO . for_ fs $ \f -> do
+    let
+      out = root </> componentDirectory c ln </> "data" </> File.takeFileName f
+    Dir.createDirectoryIfMissing True $
+      File.takeDirectory out
+    Dir.copyFile f out
 
 -- | Delete all the site files and then
 cleanLoomSite :: LoomSiteRoot -> IO ()
