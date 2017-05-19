@@ -34,6 +34,7 @@ file_exists "${LOOM_OUTPUT_SITE}/components/index.html"
 file_exists "${LOOM_OUTPUT_SITE}/components/other/components/c1/index.html"
 file_exists "${LOOM_OUTPUT_SITE}/components/test_build/components/c2/index.html"
 file_exists "${LOOM_OUTPUT_SITE}/components/test_build/components/c2/pages/mock.html"
+file_exists "${LOOM_OUTPUT_SITE}/components/test_build/components/c2/data/1.json"
 
 contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
 contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/test_build/components/c2/image.svg\""
