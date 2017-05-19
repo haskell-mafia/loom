@@ -17,6 +17,10 @@ import           Loom.Build.Logger
 import           Loom.Build.Watch
 import           Loom.Core.Data
 import           Loom.Config.Toml
+import qualified Loom.Fetch as Fetch
+import           Loom.Fetch.HTTPS (HTTPSError, renderHTTPSError)
+import qualified Loom.Fetch.HTTPS.Github as FG
+import qualified Loom.Fetch.HTTPS.Npm as FN
 import           Loom.Http
 import           Loom.Site
 
@@ -41,12 +45,19 @@ import           X.Control.Monad.Trans.Either.Exit (orDie)
 data Command =
     Build
   | Watch Int
+  | Fetch Source Text Text
+  deriving (Eq, Show)
+
+data Source =
+    Github
+  | Npm
   deriving (Eq, Show)
 
 data LoomCliError =
     LoomError LoomError
   | LoomHaskellError LoomHaskellError
   | LoomSiteError LoomSiteError
+  | LoomFetchError [Fetch.FetchError HTTPSError]
 
 data BuildConfig =
   BuildConfig {
@@ -82,6 +93,9 @@ main = do
             bc
       Watch port ->
         watch port
+      Fetch src n v ->
+        orDie renderLoomCliError $
+          fetch src n v
 
 -----------
 
@@ -161,6 +175,38 @@ buildLoom' logger buildConfig mode config home sitePrefix apx (BuildConfig haske
 
 -----------
 
+fetch :: Source -> Text -> Text -> EitherT LoomCliError IO ()
+fetch source n v = do
+  home <- liftIO loomHomeEnv
+  firstT LoomFetchError $ case source of
+    Npm -> do
+      npm <- liftIO FN.npmFetcher
+      let npmNamer = const (T.unpack n)
+      res <- Fetch.fetchDeps
+        home
+        npm
+        npmNamer
+        [NpmDependency (NpmPackage n) (NpmPackageVersion v) (Sha1 "")]
+      liftIO . for_ res $ printFetched
+    Github -> do
+      gh <- liftIO FG.githubFetcher
+      let -- FIXME partial
+          [user, repo] = T.splitOn "/" n
+          ghNamer = const (T.unpack repo)
+      res <- Fetch.fetchDeps
+        home
+        gh
+        ghNamer
+        [GithubDependency (GithubRepo user repo) (GitRef v) (Sha1 "")]
+      liftIO . for_ res $ printFetched
+
+printFetched :: Fetch.FetchedDependency -> IO ()
+printFetched =
+  \(Fetch.FetchedDependency name (Tarball _file) (Sha1 hash)) ->
+    liftIO . IO.putStrLn $ name <> " " <> T.unpack hash
+
+-----------
+
 loomHomeEnv :: IO LoomHome
 loomHomeEnv = do
   home <- getHomeDirectory
@@ -189,6 +235,8 @@ parser =
         pure Build
     , OA.command' "watch" "Start an HTTP server in the current loom project and watch the filesystem for changes" $
         Watch <$> portP
+    , OA.command' "fetch" "Fetch, cache, and hash a remote dependency" $
+        Fetch <$> fetchSourceP <*> fetchNameP <*> fetchVersionP
     ]
 
 portP :: Parser Int
@@ -198,6 +246,27 @@ portP =
     <> OA.short 'p'
     <> OA.metavar "PORT"
     <> OA.help "The HTTP port for running the server under. Defaults to port 3000."
+
+fetchSourceP :: Parser Source
+fetchSourceP =
+  asum [
+      OA.flag' Npm $
+           OA.long "npm"
+        <> OA.short 'n'
+    , OA.flag' Github $
+           OA.long "github"
+        <> OA.short 'g'
+    ]
+
+fetchNameP :: Parser Text
+fetchNameP =
+  fmap T.pack . OA.strArgument $
+    OA.metavar "DEPENDENCY_NAME"
+
+fetchVersionP :: Parser Text
+fetchVersionP =
+  fmap T.pack . OA.strArgument $
+    OA.metavar "DEPENDENCY_VERSION"
 
 -----------
 
@@ -210,3 +279,5 @@ renderLoomCliError le =
       renderLoomHaskellError e
     LoomSiteError e ->
       renderLoomSiteError e
+    LoomFetchError es ->
+      T.unlines $ fmap (Fetch.renderFetchError renderHTTPSError) es

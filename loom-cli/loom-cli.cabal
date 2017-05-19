@@ -26,6 +26,7 @@ executable loom
                     , ambiata-loom-build
                     , ambiata-loom-config-toml
                     , ambiata-loom-core
+                    , ambiata-loom-fetch
                     , ambiata-loom-http
                     , ambiata-loom-site
                     , ambiata-p
