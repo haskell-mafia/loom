@@ -102,6 +102,20 @@ SHA1 hash.
   github = [
       ["purescript/purescript-newtype", "tags/v2.0.0", "2276bd44ff5b7440c455839833c69f40cc8d8616"]
     ]
+
+[purs.test]
+  main = "Test.Main"
+
+  # Optional
+  paths = [
+      "app/test/purs"
+    ]
+
+[purs.test.dependencies]
+  # Optional
+  github = [
+      ["bodil/purescript-test-unit", "tags/v9.1.0", "e1c16b5a0277f2d017c2279ba1dc2f42be36fc33"]
+    ]
 ```
 
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 module Loom.Build.Core (
     LoomBuildConfig
@@ -8,7 +9,9 @@ module Loom.Build.Core (
   , LoomError (..)
   , LoomResult (..)
   , initialiseBuild
+  , resolveLoom
   , buildLoom
+  , buildTest
   , renderLoomBuildInitisationError
   , renderLoomError
   , machinatorOutputToProjector
@@ -78,6 +81,12 @@ initialiseBuild =
   LoomBuildConfig
     <$> (newEitherT . fmap (maybeToRight LoomMissingSassExecutable)) Sass.findSassOnPath
 
+resolveLoom :: Loom -> IO LoomResolved
+resolveLoom (Loom loomConfig' loomConfigs') =
+  LoomResolved
+    <$> resolveLoomConfig loomConfig'
+    <*> mapM resolveLoomConfig loomConfigs'
+
 buildLoom ::
   Logger (EitherT LoomError IO) ->
   LoomBuildConfig ->
@@ -86,15 +95,13 @@ buildLoom ::
   LoomTmp ->
   Loom ->
   EitherT LoomError IO LoomResult
-buildLoom logger buildConfig mode home dir (Loom loomConfig' loomConfigs') = do
+buildLoom logger buildConfig mode home dir loom = do
   resolved <- liftIO $
-    LoomResolved
-      <$> resolveLoom loomConfig'
-      <*> mapM resolveLoom loomConfigs'
+    resolveLoom loom
   buildLoomResolved logger buildConfig mode home dir resolved
 
-resolveLoom :: LoomConfig -> IO LoomConfigResolved
-resolveLoom config =
+resolveLoomConfig :: LoomConfig -> IO LoomConfigResolved
+resolveLoomConfig config =
   LoomConfigResolved
     <$> (pure . loomConfigRoot) config
     <*> (pure . loomConfigName) config
@@ -104,8 +111,15 @@ resolveLoom config =
     <*> traverse (resolveBundle (loomConfigRoot config)) (loomConfigJsBundles config)
     <*> pure (loomConfigJsDepsNpm config)
     <*> pure (loomConfigJsDepsGithub config)
-    <*> (fmap join . findFiles (loomConfigRoot config) . loomConfigPursPaths) config
-    <*> pure (loomConfigPursDepsGithub config)
+    <*> (resolvePurescriptBundle (loomConfigRoot config) . loomConfigPurs) config
+    <*> (resolvePurescriptBundle (loomConfigRoot config) . loomConfigPursTest) config
+
+resolvePurescriptBundle :: LoomRoot -> PurescriptBundle FilePattern -> IO (PurescriptBundle LoomFile)
+resolvePurescriptBundle root b =
+  PurescriptBundle
+    <$> (fmap join . findFiles root . purescriptBundleFiles) b
+    <*> (pure . purescriptBundleDependencies) b
+    <*> (pure . purescriptBundleMain) b
 
 resolveBundle :: LoomRoot -> Bundle -> IO (BundleName, ([LoomFile], [LoomFile]))
 resolveBundle root (Bundle bn main others) = do
@@ -150,11 +164,11 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
   po <- withLog logger "projector" $
     buildProjector components images bundles mo
 
-  purs <- withLog logger "purs" $
-    buildPurescript home dir config configs components
+  (_, psOut, psMod) <- withLog logger "purs" $
+    buildPurescript home dir config others components
 
   _js <- withLog logger "js" $
-    buildJs mode home dir config configs components purs bundleMap
+    buildJs mode home dir config configs components (psOut, psMod) bundleMap
 
   pure $
     LoomResult
@@ -165,6 +179,47 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
       outputCss
       images
       bundles
+
+buildTest ::
+  Logger (EitherT LoomError IO) ->
+  LoomHome ->
+  LoomTmp ->
+  LoomResolved ->
+  EitherT LoomError IO (Node.NodePath, Maybe Js.JsModuleName)
+buildTest logger home dir (LoomResolved config others) = do
+  let
+    configs =
+      -- Need to make sure the dependencies are in reverse order
+      reverse $ config : others
+  components <- firstT LoomComponentError . for configs $ \c ->
+    resolveComponents . loomConfigResolvedComponents $ c
+
+  withLog logger "js" $ do
+    (npm, gh) <- hoistEither $
+      resolveJsDependencies config configs
+    firstT LoomJsError $ do
+      deps <- Js.fetchJs home npm gh
+      Js.unpackJs (jsDepDir dir) deps
+
+  PurescriptBundle psAll deps main <- resolvePurescript
+    (loomConfigResolvedPursTest config)
+    (fmap loomConfigResolvedPursTest others <> fmap loomConfigResolvedPurs configs)
+    components
+
+  psDir <- withLog logger "purs" $
+    firstT LoomPursError $ do
+      let
+        psDir = loomTmpFilePath dir </> "purs" </> "test"
+        psDepDir = Purescript.PurescriptUnpackDir psDir
+        psOutDir = Purescript.CodeGenDir (psDir </> "output")
+      fetchedDeps <- Purescript.fetchPurs home deps
+      Purescript.unpackPurs psDepDir fetchedDeps
+      (_ :: Purescript.MakeOutput) <- Purescript.compile psDepDir psAll psOutDir
+      pure psOutDir
+
+  pure $ (,)
+    (Node.NodePath [(Js.unJsUnpackDir . jsDepDir) dir, Purescript.unCodeGenDir psDir])
+    (fmap Js.JsModuleName main)
 
 buildCss ::
      Sass
@@ -240,31 +295,50 @@ buildPurescript ::
   -> LoomConfigResolved
   -> [LoomConfigResolved]
   -> [(LoomConfigResolved, [Component])]
-  -> EitherT LoomError IO (FilePath, Maybe Js.JsModuleName)
-buildPurescript home dir config configs components = do
-  deps <- hoistEither (resolvePursDependencies config configs)
-  firstT LoomPursError $ do
-    let
-      psDepDir = Purescript.PurescriptUnpackDir (loomTmpFilePath dir </> "purs")
-      psOutDir = Purescript.CodeGenDir (loomTmpFilePath dir </> "purs" </> "output")
-      psOutFile = loomTmpFilePath dir </> "purs" </> "output" </> "out" <.> "js"
-      psComponentFiles = fold (with components (foldMap componentPursFiles . snd))
-      psPaths = foldMap loomConfigResolvedPurs configs -- FIXME this should probably include config too?
-    psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
-    let
-      psAll = psPathFiles <> fmap componentFilePath psComponentFiles
-    fetchedDeps <- Purescript.fetchPurs home deps
-    Purescript.unpackPurs psDepDir fetchedDeps
-    mko <- Purescript.compile psDepDir psAll psOutDir
-    res <- Purescript.bundlePurescript psOutDir mko
-    liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
-    pure (psOutFile, Just (Js.JsModuleName "purs"))
+  -> EitherT LoomError IO (Purescript.CodeGenDir, FilePath, Maybe Js.JsModuleName)
+buildPurescript home dir config others components = do
+  bundle <- resolvePurescript
+    (loomConfigResolvedPurs config) (fmap loomConfigResolvedPurs others) (fmap snd components)
+  firstT LoomPursError $
+    buildPurescript' home dir bundle
 
-resolvePursDependencies :: LoomConfigResolved -> [LoomConfigResolved] -> Either LoomError [GithubDependency]
-resolvePursDependencies config configs =
-  let allDeps :: [[GithubDependency]]
-      allDeps = loomConfigResolvedPursDepsGithub config : fmap loomConfigResolvedPursDepsGithub configs
-  in resolveGithubDeps allDeps
+resolvePurescript ::
+     PurescriptBundle LoomFile
+  -> [PurescriptBundle LoomFile]
+  -> [[Component]]
+  -> EitherT LoomError IO (PurescriptBundle FilePath)
+resolvePurescript config others components = do
+  let
+    configs = config : others
+  deps <- hoistEither . resolveGithubDeps . fmap purescriptBundleDependencies $
+    configs
+  let
+    psComponentFiles = fold (with components (foldMap componentPursFiles))
+    psPaths = foldMap purescriptBundleFiles configs
+  psPathFiles <- fold <$> for psPaths (liftIO . Purescript.expandPursPath . loomFilePath)
+  pure $
+    PurescriptBundle
+      (psPathFiles <> fmap componentFilePath psComponentFiles)
+      deps
+      (purescriptBundleMain config)
+
+buildPurescript' ::
+     LoomHome
+  -> LoomTmp
+  -> PurescriptBundle FilePath
+  -> EitherT PurescriptError IO (Purescript.CodeGenDir, FilePath, Maybe Js.JsModuleName)
+buildPurescript' home dir (PurescriptBundle psAll deps _) = do
+  let
+    psDir = loomTmpFilePath dir </> "purs"
+    psDepDir = Purescript.PurescriptUnpackDir psDir
+    psOutDir = Purescript.CodeGenDir (psDir </> "output")
+    psOutFile = psDir </> "output" </> "out" <.> "js"
+  fetchedDeps <- Purescript.fetchPurs home deps
+  Purescript.unpackPurs psDepDir fetchedDeps
+  mko <- Purescript.compile psDepDir psAll psOutDir
+  res <- Purescript.bundlePurescript psOutDir mko
+  liftIO $ T.writeFile psOutFile (Purescript.unJsBundle res)
+  pure (psOutDir, psOutFile, Just (Js.JsModuleName "purs"))
 
 resolveGithubDeps :: [[GithubDependency]] -> Either LoomError [GithubDependency]
 resolveGithubDeps allDeps =
