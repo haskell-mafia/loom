@@ -140,7 +140,7 @@ generateAssetHaskell name output spx apx css images js = do
       , "#else"
       , "  assetsMiddlewareDev"
       , "#endif"
-      , "    (cssAssets <> imagesAssets)"
+      , "    (cssAssets <> jsAssets <> imagesAssets)"
       ]
 
 createAssetSymlinks :: FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> [JsFile] -> IO ()
