@@ -10,7 +10,7 @@ export LOOM_SITE_PREFIX="http://test/prefix/"
 export LOOM_OUTPUT_HASKELL="dist/haskell"
 export LOOM_OUTPUT_SITE="dist/site"
 $LOOM build
-$LOOM test | grep "hello"
+$LOOM test | grep "third"
 
 file_exists() {
   if [ ! -e "$1" ]; then
