@@ -100,7 +100,7 @@ main = do
             loom
         case jsMain of
           Nothing ->
-            Exit.die "No purs.test.main module specified"
+            IO.hPutStrLn IO.stderr "No purs.test.main module specified"
           Just main' -> do
             ec <- Node.runNodeMain node nodePath main'
             Exit.exitWith ec
