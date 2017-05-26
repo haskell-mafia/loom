@@ -218,7 +218,11 @@ buildTest logger home dir (LoomResolved config others) = do
       pure psOutDir
 
   pure $ (,)
-    (Node.NodePath [(Js.unJsUnpackDir . jsDepDir) dir, Purescript.unCodeGenDir psDir])
+    (Node.NodePath $ [
+        (Js.unJsUnpackDir . jsDepDir) dir
+      , Purescript.unCodeGenDir psDir
+      ] <> (fmap loomFilePath . bind loomConfigResolvedJs) configs
+      )
     (fmap Js.JsModuleName main)
 
 buildCss ::
