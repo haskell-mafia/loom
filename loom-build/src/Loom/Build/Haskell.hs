@@ -25,7 +25,7 @@ import qualified Loom.Machinator as Machinator
 
 import           P
 
-import           System.Directory (canonicalizePath, copyFile, createDirectoryIfMissing)
+import           System.Directory (canonicalizePath, createDirectoryIfMissing)
 import           System.FilePath ((</>), FilePath, dropExtension, joinPath, takeDirectory, takeFileName)
 import           System.IO (IO)
 import qualified System.IO.Error as IO.Error
@@ -38,6 +38,8 @@ data LoomHaskellError =
   | LoomHaskellProjectorError ProjectorHaskellError
   deriving (Show)
 
+-- FIX The use of css/js in this module is stringy, we shouldn't be manipulating file paths
+
 generateHaskell :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
 generateHaskell output spx apx (LoomResult name _ mo po inputCss images inputJs) = do
   void . firstT LoomHaskellMachinatorError $
@@ -46,19 +48,17 @@ generateHaskell output spx apx (LoomResult name _ mo po inputCss images inputJs)
       (Machinator.ModuleName . Projector.unModuleName <$> Projector.requiredProjectorHaskellImports)
       mo
   let
-    outputCss = CssFile $ output </> (takeFileName . renderCssFile) inputCss
-    outputJs' = with inputJs . fmap $ \jsfile -> JsFile $ output </> takeFileName (renderJsFile jsfile)
+    outputCss = CssFile $ cssFileOutput inputCss
+    outputJs' = fmap (fmap (JsFile . jsFileOutput)) inputJs
     outputJs = fmap snd outputJs'
   liftIO $
     createDirectoryIfMissing True output
   void . firstT LoomHaskellProjectorError $
     Projector.generateProjectorHaskell (output </> "src") spx apx [outputCss] images outputJs' po
   liftIO $
-    copyJs (fmap snd inputJs) outputJs
+    prefixCssImageAssets spx apx images (CssFile . (</>) output . cssAssetFilePath apx $ outputCss) inputCss
   liftIO $
-    prefixCssImageAssets spx apx images outputCss inputCss
-  liftIO $
-    createAssetSymlinks output apx outputCss images outputJs
+    createAssetSymlinks output apx images (fmap snd inputJs)
   liftIO $
     generateAssetHaskell name output spx apx outputCss images outputJs
   liftIO $
@@ -143,23 +143,18 @@ generateAssetHaskell name output spx apx css images js = do
       , "    (cssAssets <> jsAssets <> imagesAssets)"
       ]
 
-createAssetSymlinks :: FilePath -> AssetsPrefix -> CssFile -> [ImageFile] -> [JsFile] -> IO ()
-createAssetSymlinks output apx css images js = do
+createAssetSymlinks :: FilePath -> AssetsPrefix ->  [ImageFile] -> [JsFile] -> IO ()
+createAssetSymlinks output apx images js = do
   let
     link i o = do
       createDirectoryIfMissing True . takeDirectory $ o
       ic <- canonicalizePath i
       handleIf IO.Error.isAlreadyExistsError (pure . const ()) $
         Unix.createSymbolicLink ic o
-  link (renderCssFile css) (output </> cssAssetFilePath apx css)
   for_ images $ \i ->
     link (imageFilePath i) (output </> imageAssetFilePath apx i)
   for_ js $ \j ->
-    link (renderJsFile j) (output </> jsAssetFilePath apx j)
-
-copyJs :: [JsFile] -> [JsFile] -> IO ()
-copyJs =
-  zipWithM_ (copyFile `on` renderJsFile)
+    link (renderJsFile j) (output </> (jsAssetFilePath apx . JsFile . jsFileOutput) j)
 
 generateCabal ::
   LoomName ->
@@ -219,6 +214,14 @@ assetModulePath  =
 renderAssetModuleName :: LoomName -> Text
 renderAssetModuleName n =
   (filePathToModuleName . T.unpack . renderLoomName) n <> ".Assets"
+
+cssFileOutput :: CssFile -> FilePath
+cssFileOutput =
+  takeFileName . renderCssFile
+
+jsFileOutput :: JsFile -> FilePath
+jsFileOutput =
+  takeFileName . renderJsFile
 
 filePathToModuleName :: FilePath -> Text
 filePathToModuleName =

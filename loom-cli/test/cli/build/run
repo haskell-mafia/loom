@@ -22,7 +22,7 @@ contains() {
   grep -q "$2" "$1" || (echo "Could not find '$2' in '$1'" && exit 1)
 }
 
-file_exists "${LOOM_OUTPUT_HASKELL}/test_build.css"
+file_exists "${LOOM_OUTPUT_HASKELL}/assets/test_build.css"
 file_exists "${LOOM_OUTPUT_HASKELL}/test-build-loom.cabal"
 file_exists "${LOOM_OUTPUT_HASKELL}/src/Other/Components/C1.hs"
 file_exists "${LOOM_OUTPUT_HASKELL}/src/Other/Components/C1/Data.hs"
@@ -36,8 +36,8 @@ file_exists "${LOOM_OUTPUT_SITE}/components/test_build/components/c2/index.html"
 file_exists "${LOOM_OUTPUT_SITE}/components/test_build/components/c2/pages/mock.html"
 file_exists "${LOOM_OUTPUT_SITE}/components/test_build/components/c2/data/1.json"
 
-contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
-contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/test_build/components/c2/image.svg\""
+contains "${LOOM_OUTPUT_HASKELL}/assets/test_build.css" "\"/assets/other/components/c1/image.svg\""
+contains "${LOOM_OUTPUT_HASKELL}/assets/test_build.css" "\"/assets/test_build/components/c2/image.svg\""
 contains "${LOOM_OUTPUT_SITE}/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/other/components/c1/image.svg\""
 contains "${LOOM_OUTPUT_SITE}/assets/test_build.css" "\"${LOOM_SITE_PREFIX}assets/test_build/components/c2/image.svg\""
 
@@ -47,5 +47,5 @@ contains "${LOOM_OUTPUT_HASKELL}/src/TestBuild/Assets.hs" "assets/test_build/com
 cd "$LOOM_OUTPUT_HASKELL"
 cp ${ROOT}/../loom-runtime/loom-runtime.lock-7.10.2 ./test-build-loom.lock-7.10.2
 "${ROOT}/mafia" build
-js=$(node main.js)
-[ "$(node ./main.js)" == "foo" ]
+js=$(node assets/main.js)
+[ "$(node ./assets/main.js)" == "foo" ]

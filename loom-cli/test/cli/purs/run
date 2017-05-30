@@ -23,9 +23,9 @@ contains() {
   grep -q "$2" "$1" || (echo "Could not find '$2' in '$1'" && exit 1)
 }
 
-file_exists "${LOOM_OUTPUT_HASKELL}/main.js"
+file_exists "${LOOM_OUTPUT_HASKELL}/assets/main.js"
 # contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
 cd "$LOOM_OUTPUT_HASKELL"
 set -x
-js=$(node -e "eval(require('fs').readFileSync('main.js').toString());console.log(require('purs')['Foo'].foo5);")
+js=$(node -e "eval(require('fs').readFileSync('assets/main.js').toString());console.log(require('purs')['Foo'].foo5);")
 [ "$js" == "foo  " ]
