@@ -136,16 +136,10 @@ httpsFetch att mgr rt rp req = do
     , HTTPS.redirectCount = 0
     } mgr $ \res ->
       case HTTPS.responseStatus res of
-        HTTPS.Status 302 _ -> do
-          either
-            (pure . Left)
-            (runEitherT . uncurry (httpsFetch att mgr rt))
-            (do let hdrs = HTTPS.responseHeaders res
-                req' <- maybe (Left RedirectNoLocation) pure $ do
-                  (_, loc) <- find ((== "Location") . fst) hdrs
-                  HTTPS.parseRequest (B8.unpack loc)
-                rp' <- redirectOk rp req'
-                pure (rp', req'))
+        HTTPS.Status 301 _ ->
+          handleRedirect att mgr rt rp res
+        HTTPS.Status 302 _ ->
+          handleRedirect att mgr rt rp res
         HTTPS.Status 200 _ -> do
           bss <- HTTPS.brConsume $ HTTPS.responseBody res
           pure (Right res { HTTPS.responseBody = LB.fromChunks bss })
@@ -165,6 +159,24 @@ httpsFetch att mgr rt rp req = do
   where
     tryIO :: IO a -> IO (Either IOException a)
     tryIO = try
+
+handleRedirect ::
+     Int
+  -> HTTPS.Manager
+  -> RetryPolicy
+  -> RedirectPolicy
+  -> HTTPS.Response HTTPS.BodyReader
+  -> IO (Either HTTPSError (HTTPS.Response LB.ByteString))
+handleRedirect att mgr rt rp res =
+  either
+    (pure . Left)
+    (runEitherT . uncurry (httpsFetch att mgr rt))
+    (do let hdrs = HTTPS.responseHeaders res
+        req' <- maybe (Left RedirectNoLocation) pure $ do
+          (_, loc) <- find ((== "Location") . fst) hdrs
+          HTTPS.parseRequest (B8.unpack loc)
+        rp' <- redirectOk rp req'
+        pure (rp', req'))
 
 -- | Apply retry policy.
 retry :: Int -> RetryPolicy -> IO Bool
