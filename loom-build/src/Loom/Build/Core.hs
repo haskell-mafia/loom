@@ -347,7 +347,7 @@ buildPurescript' home dir (PurescriptBundle psAll deps _) = do
 resolveGithubDeps :: [[GithubDependency]] -> Either LoomError [GithubDependency]
 resolveGithubDeps allDeps =
   let mkMap :: [GithubDependency] -> Map Text GithubDependency
-      mkMap = Map.fromList . fmap (\g@(GithubDependency repo _ref _sha) -> (grRepo repo, g))
+      mkMap = Map.fromList . fmap (\g@(GithubDependency repo _ref _sha _) -> (grRepo repo, g))
       check k g1 g2 =
         if g1 == g2
           then pure g1

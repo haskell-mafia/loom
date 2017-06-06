@@ -1,0 +1,19 @@
+[loom]
+  version = 1
+  dependencies = []
+  name = "github"
+
+[purs]
+  paths = [
+      "app/src/purs/*"
+    ]
+
+[js.dependencies]
+  github2 = [
+      ["isaacs/rimraf", "tags/v2.6.1", "813139ac3628ae0b47136de18939cbb623e21475"]
+    ]
+
+[purs.dependencies]
+  github2 = [
+      ["purescript/purescript-newtype", "tags/v2.0.0", "2276bd44ff5b7440c455839833c69f40cc8d8616"]
+    ]

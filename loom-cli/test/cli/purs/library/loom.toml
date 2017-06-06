@@ -1,5 +1,5 @@
 [loom]
-  version = 1
+  version = 2
   name = "library"
 
 [component]
@@ -14,14 +14,14 @@
     ]
 
 [purs.dependencies]
-  github = [
-      ["purescript/purescript-prelude", "tags/v1.1.0", "c77adca5dcad09ef6e99ea76b74ce45b67fb899c"]
-    , ["purescript/purescript-strings", "tags/v1.1.0", "f45bac6710f9c961618f9b3fbdba6cc6a24e83b7"]
-    , ["purescript/purescript-maybe", "tags/v1.0.0", "253f7de613fe816945612a46a8bae210fb366a33"]
-    , ["purescript/purescript-control", "tags/v1.0.0", "0d4e04bace6b4717e9c745a62b31e3bc409d1cdb"]
-    , ["purescript/purescript-invariant", "tags/v1.0.0", "e0c7cd14e226de7449a843782c50cd9d03577234"]
-    , ["purescript/purescript-monoid", "tags/v1.0.0", "c12cc75643cbd9c1c066a4b964570286e7e5077f"]
-    , ["purescript/purescript-either", "tags/v1.0.0", "4b399854e8279f1ee83fcd8c265b8c02856d269b"]
-    , ["purescript/purescript-bifunctors", "tags/v1.0.0", "0eb78b63ee000077ffe1dc60097f4881800d2fd2"]
-    , ["purescript/purescript-foldable-traversable", "tags/v1.0.0", "1b8b6587e364e20c7f628fd3fbc108f065fc5802"]
+  github2 = [
+      ["purescript/purescript-prelude", "tags/v1.1.0", "d87350f8f140a9e483056800696bdb72f12fa6a0"]
+    , ["purescript/purescript-strings", "tags/v1.1.0", "4a02d2edc4d362ed17572b867c994402d9185b63"]
+    , ["purescript/purescript-maybe", "tags/v1.0.0", "d68b1ab2dd2728a96ffe957801471c8545a52b14"]
+    , ["purescript/purescript-control", "tags/v1.0.0", "0ae14be521f3c9164c313b2e37cbf3927454e4d0"]
+    , ["purescript/purescript-invariant", "tags/v1.0.0", "16dcd23caff64ab4b7ba48de50d84bc27bd45e94"]
+    , ["purescript/purescript-monoid", "tags/v1.0.0", "60740daf06a31bd7bf9dcb78435d57dc6d7aa632"]
+    , ["purescript/purescript-either", "tags/v1.0.0", "312f9026b5e807b4b48f3547ecdd43396bd3bd4f"]
+    , ["purescript/purescript-bifunctors", "tags/v1.0.0", "685f43fdf4a58cacfbed85a419e3bc217856247a"]
+    , ["purescript/purescript-foldable-traversable", "tags/v1.0.0", "60505864ff730268994d77b6f5c6a817654dd8d4"]
     ]

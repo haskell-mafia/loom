@@ -53,7 +53,7 @@ SHA1 hash.
 ```toml
 [loom]
   # Mandatory
-  version = 1
+  version = 2
 
   # Mandatory
   name = "my_project"
@@ -87,7 +87,7 @@ SHA1 hash.
   npm = [
       ["d3", "4.7.4", "a2f40eb57decc51bc469010d48ae74a20e025772"]
     ]
-  github = [
+  github2 = [
       ["isaacs/rimraf", "tags/v2.6.1", "813139ac3628ae0b47136de18939cbb623e21475"]
     ]
 
@@ -99,7 +99,7 @@ SHA1 hash.
 
 [purs.dependencies]
   # Optional
-  github = [
+  github2 = [
       ["purescript/purescript-newtype", "tags/v2.0.0", "2276bd44ff5b7440c455839833c69f40cc8d8616"]
     ]
 
@@ -113,7 +113,7 @@ SHA1 hash.
 
 [purs.test.dependencies]
   # Optional
-  github = [
+  github2 = [
       ["bodil/purescript-test-unit", "tags/v9.1.0", "e1c16b5a0277f2d017c2279ba1dc2f42be36fc33"]
     ]
 ```

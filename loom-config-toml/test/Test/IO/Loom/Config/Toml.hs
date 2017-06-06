@@ -60,10 +60,10 @@ prop_loom_config_toml_parse_ok =
           [p "app/src/js/*"]
           [Bundle (BundleName "first") (p "app/src/first.js") [p "app/src/first/js/*"]]
           [NpmDependency (NpmPackage "d3") (NpmPackageVersion "4.7.4") (Sha1 "a2f40eb57decc51bc469010d48ae74a20e025772")]
-          [GithubDependency (GithubRepo "isaacs" "rimraf") (GitRef "tags/v2.6.1") (Sha1 "813139ac3628ae0b47136de18939cbb623e21475")]
+          [GithubDependency (GithubRepo "isaacs" "rimraf") (GitRef "tags/v2.6.1") (Sha1 "813139ac3628ae0b47136de18939cbb623e21475") GithubDependencyV1]
           (PurescriptBundle
             [p "app/src/purs/*"]
-            [GithubDependency (GithubRepo "purescript" "purescript-newtype") (GitRef "tags/v2.0.0") (Sha1 "2276bd44ff5b7440c455839833c69f40cc8d8616")]
+            [GithubDependency (GithubRepo "purescript" "purescript-newtype") (GitRef "tags/v2.0.0") (Sha1 "2276bd44ff5b7440c455839833c69f40cc8d8616") GithubDependencyV1]
             Nothing
             )
           (PurescriptBundle [] [] Nothing)
@@ -94,11 +94,29 @@ prop_loom_config_toml_parse_ok =
           (PurescriptBundle [] [] Nothing)
           (PurescriptBundle
             [p "app/test/purs/*"]
-            [GithubDependency (GithubRepo "purescript" "purescript-newtype") (GitRef "tags/v2.0.0") (Sha1 "2276bd44ff5b7440c455839833c69f40cc8d8616")]
+            [GithubDependency (GithubRepo "purescript" "purescript-newtype") (GitRef "tags/v2.0.0") (Sha1 "2276bd44ff5b7440c455839833c69f40cc8d8616") GithubDependencyV1]
             (Just "Test.App")
             )
           )
         []
+    , check "test/data/config/v2/github.toml" . Right $ Loom
+        (LoomConfig
+          (LoomRoot ".")
+          (LoomName "github")
+          []
+          []
+          []
+          [Bundle (BundleName "first") (p "app/src/first.js") [p "app/src/first/js/*"]]
+          []
+          [GithubDependency (GithubRepo "isaacs" "rimraf") (GitRef "tags/v2.6.1") (Sha1 "813139ac3628ae0b47136de18939cbb623e21475") GithubDependencyV2]
+          (PurescriptBundle
+            [p "app/src/purs/*"]
+            [GithubDependency (GithubRepo "purescript" "purescript-newtype") (GitRef "tags/v2.0.0") (Sha1 "2276bd44ff5b7440c455839833c69f40cc8d8616") GithubDependencyV2]
+            Nothing
+            )
+          (PurescriptBundle [] [] Nothing)
+          )
+      []
     ]
 
 prop_loom_config_toml_parse_error =

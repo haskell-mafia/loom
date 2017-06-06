@@ -29,6 +29,7 @@ module Loom.Core.Data (
   , NpmPackage (..)
   , NpmPackageVersion (..)
   , GithubDependency (..)
+  , GithubDependencyType (..)
   , NpmDependency (..)
   , Bundle (..)
   , BundleName (..)
@@ -395,7 +396,13 @@ data GithubDependency = GithubDependency {
     ghdRepo :: GithubRepo
   , ghdRef :: GitRef
   , ghdSha1 :: Sha1
+  , ghdType :: GithubDependencyType
   } deriving (Eq, Ord, Show)
+
+data GithubDependencyType =
+    GithubDependencyV1
+  | GithubDependencyV2
+  deriving (Eq, Ord, Show)
 
 -- | A fully specified NPM dependency.
 data NpmDependency = NpmDependency {

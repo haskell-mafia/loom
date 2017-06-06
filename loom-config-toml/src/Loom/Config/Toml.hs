@@ -34,7 +34,7 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
 # example "loom.toml" config file
 
 [loom]
-  version = 1
+  version = 2
   dependencies = ["lib/bikeshed"]
   name = "my_project"
 
@@ -60,7 +60,7 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
   paths = ["purs"]
 
 [purs.dependencies]
-  github = [
+  github2 = [
       ["purescript/purescript-prelude", "tags/v1.0.0", "deadbeef"]
     ]
 
@@ -68,7 +68,7 @@ import           X.Text.Toml (_NTable, _NTValue, _VArray, _VString, _VInteger, k
   paths = ["test"]
 
 [purs.test.dependencies]
-  github = [
+  github2 = [
       ["purescript/purescript-quickcheck", "tags/v1.0.0", "63277c8df15822bf5c9e9f673e08ef8080baf0ba"]
     ]
 --}
@@ -144,6 +144,8 @@ parseTomlConfig t =
       Left ConfigMissingVersionError
     Just 1 ->
       parseTomlConfigV1 t
+    Just 2 ->
+      parseTomlConfigV2 t
     Just n ->
       Left $ ConfigUnknownVersionError n
 
@@ -171,13 +173,61 @@ parseTomlConfigV1 t =
     <*> (maybe (pure []) (parseNpmDeps "js.dependencies.npm") $
       t ^? key "js" . _NTable . key "dependencies" . _NTable . key "npm" . _NTValue . _VArray
       )
-    <*> (maybe (pure []) (parseGithubDeps "js.dependencies.github") $
+    <*> (maybe (pure []) (parseGithubDeps "js.dependencies.github" GithubDependencyV1) $
       t ^? key "js" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+      )
+    <*> parseTomlPurescriptBundleV1 (key "purs" . _NTable) "purs" t
+    <*> parseTomlPurescriptBundleV1 (key "purs" . _NTable . key "test" . _NTable) "purs.test" t
+
+parseTomlConfigV2 :: Table -> Either LoomConfigTomlError LoomConfigRaw
+parseTomlConfigV2 t =
+  LoomConfigRaw
+    <$> (fmap LoomName . maybeToRight (ConfigInvalidField "loom.name") $
+      t ^? key "loom" . _NTable . key "name" . _NTValue . _VString
+      )
+    <*> (maybe (pure []) (fmap (fmap T.unpack) . maybeToRight (ConfigInvalidField "loom.dependencies") . mapM (preview _VString)) $
+      t ^? key "loom" . _NTable . key "dependencies" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseFilePatterns "component.paths") $
+      t ^? key "component" . _NTable . key "paths" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseFilePatterns "sass.paths") $
+      t ^? key "sass" . _NTable . key "paths" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseFilePatterns "js.paths") $
+      t ^? key "js" . _NTable . key "paths" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) parseBundleTable $
+      t ^? key "js" . _NTable . key "bundle" . _NTable
+      )
+    <*> (maybe (pure []) (parseNpmDeps "js.dependencies.npm") $
+      t ^? key "js" . _NTable . key "dependencies" . _NTable . key "npm" . _NTValue . _VArray
+      )
+    <*> (mappend
+      <$> (maybe (pure []) (parseGithubDeps "js.dependencies.github" GithubDependencyV1) $
+        t ^? key "js" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+        )
+      <*> (maybe (pure []) (parseGithubDeps "js.dependencies.github2" GithubDependencyV2) $
+        t ^? key "js" . _NTable . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+        )
       )
     <*> parseTomlPurescriptBundleV2 (key "purs" . _NTable) "purs" t
     <*> parseTomlPurescriptBundleV2 (key "purs" . _NTable . key "test" . _NTable) "purs.test" t
 
--- FIX We need to go back and fix the v1/v2 split, but this is a good start
+parseTomlPurescriptBundleV1 ::
+  Traversal' Table Table -> Text -> Table -> Either LoomConfigTomlError (PurescriptBundle FilePattern)
+parseTomlPurescriptBundleV1 root n t =
+  PurescriptBundle
+    <$> (maybe (pure []) (parseFilePatterns (n <> ".paths")) $
+      t ^? root . key "paths" . _NTValue . _VArray
+      )
+    <*> (maybe (pure []) (parseGithubDeps (n <> ".dependencies.github") GithubDependencyV1) $
+      t ^? root . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+      )
+    <*> (pure $
+      t ^? root . key "main" . _NTValue . _VString
+      )
+
 parseTomlPurescriptBundleV2 ::
   Traversal' Table Table -> Text -> Table -> Either LoomConfigTomlError (PurescriptBundle FilePattern)
 parseTomlPurescriptBundleV2 root n t =
@@ -185,8 +235,13 @@ parseTomlPurescriptBundleV2 root n t =
     <$> (maybe (pure []) (parseFilePatterns (n <> ".paths")) $
       t ^? root . key "paths" . _NTValue . _VArray
       )
-    <*> (maybe (pure []) (parseGithubDeps (n <> ".dependencies.github")) $
-      t ^? root . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+    <*> (mappend
+      <$> (maybe (pure []) (parseGithubDeps (n <> ".dependencies.github") GithubDependencyV1) $
+        t ^? root . key "dependencies" . _NTable . key "github" . _NTValue . _VArray
+        )
+      <*> (maybe (pure []) (parseGithubDeps (n <> ".dependencies.github2") GithubDependencyV2) $
+        t ^? root . key "dependencies" . _NTable . key "github2" . _NTValue . _VArray
+        )
       )
     <*> (pure $
       t ^? root . key "main" . _NTValue . _VString
@@ -208,13 +263,13 @@ parseNpmDeps l vals =
     _ ->
       Left (ConfigInvalidField l)
 
-parseGithubDeps :: Text -> [TValue] -> Either LoomConfigTomlError [GithubDependency]
-parseGithubDeps l vals =
+parseGithubDeps :: Text -> GithubDependencyType -> [TValue] -> Either LoomConfigTomlError [GithubDependency]
+parseGithubDeps l typ vals =
   for vals $ \case
     VArray (VString name : VString ref : VString sha : []) ->
       case T.splitOn "/" name of
         [user, repo] ->
-          pure (GithubDependency (GithubRepo user repo) (GitRef ref) (Sha1 sha))
+          pure (GithubDependency (GithubRepo user repo) (GitRef ref) (Sha1 sha) typ)
         _ ->
           Left (ConfigInvalidField l)
     _ ->
