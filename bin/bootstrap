@@ -1,5 +1,20 @@
 #!/bin/sh -eu
 
-git submodule update --init
+: ${GIT_WORKERS:="32"}
+
+#
+# FIX Remove this submodule update process once mafia supports submodule parallelism.
+#
+
+git submodule init
+
+if [ "$GIT_WORKERS" = "1" ]; then
+    git submodule update
+else
+    git submodule \
+        | awk '{ print $2 }' \
+        | xargs -L 1 -P $GIT_WORKERS git submodule update 2>/dev/null
+fi
+
 cd loom-cli
 ./mafia build
