@@ -14,11 +14,20 @@
   PUBLISH_EXECUTABLES = "loom"
   GHC_VERSION = "7.10.2"
   CABAL_VERSION = "1.24.0.0"
-  PURESCRIPT_VERSION = "0.8.5.0"
   CACHE = "true"
+
+[build.dist-8-0]
+  PUBLISH = "true"
+  PUBLISH_S3 = "$AMBIATA_ARTEFACTS_MASTER"
+  PUBLISH_EXECUTABLES = "loom"
+  GHC_VERSION = "7.10.2"
+  CABAL_VERSION = "1.22.4.0"
 
 [build.branches-7-10]
   GHC_VERSION = "7.10.2"
   CABAL_VERSION = "1.24.0.0"
-  PURESCRIPT_VERSION = "0.8.5.0"
   CACHE = "true"
+
+[build.branches-8-0]
+  GHC_VERSION = "8.0.1"
+  CABAL_VERSION = "1.24.0.0"
