@@ -141,6 +141,146 @@
       ["master", "build", "branches-7-10", "-C", "loom-purescript"]
     ]
 
+[build.dist-8-0-core]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-core"]
+    ]
+
+[build.dist-8-0-build]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-build"]
+    ]
+
+[build.dist-8-0-cli]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-cli"]
+    ]
+
+[build.dist-8-0-config-toml]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-config-toml"]
+    ]
+
+[build.dist-8-0-fetch]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-fetch"]
+    ]
+
+[build.dist-8-0-machinator]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-machinator"]
+    ]
+
+[build.dist-8-0-http]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-http"]
+    ]
+
+[build.dist-8-0-js]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-js"]
+    ]
+
+[build.dist-8-0-process]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-process"]
+    ]
+
+[build.dist-8-0-projector]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-projector"]
+    ]
+
+[build.dist-8-0-sass]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-sass"]
+    ]
+
+[build.dist-8-0-site]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-site"]
+    ]
+
+[build.dist-8-0-runtime]
+  command = [
+      ["bin/master", "build", "dist-8-0", "-C", "loom-runtime"]
+    ]
+
+[build.branches-8-0-core]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-core"]
+    ]
+
+[build.branches-8-0-build]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-build"]
+    ]
+
+[build.dist-8-0-purescript]
+  command = [
+      ["master", "build", "dist-8-0", "-C", "loom-purescript"]
+    ]
+
+[build.branches-8-0-cli]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-cli"]
+    ]
+
+[build.branches-8-0-config-toml]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-config-toml"]
+    ]
+
+[build.branches-8-0-fetch]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-fetch"]
+    ]
+
+[build.branches-8-0-machinator]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-machinator"]
+    ]
+
+[build.branches-8-0-http]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-http"]
+    ]
+
+[build.branches-8-0-js]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-js"]
+    ]
+
+[build.branches-8-0-process]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-process"]
+    ]
+
+[build.branches-8-0-projector]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-projector"]
+    ]
+
+[build.branches-8-0-sass]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-sass"]
+    ]
+
+[build.branches-8-0-site]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-site"]
+    ]
+
+[build.branches-8-0-runtime]
+  command = [
+      ["bin/master", "build", "branches-8-0", "-C", "loom-runtime"]
+    ]
+
+[build.branches-8-0-purescript]
+  command = [
+      ["master", "build", "branches-8-0", "-C", "loom-purescript"]
+    ]
+
 [build.dist-validate]
   command = [["validate-respect"]]
 
