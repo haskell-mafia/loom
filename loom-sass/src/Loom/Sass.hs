@@ -64,7 +64,8 @@ compileSassFile :: Sass -> SassStyle -> CssFile -> FilePath -> EitherT SassError
 compileSassFile sass style (CssFile outFile) input = do
   liftIO . createDirectoryIfMissing True . takeDirectory $ outFile
   firstT SassProcessError . call (sassPath sass) . mconcat $ [
-      [T.pack input]
+      ["-I", "."]
+    , [T.pack input]
     , ["--style", renderSassStyle style]
     , [T.pack outFile]
     ]
