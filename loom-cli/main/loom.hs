@@ -148,13 +148,19 @@ watch port = do
   let
     renderHtmlErrorPage' =
       renderHtmlErrorPage sitePrefix
-  Warp.runSettings (Warp.setPort port Warp.defaultSettings) $
-    loomHttpApplication
-      (loomSiteRootFilePath . buildConfigSite $ bc)
-      (LoomHttpNotFound . renderHtmlErrorPage' $ loomSiteNotFound)
-      (LoomHttpBuild . fmap (first (renderHtmlErrorPage' . loomSiteError)) . MVar.readMVar $ v)
-  Pin.pullPin pin
-  Async.wait watchA
+  w <- Async.async .
+    Warp.runSettings (Warp.setPort port Warp.defaultSettings) $
+      loomHttpApplication
+        (loomSiteRootFilePath . buildConfigSite $ bc)
+        (LoomHttpNotFound . renderHtmlErrorPage' $ loomSiteNotFound)
+        (LoomHttpBuild . fmap (first (renderHtmlErrorPage' . loomSiteError)) . MVar.readMVar $ v)
+  x <- Async.waitEither watchA w
+  case x of
+    Left _ ->
+      Async.cancel w
+    Right _ -> do
+      Pin.pullPin pin
+      Async.wait watchA
 
 -----------
 
