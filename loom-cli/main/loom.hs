@@ -44,7 +44,7 @@ import           X.Control.Monad.Trans.Either.Exit (orDie)
 data Command =
     Build
   | Test
-  | Watch Int
+  | Watch Int [SiteFilter]
   deriving (Eq, Show)
 
 data LoomCliError =
@@ -83,6 +83,7 @@ main = do
             home
             sitePrefix
             apx
+            []
             bc
       Test -> do
         node <- orDie Js.renderJsError $
@@ -104,13 +105,13 @@ main = do
           Just main' -> do
             ec <- Node.runNodeMain node nodePath main'
             Exit.exitWith ec
-      Watch port ->
-        watch port
+      Watch port sf ->
+        watch port sf
 
 -----------
 
-watch :: Int -> IO ()
-watch port = do
+watch :: Int -> [SiteFilter] -> IO ()
+watch port sf = do
   buildConfig <- orDie renderLoomBuildInitisationError initialiseBuild
   home <- loomHomeEnv
   sitePrefix <- sitePrefixEnv
@@ -133,6 +134,7 @@ watch port = do
               home
               sitePrefix
               apx
+              sf
               bc
           IO.hPutStrLn stderr $ case r of
             Left e ->
@@ -172,9 +174,10 @@ buildLoom' ::
   LoomHome ->
   LoomSitePrefix ->
   AssetsPrefix ->
+  [SiteFilter] ->
   BuildConfig ->
   EitherT LoomCliError IO ()
-buildLoom' logger buildConfig mode config home sitePrefix apx (BuildConfig haskellRoot siteRoot) = do
+buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig haskellRoot siteRoot) = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -187,7 +190,7 @@ buildLoom' logger buildConfig mode config home sitePrefix apx (BuildConfig haske
     -- NOTE: Site prefix is intentionally different for haskell than generated site
     generateHaskell haskellRoot (LoomSitePrefix "/") apx r
   withLogIO logger "site" . firstT LoomSiteError $
-    generateLoomSite sitePrefix siteRoot apx r
+    generateLoomSite sitePrefix siteRoot apx sf r
 
 -----------
 
@@ -220,7 +223,7 @@ parser =
     , OA.command' "test" "Test a loom project from the current working directory" $
         pure Test
     , OA.command' "watch" "Start an HTTP server in the current loom project and watch the filesystem for changes" $
-        Watch <$> portP
+        Watch <$> portP <*> many siteFilterP
     ]
 
 portP :: Parser Int
@@ -230,6 +233,13 @@ portP =
     <> OA.short 'p'
     <> OA.metavar "PORT"
     <> OA.help "The HTTP port for running the server under. Defaults to port 3000."
+
+siteFilterP :: Parser SiteFilter
+siteFilterP =
+  fmap SiteFilter . OA.option (OA.eitherReader (first T.unpack . compileFilePattern . T.pack)) $
+       OA.long "site-filter"
+    <> OA.metavar "SITE_FILTER"
+    <> OA.help "A filter for generating a sub-set of the site to reduce the time taken"
 
 -----------
 

@@ -60,6 +60,7 @@ prop_site =
             (LoomSitePrefix "/")
             (LoomSiteRoot dirOut)
             (AssetsPrefix "assets")
+            []
             (LoomResult
                (LoomName "test")
                components
