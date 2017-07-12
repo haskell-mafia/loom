@@ -7,6 +7,7 @@ module Loom.Site (
   , LoomSiteError (..)
   , SiteNavigation (..)
   , SiteTitle (..)
+  , SiteFilter (..)
   , defaultLoomSiteRoot
   , generateLoomSite
   , cleanLoomSite
@@ -87,6 +88,11 @@ data LoomSiteError =
   | LoomSiteProjectorInterpretError ProjectorInterpretError
   deriving (Eq, Show)
 
+newtype SiteFilter =
+  SiteFilter {
+      unSiteFilter :: FilePattern
+    } deriving (Eq, Show)
+
 data SiteComponent =
   SiteComponent {
       _siteComponentReadme :: Maybe Html
@@ -106,8 +112,14 @@ defaultLoomSiteRoot c =
   LoomSiteRoot $
     c </> "site"
 
-generateLoomSite :: LoomSitePrefix -> LoomSiteRoot -> AssetsPrefix -> LoomResult -> EitherT LoomSiteError IO ()
-generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components mo po cssIn images js) = do
+generateLoomSite ::
+     LoomSitePrefix
+  -> LoomSiteRoot
+  -> AssetsPrefix
+  -> [SiteFilter]
+  -> LoomResult
+  -> EitherT LoomSiteError IO ()
+generateLoomSite prefix root@(LoomSiteRoot out) apx sf (LoomResult _name components mo po cssIn images js) = do
   let
     css =
       CssFile . File.takeFileName . renderCssFile $ cssIn
@@ -125,13 +137,17 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
     copyFile (imageFilePath img) (out </> imageAssetFilePath apx img)
   safeIO . for_ js $ \(_bn, j) ->
     copyFile (renderJsFile j) (out </> jsAssetFilePath apx j)
-  void . flip Map.traverseWithKey components $ \ln cs ->
-    fmap join . newEitherT . fmap sequence . forConcurrently cs $ \c -> runEitherT $ do
-      sc <- resolveSiteComponent prefix apx [css] images js mo po c
-      copyComponentDataFiles root ln c
-      mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c
+  components' <- flip Map.traverseWithKey components $ \ln cs ->
+    fmap join . newEitherT . fmap sequence . forConcurrently cs $ \c -> runEitherT $
+      if filterSiteComponent c sf then do
+        sc <- resolveSiteComponent prefix apx [css] images js mo po c
+        copyComponentDataFiles root ln c
+        mapM_ writeHtmlFile' . loomComponentHtml prefix sc ln $ c
+        pure [c]
+      else
+        pure []
   writeHtmlFile' $
-    loomComponentsHtml prefix components
+    loomComponentsHtml prefix components'
   writeHtmlFile' $
     loomDataHtml mo
   writeHtmlFile' $
@@ -534,6 +550,14 @@ projectorHtmlToBlaze h =
       foldMap projectorHtmlToBlaze hs
 
 --------
+
+filterSiteComponent :: Component -> [SiteFilter] -> Bool
+filterSiteComponent c sf =
+  case sf of
+    [] ->
+      True
+    _ ->
+      matchFilePatterns (fmap unSiteFilter sf) (loomFilePath . componentPath $ c)
 
 componentDirectory :: Component -> LoomName -> FilePath
 componentDirectory c (LoomName ln) =
