@@ -18,6 +18,7 @@ module Loom.Site (
   ) where
 
 import           Control.Monad.Catch (handleIf)
+import           Control.Concurrent.Async (forConcurrently)
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as B
@@ -60,7 +61,7 @@ import           Text.Blaze.Html.Renderer.Text (renderHtml)
 import qualified Text.Blaze.Internal as H
 import qualified Text.Markdown as Markdown
 
-import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT)
+import           X.Control.Monad.Trans.Either (EitherT, hoistEither, newEitherT, runEitherT)
 
 newtype LoomSiteRoot =
   LoomSiteRoot {
@@ -125,7 +126,7 @@ generateLoomSite prefix root@(LoomSiteRoot out) apx (LoomResult _name components
   safeIO . for_ js $ \(_bn, j) ->
     copyFile (renderJsFile j) (out </> jsAssetFilePath apx j)
   void . flip Map.traverseWithKey components $ \ln cs ->
-    for_ cs $ \c -> do
+    fmap join . newEitherT . fmap sequence . forConcurrently cs $ \c -> runEitherT $ do
       sc <- resolveSiteComponent prefix apx [css] images js mo po c
       copyComponentDataFiles root ln c
       mapM writeHtmlFile' . loomComponentHtml prefix sc ln $ c

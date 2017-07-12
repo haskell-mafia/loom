@@ -34,6 +34,7 @@ library
                     , ambiata-projector-core
                     , ambiata-projector-html
                     , ambiata-x-eithert
+                    , async                           == 2.1.*
                     , blaze-html                      == 0.8.*
                     , blaze-markup                    == 0.7.*
                     , bytestring                      == 0.10.*
