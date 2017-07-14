@@ -81,7 +81,7 @@ getStdinThen(function(stdin){
   var bundler =
     browserify({
       debug: !(isProduction), // Toggles sourcemaps
-      detectGlobals: false,
+      detectGlobals: true,
       paths: paths,
       entries: oMap(function(key, val) { return key; }, entries),
     })
