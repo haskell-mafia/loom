@@ -3,6 +3,7 @@
 module Loom.Machinator (
     MachinatorError (..)
   , MachinatorHaskellError (..)
+  , MachinatorPurescriptError (..)
   , MachinatorInput (..)
   , MachinatorOutput (..)
   , ModuleName (..)
@@ -10,8 +11,10 @@ module Loom.Machinator (
   , machinatorOutputModules
   , compileMachinator
   , generateMachinatorHaskell
+  , generateMachinatorPurescript
   , renderMachinatorError
   , renderMachinatorHaskellError
+  , renderMachinatorPurescriptError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
@@ -25,6 +28,8 @@ import qualified Data.Text.IO as T
 import qualified Machinator.Core as MC
 import qualified Machinator.Haskell as MH
 import qualified Machinator.Haskell.Data.Types as MH
+import qualified Machinator.Purescript as MP
+import qualified Machinator.Purescript.Data.Types as MP
 
 import           P
 
@@ -42,6 +47,10 @@ data MachinatorError =
 
 data MachinatorHaskellError =
     MachinatorHaskellError MH.HaskellTypesError
+    deriving (Eq, Show)
+
+data MachinatorPurescriptError =
+    MachinatorPurescriptError MP.PurescriptTypesError
     deriving (Eq, Show)
 
 -- FIX Should come from Machinator
@@ -99,6 +108,15 @@ generateMachinatorHaskell output imports (MachinatorOutput ds) = do
     T.writeFile (output </> f) . hackImports imports $ t
     pure f
 
+generateMachinatorPurescript :: FilePath -> [ModuleName] -> MachinatorOutput -> EitherT MachinatorPurescriptError IO [FilePath]
+generateMachinatorPurescript output imports (MachinatorOutput ds) = do
+  ps <- hoistEither . first MachinatorPurescriptError . MP.types MP.PurescriptTypesV1 . with (Map.toList ds) $ \(n, d) ->
+    (MC.DefinitionFile (moduleNameToFile "purs" n) d)
+  liftIO . for ps $ \(f, t) -> do
+    createDirectoryIfMissing True (output </> takeDirectory f)
+    T.writeFile (output </> f) . hackImports imports $ t
+    pure f
+
 -- FIX Machinator needs to support his natively
 -- https://github.com/ambiata/machinator/issues/12
 hackImports :: [ModuleName] -> Text -> Text
@@ -127,7 +145,13 @@ renderMachinatorHaskellError :: MachinatorHaskellError -> Text
 renderMachinatorHaskellError pe =
   case pe of
     MachinatorHaskellError me ->
-      "Machinator haskell errors:\n" <> MH.renderHaskellTypesError me
+      "Machinator Haskell errors:\n" <> MH.renderHaskellTypesError me
+
+renderMachinatorPurescriptError :: MachinatorPurescriptError -> Text
+renderMachinatorPurescriptError pe =
+  case pe of
+    MachinatorPurescriptError me ->
+      "Machinator Purescript errors:\n" <> MP.renderPurescriptTypesError me
 
 -- FIX Remove from machinator
 -- https://github.com/ambiata/machinator/blob/815e948b59a392d56c8589990279bc7ee464f12b/machinator-haskell/src/Machinator/Haskell/Scheme/Types.hs#L77

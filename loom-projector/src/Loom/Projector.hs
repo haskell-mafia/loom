@@ -23,8 +23,10 @@ module Loom.Projector (
   , generateProjectorPurescript
   , moduleNameFromFile
   , requiredProjectorHaskellImports
+  , requiredProjectorPurescriptImports
   , renderProjectorError
   , renderProjectorHaskellError
+  , renderProjectorPurescriptError
   , renderProjectorInterpretError
   ) where
 
@@ -249,6 +251,12 @@ requiredProjectorHaskellImports =
     Projector.ModuleName "Projector.Html.Runtime"
   ]
 
+requiredProjectorPurescriptImports :: [ModuleName]
+requiredProjectorPurescriptImports =
+  [
+    Projector.ModuleName "Projector.Html.Runtime"
+  ]
+
 renderProjectorError :: ProjectorError -> Text
 renderProjectorError pe =
   case pe of
@@ -261,7 +269,13 @@ renderProjectorHaskellError :: ProjectorHaskellError -> Text
 renderProjectorHaskellError pe =
   case pe of
     ProjectorHaskellError es ->
-      "Projector haskell errors:\n" <> (T.unlines . fmap Projector.renderHaskellError) es
+      "Projector Haskell errors:\n" <> (T.unlines . fmap Projector.renderHaskellError) es
+
+renderProjectorPurescriptError :: ProjectorPurescriptError -> Text
+renderProjectorPurescriptError pe =
+  case pe of
+    ProjectorPurescriptError es ->
+      "Projector Purescript errors:\n" <> (T.unlines . fmap Projector.renderPurescriptError) es
 
 renderProjectorInterpretError :: ProjectorInterpretError -> Text
 renderProjectorInterpretError pe =

@@ -48,6 +48,7 @@ library
                     Loom.Build.Data
                     Loom.Build.Haskell
                     Loom.Build.Logger
+                    Loom.Build.Purescript
                     Loom.Build.Watch
 
 test-suite test

@@ -14,6 +14,7 @@ import           DependencyInfo_ambiata_loom_cli
 import           Loom.Build.Core
 import           Loom.Build.Haskell
 import           Loom.Build.Logger
+import           Loom.Build.Purescript
 import           Loom.Build.Watch
 import           Loom.Core.Data
 import           Loom.Config.Toml
@@ -50,11 +51,13 @@ data Command =
 data LoomCliError =
     LoomError LoomError
   | LoomHaskellError LoomHaskellError
+  | LoomPurescriptError LoomPurescriptError
   | LoomSiteError LoomSiteError
 
 data BuildConfig =
   BuildConfig {
       _buildConfigHaskell :: FilePath
+    , _buildConfigPurescript :: FilePath
     , buildConfigSite :: LoomSiteRoot
     }
 
@@ -177,7 +180,7 @@ buildLoom' ::
   [SiteFilter] ->
   BuildConfig ->
   EitherT LoomCliError IO ()
-buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig haskellRoot siteRoot) = do
+buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig haskellRoot pursRoot siteRoot) = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -189,6 +192,8 @@ buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig ha
   withLogIO logger "haskell" . firstT LoomHaskellError $
     -- NOTE: Site prefix is intentionally different for haskell than generated site
     generateHaskell haskellRoot (LoomSitePrefix "/") apx r
+  withLogIO logger "purescript" . firstT LoomPurescriptError $
+    generatePurescript pursRoot (LoomSitePrefix "/") apx r
   withLogIO logger "site" . firstT LoomSiteError $
     generateLoomSite sitePrefix siteRoot apx sf r
 
@@ -211,6 +216,7 @@ buildConfigEnv :: IO BuildConfig
 buildConfigEnv =
   BuildConfig
     <$> (fmap (fromMaybe "dist/loom/haskell") . lookupEnv) "LOOM_OUTPUT_HASKELL"
+    <*> (fmap (fromMaybe "dist/loom/purs") . lookupEnv) "LOOM_OUTPUT_PURESCRIPT"
     <*> (fmap (LoomSiteRoot . fromMaybe "dist/loom/site") . lookupEnv) "LOOM_OUTPUT_SITE"
 
 -----------
@@ -250,5 +256,7 @@ renderLoomCliError le =
       renderLoomError e
     LoomHaskellError e ->
       renderLoomHaskellError e
+    LoomPurescriptError e ->
+      renderLoomPurescriptError e
     LoomSiteError e ->
       renderLoomSiteError e
