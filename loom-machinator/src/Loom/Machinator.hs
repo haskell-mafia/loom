@@ -3,6 +3,7 @@
 module Loom.Machinator (
     MachinatorError (..)
   , MachinatorHaskellError (..)
+  , MachinatorPurescriptError (..)
   , MachinatorInput (..)
   , MachinatorOutput (..)
   , ModuleName (..)
@@ -10,6 +11,7 @@ module Loom.Machinator (
   , compileMachinator
   , renderMachinatorError
   , renderMachinatorHaskellError
+  , renderMachinatorPurescriptError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
@@ -22,6 +24,8 @@ import qualified Data.Text.IO as T
 import qualified Machinator.Core as MC
 import qualified Machinator.Haskell as MH
 import qualified Machinator.Haskell.Data.Types as MH
+import qualified Machinator.Purescript as MP
+import qualified Machinator.Purescript.Data.Types as MP
 
 import           P
 
@@ -38,6 +42,10 @@ data MachinatorError =
 
 data MachinatorHaskellError =
     MachinatorHaskellError MH.HaskellTypesError
+    deriving (Eq, Show)
+
+data MachinatorPurescriptError =
+    MachinatorPurescriptError MP.PurescriptTypesError
     deriving (Eq, Show)
 
 -- FIX Should come from Machinator
@@ -99,7 +107,13 @@ renderMachinatorHaskellError :: MachinatorHaskellError -> Text
 renderMachinatorHaskellError pe =
   case pe of
     MachinatorHaskellError me ->
-      "Machinator haskell errors:\n" <> MH.renderHaskellTypesError me
+      "Machinator Haskell errors:\n" <> MH.renderHaskellTypesError me
+
+renderMachinatorPurescriptError :: MachinatorPurescriptError -> Text
+renderMachinatorPurescriptError pe =
+  case pe of
+    MachinatorPurescriptError me ->
+      "Machinator Purescript errors:\n" <> MP.renderPurescriptTypesError me
 
 -- FIX Common module?
 readFileSafe :: MonadIO m => FilePath -> m (Maybe Text)
