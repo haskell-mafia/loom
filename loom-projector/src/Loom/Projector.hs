@@ -128,11 +128,14 @@ compileProjector
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
         input
   let
-    decls =
-      Projector.machinatorDecls . join . Map.elems $ udts
     udts' = with udts Projector.machinatorDecls
+    decls = fold (Map.elems udts')
   BuildArtefacts decls2 nmap2 oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
+      -- FIXME we need to separate "types for typechecking" and "types for codegen" i think?
+      --       right now the set of decls we thread around gets generated twice
+      --       because the prefix changes in the moduleNamer (but we accumulate all decls)
+      --       i.e. its totally busted
       (Projector.Build (moduleNamer prefix root) mempty)
       (Projector.UserDataTypes (fmap (second Projector.unTypeDecls) (Map.toList udts')))
       (userConstants images js)
