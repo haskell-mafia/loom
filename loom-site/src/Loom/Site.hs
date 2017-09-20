@@ -163,7 +163,7 @@ resolveSiteComponent ::
   -> ProjectorOutput
   -> Component
   -> EitherT LoomSiteError IO SiteComponent
-resolveSiteComponent spfx apfx css images js mo po c =
+resolveSiteComponent spfx apfx css images js (MachinatorOutput mo) po c =
   let
     root =
       loomFilePath . componentPath $ c
@@ -180,13 +180,13 @@ resolveSiteComponent spfx apfx css images js mo po c =
         fc <- safeIO $ T.readFile f
         po' <- firstT LoomSiteProjectorError $
           P.compileProjector
-            (machinatorOutputToProjector mo)
+            mo
             po
             (P.ProjectorInput "ignore" root images js [f])
         for (join . Map.elems . Projector.projectorOutputModuleExprs $ po') $
           fmap ((T.pack . File.takeBaseName $ f), fc,) .
             fmap projectorHtmlToBlaze . hoistEither . first LoomSiteProjectorInterpretError .
-              Projector.generateProjectorHtml (machinatorOutputToProjector mo) spfx apfx css images js po
+              Projector.generateProjectorHtml mo spfx apfx css images js po
     findPrj =
       catMaybes $ fmap (flip Map.lookup (Projector.projectorTermMap po)) (fmap componentFilePath (componentProjectorFiles c))
 

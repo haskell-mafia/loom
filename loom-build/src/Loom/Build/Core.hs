@@ -14,7 +14,6 @@ module Loom.Build.Core (
   , buildTest
   , renderLoomBuildInitisationError
   , renderLoomError
-  , machinatorOutputToProjector
   ) where
 
 import           Control.Monad.IO.Class (liftIO)
@@ -261,7 +260,7 @@ buildProjector ::
   -> [(BundleName, JsFile)]
   -> Machinator.MachinatorOutput
   -> EitherT LoomError IO Projector.ProjectorOutput
-buildProjector components images js mo = do
+buildProjector components images js (Machinator.MachinatorOutput mo) = do
   let
     pms = with components $ \(cr, cs) ->
       Projector.ProjectorInput
@@ -272,12 +271,7 @@ buildProjector components images js mo = do
         (bind (fmap componentFilePath . componentProjectorFiles) cs)
   firstT LoomProjectorError $
     foldMapM
-      (Projector.compileProjector
-        (Map.fromList .
-          fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
-          Map.toList . Machinator.machinatorOutputDefinitions $ mo
-          )
-        )
+      (Projector.compileProjector mo)
       pms
 
 mkBundleMap ::
@@ -479,15 +473,6 @@ buildJsBundles mode node brow dir bundleMap = do
     reso <- Browserify.runBrowserify node brow binput
     liftIO (T.writeFile (renderJsFile jsOut) (Browserify.unBrowserifyOutput reso))
     pure jsOut
-
-
-machinatorOutputToProjector ::
-  Machinator.MachinatorOutput ->
-  Map Projector.DataModuleName [Machinator.Definition]
-machinatorOutputToProjector =
-  Map.fromList .
-    fmap (first (Projector.DataModuleName . Projector.ModuleName . Machinator.renderModuleName)) .
-    Map.toList . Machinator.machinatorOutputDefinitions
 
 renderLoomBuildInitisationError :: LoomBuildInitialiseError -> Text
 renderLoomBuildInitisationError ie =
