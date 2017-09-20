@@ -112,7 +112,7 @@ projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _decls _nmap ms) _um
   fmap (fmap Projector.meExpr . Map.elems . Projector.moduleExprs) $ ms
 
 -- FIX Should be in machinator
-type MachinatorModules = Map.Map Projector.DataModuleName [MC.Definition]
+type MachinatorModules = Map.Map FilePath [MC.Definition]
 
 compileProjector ::
   MachinatorModules ->
