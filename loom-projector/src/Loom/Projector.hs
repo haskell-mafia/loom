@@ -30,7 +30,7 @@ import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
 import           Data.Map (Map)
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -130,10 +130,11 @@ compileProjector
   let
     decls =
       Projector.machinatorDecls . join . Map.elems $ udts
+    udts' = with udts Projector.machinatorDecls
   BuildArtefacts decls2 nmap2 oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
-      (Projector.Build (moduleNamer prefix root) (Map.keys udts))
-      (Projector.UserDataTypes decls)
+      (Projector.Build (moduleNamer prefix root) mempty)
+      (Projector.UserDataTypes (fmap (second Projector.unTypeDecls) (Map.toList udts')))
       (userConstants images js)
       oh1
       (Projector.RawTemplates templates)
