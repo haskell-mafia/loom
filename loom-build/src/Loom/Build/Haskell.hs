@@ -20,8 +20,6 @@ import           Loom.Build.Data
 import           Loom.Core.Data
 import           Loom.Projector (ProjectorHaskellError, ProjectorOutput)
 import qualified Loom.Projector as Projector
-import           Loom.Machinator (MachinatorHaskellError, MachinatorOutput)
-import qualified Loom.Machinator as Machinator
 
 import           P
 
@@ -34,19 +32,13 @@ import qualified System.Posix.Files as Unix
 import           X.Control.Monad.Trans.Either (EitherT)
 
 data LoomHaskellError =
-    LoomHaskellMachinatorError MachinatorHaskellError
-  | LoomHaskellProjectorError ProjectorHaskellError
+    LoomHaskellProjectorError ProjectorHaskellError
   deriving (Show)
 
 -- FIX The use of css/js in this module is stringy, we shouldn't be manipulating file paths
 
 generateHaskell :: FilePath -> LoomSitePrefix -> AssetsPrefix -> LoomResult -> EitherT LoomHaskellError IO ()
-generateHaskell output spx apx (LoomResult name _ mo po inputCss images inputJs) = do
-  void . firstT LoomHaskellMachinatorError $
-    Machinator.generateMachinatorHaskell
-      (output </> "src")
-      (Machinator.ModuleName . Projector.unModuleName <$> Projector.requiredProjectorHaskellImports)
-      mo
+generateHaskell output spx apx (LoomResult name _ _mo po inputCss images inputJs) = do
   let
     outputCss = CssFile $ cssFileOutput inputCss
     outputJs' = fmap (fmap (JsFile . jsFileOutput)) inputJs
@@ -62,7 +54,7 @@ generateHaskell output spx apx (LoomResult name _ mo po inputCss images inputJs)
   liftIO $
     generateAssetHaskell name output spx apx outputCss images outputJs
   liftIO $
-    generateCabal name output mo po apx outputCss images outputJs
+    generateCabal name output po apx outputCss images outputJs
 
 generateAssetHaskell ::
      LoomName
@@ -159,14 +151,13 @@ createAssetSymlinks output apx images js = do
 generateCabal ::
   LoomName ->
   FilePath ->
-  MachinatorOutput ->
   ProjectorOutput ->
   AssetsPrefix ->
   CssFile ->
   [ImageFile] ->
   [JsFile] ->
   IO ()
-generateCabal name output mo po apx css images js = do
+generateCabal name output po apx css images js = do
   let
     n = (T.map (\c -> if Char.isAlphaNum c then Char.toLower c else '-') . renderLoomName) name <> "-loom"
     sourceFiles =
@@ -202,7 +193,6 @@ generateCabal name output mo po apx css images js = do
       , "  exposed-modules:"
       , T.unlines . fmap ((<>) "    ") . mconcat $ [
             [renderAssetModuleName name]
-          , fmap Machinator.renderModuleName . Machinator.machinatorOutputModules $ mo
           , fmap Projector.unModuleName . Projector.projectorOutputModules $ po
           ]
       ]
@@ -240,7 +230,5 @@ filePathToModuleName =
 renderLoomHaskellError :: LoomHaskellError -> Text
 renderLoomHaskellError he =
   case he of
-    LoomHaskellMachinatorError e ->
-      Machinator.renderMachinatorHaskellError e
     LoomHaskellProjectorError e ->
       Projector.renderProjectorHaskellError e

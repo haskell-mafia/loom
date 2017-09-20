@@ -29,8 +29,9 @@ module Loom.Projector (
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
+import qualified Data.List as L
 import           Data.Map (Map)
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -76,6 +77,7 @@ data ProjectorInput =
     , projectorModuleRoot :: FilePath
     , projectorLoomImageFile :: [ImageFile]
     , projectorLoomJs :: [(BundleName, JsFile)]
+    , projectorDataTypes :: MachinatorModules
     , projectorModuleTemplates :: [FilePath]
     } deriving (Show)
 
@@ -83,6 +85,7 @@ data ProjectorOutput =
   ProjectorOutput {
       _projectorOutputArtefacts :: BuildArtefacts
     , projectorOutputUsefulMap :: Map FilePath ProjectorTerm
+    , _projectorOutputDataModuleNames :: [Projector.DataModuleName]
     }
 
 projectorTermMap :: ProjectorOutput -> Map FilePath ProjectorTerm
@@ -97,52 +100,53 @@ data ProjectorTerm = ProjectorTerm {
 
 instance Monoid ProjectorOutput where
   mempty =
-    ProjectorOutput (BuildArtefacts mempty mempty mempty) mempty
-  mappend (ProjectorOutput (BuildArtefacts d1 d3 d5) u1) (ProjectorOutput (BuildArtefacts d2 d4 d6) u2) =
-    ProjectorOutput (BuildArtefacts (d1 <> d2) (d3 <> d4) (d5 <> d6)) (u1 <> u2)
+    ProjectorOutput (BuildArtefacts mempty mempty mempty) mempty mempty
+  mappend (ProjectorOutput (BuildArtefacts d1 d3 d5) u1 t1) (ProjectorOutput (BuildArtefacts d2 d4 d6) u2 t2) =
+    ProjectorOutput (BuildArtefacts (d1 <> d2) (d3 <> d4) (d5 <> d6)) (u1 <> u2) (t1 <> t2)
 
 projectorOutputModules :: ProjectorOutput -> [ModuleName]
-projectorOutputModules (ProjectorOutput (BuildArtefacts _decls _nmap ms) _um) =
+projectorOutputModules (ProjectorOutput (BuildArtefacts _decls _nmap ms) _um _ts) =
   Map.keys ms
 
 projectorOutputModuleExprs ::
   ProjectorOutput ->
   Map ModuleName [HtmlExpr (HtmlType, SrcAnnotation)]
-projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _decls _nmap ms) _um) =
+projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _decls _nmap ms) _um _ts) =
   fmap (fmap Projector.meExpr . Map.elems . Projector.moduleExprs) $ ms
 
 -- FIX Should be in machinator
-type MachinatorModules = Map.Map Projector.DataModuleName [MC.Definition]
+type MachinatorModules = Map.Map FilePath [MC.Definition]
 
 compileProjector ::
-  MachinatorModules ->
   ProjectorOutput ->
   ProjectorInput ->
   EitherT ProjectorError IO ProjectorOutput
 compileProjector
-  udts
-  (ProjectorOutput (BuildArtefacts decls1 nmap1 oh1) um)
-  (ProjectorInput prefix root images js inputs) = do
+  (ProjectorOutput (BuildArtefacts decls1 nmap1 oh1) um dm1)
+  (ProjectorInput prefix root images js mo inputs) = do
   templates <- for inputs $ \input ->
     fmap ((,) input) .
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
         input
   let
-    decls =
-      Projector.machinatorDecls . join . Map.elems $ udts
+    mnr = moduleNamer prefix root
+    udts' = with mo Projector.machinatorDecls
+    decls = decls1 <> fold (Map.elems udts')
+    dm2 = L.nub $ fmap (Projector.DataModuleName . Projector.pathToDataModuleName mnr) (Map.keys udts')
   BuildArtefacts decls2 nmap2 oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
-      (Projector.Build (moduleNamer prefix root) (Map.keys udts))
-      (Projector.UserDataTypes decls)
+      (Projector.Build mnr dm1)
+      (Projector.UserDataTypes (fmap (second Projector.unTypeDecls) (Map.toList udts')))
       (userConstants images js)
+      decls
       oh1
       (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
   let
-    bas = BuildArtefacts (decls <> decls1 <> decls2) (nmap1 <> nmap2) oh2
+    bas = BuildArtefacts (decls <> decls2) (nmap1 <> nmap2) oh2
     uma = um <> makeUsefulMap bas
-  pure $ ProjectorOutput bas uma
+  pure $ ProjectorOutput bas uma (dm1 <> dm2)
 
 generateProjectorHtml ::
      MachinatorModules
@@ -154,7 +158,7 @@ generateProjectorHtml ::
   -> ProjectorOutput
   -> Projector.HtmlExpr (HtmlType, SrcAnnotation)
   -> Either ProjectorInterpretError Projector.Html
-generateProjectorHtml mo spfx apfx css images js (ProjectorOutput (BuildArtefacts _ _ h) _um) =
+generateProjectorHtml mo spfx apfx css images js (ProjectorOutput (BuildArtefacts _ _ h) _um _ts) =
   first ProjectorInterpretError . Projector.interpret
     (Projector.machinatorDecls . join $ Map.elems mo)
     (Projector.extractModuleExprs h <> Projector.platformConstants (platformConstants spfx apfx css images js))
@@ -168,7 +172,7 @@ generateProjectorHaskell ::
   -> [(BundleName, JsFile)]
   -> ProjectorOutput
   -> EitherT ProjectorHaskellError IO [FilePath]
-generateProjectorHaskell output spfx apfx css images js (ProjectorOutput ba _um) = do
+generateProjectorHaskell output spfx apfx css images js (ProjectorOutput ba _um _ts) = do
   fs <- hoistEither . first ProjectorHaskellError $
     Projector.codeGen Projector.haskellBackend codeGenNamer (platformConstants spfx apfx css images js) ba
   for fs $ \(f, t) -> do
@@ -189,6 +193,7 @@ moduleNamer prefix root =
           else fp
   in Projector.ModuleNamer
        (Projector.pathToModuleName mnr . takeDirectory . makeRelative root)
+       (Projector.pathToDataModuleName mnr . const "")
        (\fp -> Projector.Name . T.pack $
          T.unpack prefix </> (dropFileIfDefault . dropExtension . makeRelative root $ fp))
 
