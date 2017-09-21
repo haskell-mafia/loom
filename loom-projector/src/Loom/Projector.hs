@@ -128,7 +128,7 @@ compileProjector
         input
   let
     udts' = with mo Projector.machinatorDecls
-    decls = fold (Map.elems udts')
+    decls = decls1 <> fold (Map.elems udts')
   BuildArtefacts decls2 nmap2 oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
       (Projector.Build (moduleNamer prefix root) mempty)
@@ -140,7 +140,7 @@ compileProjector
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
   let
-    bas = BuildArtefacts (decls <> decls1 <> decls2) (nmap1 <> nmap2) oh2
+    bas = BuildArtefacts (decls <> decls2) (nmap1 <> nmap2) oh2
     uma = um <> makeUsefulMap bas
   pure $ ProjectorOutput bas uma
 
