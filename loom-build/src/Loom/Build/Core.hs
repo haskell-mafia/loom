@@ -151,6 +151,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
   outputCss <- withLog logger "sass" $
     buildCss sass dir config configs components
 
+  -- FIXME this is redundant, could be smuggled in ProjectorOutput
   mo <- withLog logger "machinator" $
     buildMachinator components
 
@@ -161,7 +162,7 @@ buildLoomResolved logger (LoomBuildConfig sass) mode home dir (LoomResolved conf
       : with (Map.keys bundleMap) (\bn -> (bn, bundleOut dir bn))
 
   po <- withLog logger "projector" $
-    buildProjector components images bundles mo
+    buildProjector components images bundles
 
   (_, psOut, psMod) <- withLog logger "purs" $
     buildPurescript home dir config others components
@@ -244,35 +245,37 @@ buildCss sass dir config configs components = do
   pure outputCss
 
 buildMachinator :: [(LoomConfigResolved, [Component])] -> EitherT LoomError IO Machinator.MachinatorOutput
-buildMachinator components = do
-  let
-    mms = with components $ \(cr, cs) ->
-      MachinatorInput
-        (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
-        (loomRootFilePath . loomConfigResolvedRoot $ cr)
-        (bind (fmap componentFilePath . componentMachinatorFiles) cs)
-  firstT LoomMachinatorError $
-    Machinator.compileMachinator mms
+buildMachinator = do
+  buildMachinator' . fmap (uncurry machinatorInput)
+
+buildMachinator' :: [Machinator.MachinatorInput] -> EitherT LoomError IO Machinator.MachinatorOutput
+buildMachinator' =
+  firstT LoomMachinatorError . Machinator.compileMachinator
+
+machinatorInput :: LoomConfigResolved -> [Component] -> Machinator.MachinatorInput
+machinatorInput cr cs =
+  MachinatorInput
+    (Machinator.ModuleName . renderLoomName . loomConfigResolvedName $ cr)
+    (loomRootFilePath . loomConfigResolvedRoot $ cr)
+    (bind (fmap componentFilePath . componentMachinatorFiles) cs)
 
 buildProjector ::
      [(LoomConfigResolved, [Component])]
   -> [ImageFile]
   -> [(BundleName, JsFile)]
-  -> Machinator.MachinatorOutput
   -> EitherT LoomError IO Projector.ProjectorOutput
-buildProjector components images js (Machinator.MachinatorOutput mo) = do
-  let
-    pms = with components $ \(cr, cs) ->
-      Projector.ProjectorInput
+buildProjector components images js = do
+  pms <-
+    for components $ \(cr, cs) -> do
+      Machinator.MachinatorOutput mo <- buildMachinator' [machinatorInput cr cs]
+      pure $ Projector.ProjectorInput
         (renderLoomName . loomConfigResolvedName $ cr)
         (loomRootFilePath . loomConfigResolvedRoot $ cr)
         images
         js
+        mo
         (bind (fmap componentFilePath . componentProjectorFiles) cs)
-  firstT LoomProjectorError $
-    foldMapM
-      (Projector.compileProjector mo)
-      pms
+  firstT LoomProjectorError $ foldMapM Projector.compileProjector pms
 
 mkBundleMap ::
      LoomConfigResolved

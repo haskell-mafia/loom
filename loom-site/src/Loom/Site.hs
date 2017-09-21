@@ -180,9 +180,8 @@ resolveSiteComponent spfx apfx css images js (MachinatorOutput mo) po c =
         fc <- safeIO $ T.readFile f
         po' <- firstT LoomSiteProjectorError $
           P.compileProjector
-            mo
             po
-            (P.ProjectorInput "ignore" root images js [f])
+            (P.ProjectorInput "ignore" root images js mo [f])
         for (join . Map.elems . Projector.projectorOutputModuleExprs $ po') $
           fmap ((T.pack . File.takeBaseName $ f), fc,) .
             fmap projectorHtmlToBlaze . hoistEither . first LoomSiteProjectorInterpretError .
