@@ -30,7 +30,7 @@ import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Monad.Catch (handleIf)
 
 import           Data.Map (Map)
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -76,6 +76,7 @@ data ProjectorInput =
     , projectorModuleRoot :: FilePath
     , projectorLoomImageFile :: [ImageFile]
     , projectorLoomJs :: [(BundleName, JsFile)]
+    , projectorDataTypes :: MachinatorModules
     , projectorModuleTemplates :: [FilePath]
     } deriving (Show)
 
@@ -112,35 +113,34 @@ projectorOutputModuleExprs (ProjectorOutput (BuildArtefacts _decls _nmap ms) _um
   fmap (fmap Projector.meExpr . Map.elems . Projector.moduleExprs) $ ms
 
 -- FIX Should be in machinator
-type MachinatorModules = Map.Map Projector.DataModuleName [MC.Definition]
+type MachinatorModules = Map.Map FilePath [MC.Definition]
 
 compileProjector ::
-  MachinatorModules ->
   ProjectorOutput ->
   ProjectorInput ->
   EitherT ProjectorError IO ProjectorOutput
 compileProjector
-  udts
   (ProjectorOutput (BuildArtefacts decls1 nmap1 oh1) um)
-  (ProjectorInput prefix root images js inputs) = do
+  (ProjectorInput prefix root images js mo inputs) = do
   templates <- for inputs $ \input ->
     fmap ((,) input) .
       newEitherT . fmap (maybeToRight (ProjectorFileMissing input)) . readFileSafe $
         input
   let
-    decls =
-      Projector.machinatorDecls . join . Map.elems $ udts
+    udts' = with mo Projector.machinatorDecls
+    decls = decls1 <> fold (Map.elems udts')
   BuildArtefacts decls2 nmap2 oh2 <- firstT ProjectorError . hoistEither $
     Projector.runBuildIncremental
-      (Projector.Build (moduleNamer prefix root) (Map.keys udts))
-      (Projector.UserDataTypes decls)
+      (Projector.Build (moduleNamer prefix root) mempty)
+      (Projector.UserDataTypes (fmap (second Projector.unTypeDecls) (Map.toList udts')))
       (userConstants images js)
+      decls
       oh1
       (Projector.RawTemplates templates)
   hoistEither . first ProjectorError $
     Projector.warnModules decls oh2
   let
-    bas = BuildArtefacts (decls <> decls1 <> decls2) (nmap1 <> nmap2) oh2
+    bas = BuildArtefacts (decls <> decls2) (nmap1 <> nmap2) oh2
     uma = um <> makeUsefulMap bas
   pure $ ProjectorOutput bas uma
 
@@ -189,6 +189,7 @@ moduleNamer prefix root =
           else fp
   in Projector.ModuleNamer
        (Projector.pathToModuleName mnr . takeDirectory . makeRelative root)
+       (Projector.pathToDataModuleName mnr . takeDirectory . makeRelative root)
        (\fp -> Projector.Name . T.pack $
          T.unpack prefix </> (dropFileIfDefault . dropExtension . makeRelative root $ fp))
 
