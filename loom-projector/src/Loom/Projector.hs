@@ -193,7 +193,7 @@ moduleNamer prefix root =
           else fp
   in Projector.ModuleNamer
        (Projector.pathToModuleName mnr . takeDirectory . makeRelative root)
-       (Projector.pathToDataModuleName mnr . const "")
+       (Projector.pathToDataModuleName mnr . const "Loom")
        (\fp -> Projector.Name . T.pack $
          T.unpack prefix </> (dropFileIfDefault . dropExtension . makeRelative root $ fp))
 
