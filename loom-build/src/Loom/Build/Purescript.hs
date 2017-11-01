@@ -40,7 +40,7 @@ generatePurescript ::
   -> AssetsPrefix
   -> LoomResult
   -> EitherT LoomPurescriptError IO ()
-generatePurescript output spx apx (LoomResult _name _ mo po inputCss images inputJs) = do
+generatePurescript output spx apx (LoomResult _name _ _mo po inputCss images inputJs) = do
   let
     outputCss = CssFile $ cssFileOutput inputCss
     outputJs' = fmap (fmap (JsFile . jsFileOutput)) inputJs
