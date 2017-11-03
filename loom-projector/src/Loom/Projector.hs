@@ -4,6 +4,7 @@
 module Loom.Projector (
     ProjectorError (..)
   , ProjectorHaskellError (..)
+  , ProjectorPurescriptError (..)
   , ProjectorInterpretError (..)
   , ProjectorInput (..)
   , ProjectorOutput
@@ -19,10 +20,13 @@ module Loom.Projector (
   , compileProjector
   , generateProjectorHtml
   , generateProjectorHaskell
+  , generateProjectorPurescript
   , moduleNameFromFile
   , requiredProjectorHaskellImports
+  , requiredProjectorPurescriptImports
   , renderProjectorError
   , renderProjectorHaskellError
+  , renderProjectorPurescriptError
   , renderProjectorInterpretError
   ) where
 
@@ -45,6 +49,7 @@ import           Projector.Html (BuildArtefacts (..), DataModuleName (..), Modul
 import           Projector.Html.Data.Annotation (SrcAnnotation)
 import qualified Projector.Html as Projector
 import qualified Projector.Html.Backend.Haskell as Projector
+import qualified Projector.Html.Backend.Purescript as Projector
 import qualified Projector.Html.Core.Machinator as Projector
 import qualified Projector.Html.Data.Module as Projector
 import qualified Projector.Html.Data.Prim as Projector
@@ -65,6 +70,10 @@ data ProjectorError =
 
 data ProjectorHaskellError =
     ProjectorHaskellError [Projector.HaskellError]
+  deriving (Eq, Show)
+
+data ProjectorPurescriptError =
+    ProjectorPurescriptError [Projector.PurescriptError]
   deriving (Eq, Show)
 
 data ProjectorInterpretError =
@@ -182,6 +191,25 @@ generateProjectorHaskell output spfx apfx css images js (ProjectorOutput ba _um 
       T.writeFile (output </> f) t
     pure f
 
+generateProjectorPurescript ::
+     FilePath
+  -> LoomSitePrefix
+  -> AssetsPrefix
+  -> [CssFile]
+  -> [ImageFile]
+  -> [(BundleName, JsFile)]
+  -> ProjectorOutput
+  -> EitherT ProjectorPurescriptError IO [FilePath]
+generateProjectorPurescript output spfx apfx css images js (ProjectorOutput ba _um _ts) = do
+  fs <- hoistEither . first ProjectorPurescriptError $
+    Projector.codeGen Projector.purescriptBackend codeGenNamer (platformConstants spfx apfx css images js) ba
+  for fs $ \(f, t) -> do
+    liftIO $
+      createDirectoryIfMissing True (output </> takeDirectory f)
+    liftIO $
+      T.writeFile (output </> f) t
+    pure f
+
 moduleNamer :: Text -> FilePath -> Projector.ModuleNamer
 moduleNamer prefix root =
   let mnr =
@@ -228,6 +256,13 @@ requiredProjectorHaskellImports =
     Projector.ModuleName "Projector.Html.Runtime"
   ]
 
+requiredProjectorPurescriptImports :: [ModuleName]
+requiredProjectorPurescriptImports =
+  [
+    Projector.ModuleName "Projector.Html.Runtime"
+  , Projector.ModuleName "Projector.Html.Runtime.Pux"
+  ]
+
 renderProjectorError :: ProjectorError -> Text
 renderProjectorError pe =
   case pe of
@@ -240,7 +275,13 @@ renderProjectorHaskellError :: ProjectorHaskellError -> Text
 renderProjectorHaskellError pe =
   case pe of
     ProjectorHaskellError es ->
-      "Projector haskell errors:\n" <> (T.unlines . fmap Projector.renderHaskellError) es
+      "Projector Haskell errors:\n" <> (T.unlines . fmap Projector.renderHaskellError) es
+
+renderProjectorPurescriptError :: ProjectorPurescriptError -> Text
+renderProjectorPurescriptError pe =
+  case pe of
+    ProjectorPurescriptError es ->
+      "Projector Purescript errors:\n" <> (T.unlines . fmap Projector.renderPurescriptError) es
 
 renderProjectorInterpretError :: ProjectorInterpretError -> Text
 renderProjectorInterpretError pe =
