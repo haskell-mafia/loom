@@ -59,6 +59,7 @@ data BuildConfig =
       _buildConfigHaskell :: FilePath
     , _buildConfigPurescript :: FilePath
     , buildConfigSite :: LoomSiteRoot
+    , _buildGeneratePurescript :: Bool
     }
 
 -----------
@@ -180,7 +181,7 @@ buildLoom' ::
   [SiteFilter] ->
   BuildConfig ->
   EitherT LoomCliError IO ()
-buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig haskellRoot pursRoot siteRoot) = do
+buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig haskellRoot pursRoot siteRoot genPurs) = do
   -- It's important to clean the site first so that subsequent requests will block until we have
   -- generated the new files
   liftIO $
@@ -192,8 +193,9 @@ buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig ha
   withLogIO logger "haskell" . firstT LoomHaskellError $
     -- NOTE: Site prefix is intentionally different for haskell than generated site
     generateHaskell haskellRoot (LoomSitePrefix "/") apx r
-  withLogIO logger "purescript" . firstT LoomPurescriptError $
-    generatePurescript pursRoot (LoomSitePrefix "/") apx r
+  when genPurs $
+    withLogIO logger "purescript" . firstT LoomPurescriptError $
+      generatePurescript pursRoot (LoomSitePrefix "/") apx r
   withLogIO logger "site" . firstT LoomSiteError $
     generateLoomSite sitePrefix siteRoot apx sf r
 
@@ -218,6 +220,7 @@ buildConfigEnv =
     <$> (fmap (fromMaybe "dist/loom/haskell") . lookupEnv) "LOOM_OUTPUT_HASKELL"
     <*> (fmap (fromMaybe "dist/loom/purs") . lookupEnv) "LOOM_OUTPUT_PURESCRIPT"
     <*> (fmap (LoomSiteRoot . fromMaybe "dist/loom/site") . lookupEnv) "LOOM_OUTPUT_SITE"
+    <*> (fmap (maybe False (const True)) (lookupEnv "LOOM_GENERATE_PURESCRIPT"))
 
 -----------
 
