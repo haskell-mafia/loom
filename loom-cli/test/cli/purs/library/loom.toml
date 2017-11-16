@@ -13,6 +13,9 @@
       ["left-pad", "1.1.3", "612f61c033f3a9e08e939f1caebeea41b6f3199a"]
     ]
 
+[purs]
+  paths = ["app/purs/src"]
+
 [purs.dependencies]
   github = [
       ["purescript/purescript-prelude", "tags/v1.1.0", "c77adca5dcad09ef6e99ea76b74ce45b67fb899c"]
@@ -25,3 +28,7 @@
     , ["purescript/purescript-bifunctors", "tags/v1.0.0", "0eb78b63ee000077ffe1dc60097f4881800d2fd2"]
     , ["purescript/purescript-foldable-traversable", "tags/v1.0.0", "1b8b6587e364e20c7f628fd3fbc108f065fc5802"]
     ]
+
+[purs.test]
+  main = "Test.Qux"
+  paths = ["app/purs/test"]

@@ -22,11 +22,14 @@ import           Loom.Config.Toml
 import           Loom.Http
 import qualified Loom.Js as Js
 import qualified Loom.Js.Node as Node
+import           Loom.Purescript as Purs
 import           Loom.Site
 
 import qualified Network.Wai.Handler.Warp as Warp
 
 import           P
+
+import qualified System.FilePath.Glob.Primitive as G
 
 import           System.Directory (getCurrentDirectory, getHomeDirectory)
 import           System.Environment (lookupEnv)
@@ -54,7 +57,6 @@ data PathsCommand =
   PathsCommand {
       _pathsCommandBundle :: HardcodedBundle
     , _pathsCommandPathSet :: PathSet
-    , _pathsCommandPathGrouping :: PathGrouping
     }
   deriving (Eq, Show)
 
@@ -67,11 +69,6 @@ data PathSet =
     LibPaths
   | AppPaths
   | AllPaths
-  deriving (Eq, Show)
-
-data PathGrouping =
-    AsGlobs
-  | AsFiles
   deriving (Eq, Show)
 
 data LoomCliError =
@@ -87,6 +84,7 @@ data BuildConfig =
     , buildConfigSite :: LoomSiteRoot
     , _buildGeneratePurescript :: Bool
     }
+
 
 -----------
 
@@ -127,7 +125,7 @@ main = do
           buildTest
             (hoistLogger liftIO (newSimpleLogger stderr))
             home
-            (LoomTmp ".loom")
+            loomTmp
             loom
         case jsMain of
           Nothing ->
@@ -137,8 +135,12 @@ main = do
             Exit.exitWith ec
       Watch port sf ->
         watch port sf
-      Paths (PathsCommand _ _ _) ->
-        IO.hPutStrLn IO.stderr "TODO"
+      Paths (PathsCommand bundle sets) -> do
+        cwd <- getCurrentDirectory
+        config <- orDie renderLoomConfigTomlError $ resolveConfig cwd
+        let patterns = bundlePatterns config bundle sets
+        IO.hPutStrLn IO.stdout . T.unpack . T.intercalate "\n" $
+          fmap renderFilePattern patterns
 
 -----------
 
@@ -217,7 +219,7 @@ buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig ha
   firstT LoomSiteError $
     generateLoomSiteStatic sitePrefix siteRoot
   r <- firstT LoomError $
-    buildLoom (hoistLogger liftIO logger) buildConfig mode home (LoomTmp ".loom") config
+    buildLoom (hoistLogger liftIO logger) buildConfig mode home loomTmp config -- TODO: Extract
   withLogIO logger "haskell" . firstT LoomHaskellError $
     -- NOTE: Site prefix is intentionally different for haskell than generated site
     generateHaskell haskellRoot (LoomSitePrefix "/") apx r
@@ -227,7 +229,55 @@ buildLoom' logger buildConfig mode config home sitePrefix apx sf (BuildConfig ha
   withLogIO logger "site" . firstT LoomSiteError $
     generateLoomSite sitePrefix siteRoot apx sf r
 
+
+bundlePatterns ::
+  Loom ->
+  HardcodedBundle ->
+  PathSet ->
+  [FilePattern]
+bundlePatterns (Loom cfg cfgs) bundle sets =
+  let
+    configs =
+      pure cfg <> cfgs
+    appendRoot cf =
+      appendFilePattern $
+        FilePattern . G.literal .
+          loomRootFilePath . loomConfigRoot $ cf
+    pursComponentPatterns =
+      configs >>= \cf ->
+        fmap (appendRoot cf) . loomConfigComponents $ cf
+    pursAppPatterns =
+      configs >>= \cf ->
+        fmap (appendRoot cf) .
+          purescriptBundleFiles . loomConfigPurs $ cf
+    pursAppTestPatterns =
+      fmap (appendRoot cfg) .
+        purescriptBundleFiles . loomConfigPursTest $ cfg
+    appPatterns =
+      fmap Purs.appendPursExtensionFilePattern $
+        case bundle of
+          Purs ->
+               pursComponentPatterns
+            <> pursAppPatterns
+          PursTest ->
+               pursComponentPatterns
+            <> pursAppPatterns
+            <> pursAppTestPatterns
+    libPatterns =
+      pure . Purs.appendPursLibraryFilePattern .
+        FilePattern . G.literal . unPurescriptUnpackDir $
+          Purs.pursUnpackDir loomTmp
+  in
+    join . join $ [
+        valueOrEmpty (includeLibs sets) libPatterns
+      , valueOrEmpty (includeApps sets) appPatterns
+      ]
+
 -----------
+
+loomTmp :: LoomTmp
+loomTmp =
+  LoomTmp ".loom"
 
 loomHomeEnv :: IO LoomHome
 loomHomeEnv = do
@@ -287,7 +337,6 @@ pathsP =
           (OA.eitherTextReader id parseBundle)
           (OA.metavar "BUNDLE")
     <*> pathSetP
-    <*> pathGroupingP
 
 parseBundle :: Text -> Either Text HardcodedBundle
 parseBundle = \case
@@ -314,19 +363,6 @@ pathSetP =
         )
   <|> pure AllPaths
 
-pathGroupingP :: Parser PathGrouping
-pathGroupingP =
-      OA.flag' AsGlobs (
-           OA.long "as-globs"
-        <> OA.help "Display as path globs (default)"
-        )
-  <|> OA.flag' AsFiles (
-           OA.long "as-files"
-        <> OA.help "Display the full file list"
-        )
-  <|> pure AsGlobs
-
-
 -----------
 
 renderLoomCliError :: LoomCliError -> Text
@@ -340,3 +376,15 @@ renderLoomCliError le =
       renderLoomPurescriptError e
     LoomSiteError e ->
       renderLoomSiteError e
+
+includeLibs :: PathSet -> Bool
+includeLibs = \case
+  LibPaths -> True
+  AllPaths -> True
+  AppPaths -> False
+
+includeApps :: PathSet -> Bool
+includeApps = \case
+  AppPaths -> True
+  AllPaths -> True
+  LibPaths -> False

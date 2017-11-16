@@ -5,7 +5,6 @@ module Loom.Purescript (
   , renderPurescriptError
   , fetchPurs
   , PurescriptUnpackDir (..)
-  , unpackPurs
   , CodeGenDir (..)
   , JsBundle (..)
   , MakeOutput (..)
@@ -13,6 +12,11 @@ module Loom.Purescript (
   , compilePurescript
   , bundlePurescript
   , expandPursPath
+  , pursDir
+  , pursUnpackDir
+  , unpackPurs
+  , appendPursLibraryFilePattern
+  , appendPursExtensionFilePattern
   ) where
 
 
@@ -36,6 +40,8 @@ import           Loom.Fetch.HTTPS (HTTPSError, renderHTTPSError)
 import           Loom.Fetch.HTTPS.Github (githubFetcher)
 
 import           P
+
+import qualified System.FilePath.Glob.Primitive as G
 
 import qualified System.Directory as D
 import           System.FilePath ((</>))
@@ -72,6 +78,14 @@ renderPurescriptError pe =
     PurescriptBundleError t ->
       "Error bundling Purescript:\n"
         <> t
+
+pursDir :: LoomTmp -> FilePath
+pursDir dir =
+  loomTmpFilePath dir </> "purs"
+
+pursUnpackDir :: LoomTmp -> PurescriptUnpackDir
+pursUnpackDir =
+  PurescriptUnpackDir . pursDir
 
 fetchPurs :: LoomHome -> [GithubDependency] -> EitherT PurescriptError IO [LF.FetchedDependency]
 fetchPurs home deps = do
@@ -207,6 +221,17 @@ readInput inputFiles =
   forM inputFiles $ \inFile ->
     (,) inFile . T.unpack . T.decodeUtf8 <$> BS.readFile inFile
 
+-- TODO: Doing mostly the same job as findSrcPurs.
+appendPursLibraryFilePattern :: FilePattern -> FilePattern
+appendPursLibraryFilePattern p =
+  appendFilePattern p . FilePattern $ mconcat [
+      G.wildcard
+    , G.literal "/src/"
+    , G.recursiveWildcard
+    , G.wildcard
+    , G.literal ".purs"
+    ]
+
 -- | This pretty much does '*/src/**/*.purs'.
 findSrcPurs :: PurescriptUnpackDir -> IO [FilePath]
 findSrcPurs (PurescriptUnpackDir depsDir) =
@@ -220,6 +245,18 @@ findSrcPurs (PurescriptUnpackDir depsDir) =
           isSrc = pure (d == 2 && FP.takeFileName f == "src")
           depthN = pure (d > 2)
       notHidden Find.&&? (depthOne Find.||? isSrc Find.||? depthN)
+
+appendExtensionFilePattern :: [Char] -> FilePattern -> FilePattern
+appendExtensionFilePattern ext p =
+  appendFilePattern p . FilePattern $ mconcat [
+      G.recursiveWildcard
+    , G.wildcard
+    , G.literal ("." <> ext)
+    ]
+
+appendPursExtensionFilePattern :: FilePattern -> FilePattern
+appendPursExtensionFilePattern =
+  appendExtensionFilePattern "purs"
 
 findByExtension :: [Char] -> FilePath -> IO [FilePath]
 findByExtension ext =

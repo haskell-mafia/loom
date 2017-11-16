@@ -28,6 +28,7 @@ executable loom
                     , ambiata-loom-core
                     , ambiata-loom-http
                     , ambiata-loom-js
+                    , ambiata-loom-purescript
                     , ambiata-loom-site
                     , ambiata-p
                     , ambiata-twine
@@ -35,6 +36,7 @@ executable loom
                     , ambiata-x-optparse
                     , async                           == 2.1.*
                     , filepath                        >= 1.4        && < 1.7
+                    , Glob                            == 0.7.*
                     , text
                     , transformers                    >= 0.4        && < 0.6
                     , warp                            >= 3.0        && < 3.3
