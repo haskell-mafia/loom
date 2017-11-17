@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -46,6 +47,31 @@ data Command =
     Build
   | Test
   | Watch Int [SiteFilter]
+  | Paths PathsCommand
+  deriving (Eq, Show)
+
+data PathsCommand =
+  PathsCommand {
+      _pathsCommandBundle :: HardcodedBundle
+    , _pathsCommandPathSet :: PathSet
+    , _pathsCommandPathGrouping :: PathGrouping
+    }
+  deriving (Eq, Show)
+
+data HardcodedBundle =
+    Purs
+  | PursTest
+  deriving (Eq, Show)
+
+data PathSet =
+    LibPaths
+  | AppPaths
+  | AllPaths
+  deriving (Eq, Show)
+
+data PathGrouping =
+    AsGlobs
+  | AsFiles
   deriving (Eq, Show)
 
 data LoomCliError =
@@ -111,6 +137,8 @@ main = do
             Exit.exitWith ec
       Watch port sf ->
         watch port sf
+      Paths (PathsCommand _ _ _) ->
+        IO.hPutStrLn IO.stderr "TODO"
 
 -----------
 
@@ -233,6 +261,8 @@ parser =
         pure Test
     , OA.command' "watch" "Start an HTTP server in the current loom project and watch the filesystem for changes" $
         Watch <$> portP <*> many siteFilterP
+    , OA.command' "paths" "Dump out paths for purs, sass and other file groups." $
+        Paths <$> pathsP
     ]
 
 portP :: Parser Int
@@ -249,6 +279,53 @@ siteFilterP =
        OA.long "site-filter"
     <> OA.metavar "SITE_FILTER"
     <> OA.help "A filter for generating a sub-set of the site to reduce the time taken"
+
+pathsP :: Parser PathsCommand
+pathsP =
+  PathsCommand
+    <$> OA.argument
+          (OA.eitherTextReader id parseBundle)
+          (OA.metavar "BUNDLE")
+    <*> pathSetP
+    <*> pathGroupingP
+
+parseBundle :: Text -> Either Text HardcodedBundle
+parseBundle = \case
+  "purs" ->
+    pure Purs
+  "purs.test" ->
+    pure PursTest
+  _ ->
+    Left "Unsupported bundle; only available for 'purs' and 'purs.test'"
+
+pathSetP :: Parser PathSet
+pathSetP =
+      OA.flag' AllPaths (
+           OA.long "all-paths"
+        <> OA.help "All Paths (default)"
+        )
+  <|> OA.flag' LibPaths (
+           OA.long "lib-paths"
+        <> OA.help "Library Paths"
+        )
+  <|> OA.flag' AppPaths (
+           OA.long "app-paths"
+        <> OA.help "App Paths"
+        )
+  <|> pure AllPaths
+
+pathGroupingP :: Parser PathGrouping
+pathGroupingP =
+      OA.flag' AsGlobs (
+           OA.long "as-globs"
+        <> OA.help "Display as path globs (default)"
+        )
+  <|> OA.flag' AsFiles (
+           OA.long "as-files"
+        <> OA.help "Display the full file list"
+        )
+  <|> pure AsGlobs
+
 
 -----------
 
