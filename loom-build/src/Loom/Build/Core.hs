@@ -330,8 +330,8 @@ buildPurescript' ::
   -> EitherT PurescriptError IO (Purescript.CodeGenDir, FilePath, Maybe Js.JsModuleName)
 buildPurescript' home dir (PurescriptBundle psAll deps _) = do
   let
-    psDir = loomTmpFilePath dir </> "purs"
-    psDepDir = Purescript.PurescriptUnpackDir psDir
+    psDir = Purescript.pursDir dir
+    psDepDir = Purescript.pursUnpackDir dir
     psOutDir = Purescript.CodeGenDir (psDir </> "output")
     psOutFile = psDir </> "output" </> "out" <.> "js"
   fetchedDeps <- Purescript.fetchPurs home deps

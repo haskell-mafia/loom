@@ -25,7 +25,33 @@ contains() {
 
 file_exists "${LOOM_OUTPUT_HASKELL}/assets/main.js"
 # contains "${LOOM_OUTPUT_HASKELL}/test_build.css" "\"/assets/other/components/c1/image.svg\""
-cd "$LOOM_OUTPUT_HASKELL"
+pushd "$LOOM_OUTPUT_HASKELL"
 set -x
 js=$(node -e "eval(require('fs').readFileSync('assets/main.js').toString());console.log(require('purs')['Foo'].foo5);")
 [ "$js" == "foo  " ]
+popd
+
+
+ALL_PURS_PATHS=$($LOOM paths purs)
+ALL_PURS_PATHS_EXPLICIT=$($LOOM paths purs --all-paths)
+APP_PURS_PATHS=$($LOOM paths purs --app-paths)
+LIB_PURS_PATHS=$($LOOM paths purs --lib-paths)
+ALL_PURS_TEST_PATHS=$($LOOM paths purs.test)
+
+EXPECTED_ALL_PURS_PATHS=".loom/purs/*/src/**/*.purs
+./components/*/**/*.purs
+library/components/*/**/*.purs
+./app/purs/src/**/*.purs
+library/app/purs/src/**/*.purs"
+
+[[ "$(echo "$ALL_PURS_PATHS" | sort)" == "$(echo "$ALL_PURS_PATHS_EXPLICIT" | sort)" ]] || \
+  (echo "--all-paths result doesn't match the implicit all-paths result."; exit 99);
+
+[[ "$(echo "$ALL_PURS_PATHS" | sort)" == "$(echo "$EXPECTED_ALL_PURS_PATHS" | sort)" ]] || \
+  (echo "--all-paths result don't match the hardcoded expected paths list."; exit 99);
+
+[[ "$(echo "$ALL_PURS_PATHS" | sort)" == "$((echo "$LIB_PURS_PATHS"; echo "$APP_PURS_PATHS") | sort)" ]] || \
+  (echo "--all-paths don't match --app-paths + --lib-paths"; exit 99);
+
+[[ "$(echo "$ALL_PURS_TEST_PATHS" | grep -c 'app/purs/test')" -eq 1 ]] || \
+  (echo "the test path app/purs/test must appear exactly once (our own testing dir, and not ./library/'s)"; exit 99);
