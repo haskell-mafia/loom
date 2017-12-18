@@ -20,7 +20,7 @@ library
                     , ambiata-loom-fetch
                     , ambiata-p
                     , ambiata-x-eithert
-                    , aeson                           >= 0.8        && < 0.12
+                    , aeson                           >= 0.8        && < 1.1
                     , async                           == 2.1.*
                     , bytestring                      == 0.10.*
                     , directory                       == 1.2.*
