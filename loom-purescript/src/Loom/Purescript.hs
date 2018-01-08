@@ -180,7 +180,7 @@ bundlePurescript' ::
 bundlePurescript' (CodeGenDir dir) alljs entries = do
   files <- S.fromList <$> liftIO (findByExtension "js" dir)
   let mkIdents mn =
-        let ms = PS.runModuleName mn
+        let ms = T.unpack $ PS.runModuleName mn
             mi = PB.ModuleIdentifier ms
             index = dir </> ms </> "index.js"
             forrn = dir </> ms </> "foreign.js"
@@ -190,18 +190,15 @@ bundlePurescript' (CodeGenDir dir) alljs entries = do
           ]
       allIdents = foldMap mkIdents alljs
       entryPts = fmap snd (foldMap mkIdents entries)
-  inputs <- (L.zip (fmap snd allIdents) . fmap snd) <$> liftIO (readInput (fmap fst allIdents))
+  inputs <- (L.zip (fmap snd allIdents) . fmap (T.unpack . snd)) <$> liftIO (readInput (fmap fst allIdents))
   t <- hoistEither . first packBundleError $
-    (T.pack <$> PB.bundle inputs entryPts Nothing "PS")
-  pure (JsBundle (T.unlines [t, "module.exports = PS;"]))
+    (PB.bundle inputs entryPts Nothing "PS")
+  pure (JsBundle (T.unlines [T.pack t, "module.exports = PS;"]))
 
 defaultPurescriptOptions :: PS.Options
 defaultPurescriptOptions =
   PS.Options {
-      PS.optionsNoTco = False
-    , PS.optionsNoMagicDo = False
-    , PS.optionsMain = Nothing
-    , PS.optionsNoOptimizations = False
+      PS.optionsDumpCoreFn = False
     , PS.optionsVerboseErrors = False
     , PS.optionsNoComments = True
     , PS.optionsSourceMaps = False
@@ -215,11 +212,10 @@ packMultipleMakeErrors :: PS.MultipleErrors -> PurescriptError
 packMultipleMakeErrors =
   PurescriptMakeError . T.pack . PE.prettyPrintMultipleErrors PE.defaultPPEOptions
 
--- FIX In newer versions of purescript this is Text not String
-readInput :: [FilePath] -> IO [(FilePath, [Char])]
+readInput :: [FilePath] -> IO [(FilePath, Text)]
 readInput inputFiles =
   forM inputFiles $ \inFile ->
-    (,) inFile . T.unpack . T.decodeUtf8 <$> BS.readFile inFile
+    (,) inFile . T.decodeUtf8 <$> BS.readFile inFile
 
 -- TODO: Doing mostly the same job as findSrcPurs.
 appendPursLibraryFilePattern :: FilePattern -> FilePattern
