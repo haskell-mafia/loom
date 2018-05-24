@@ -147,6 +147,18 @@ httpsFetch att mgr rt rp req = do
                   HTTPS.parseRequest (B8.unpack loc)
                 rp' <- redirectOk rp req'
                 pure (rp', req'))
+
+        HTTPS.Status 301 _ -> do
+          either
+            (pure . Left)
+            (runEitherT . uncurry (httpsFetch att mgr rt))
+            (do let hdrs = HTTPS.responseHeaders res
+                req' <- maybe (Left RedirectNoLocation) pure $ do
+                  (_, loc) <- find ((== "Location") . fst) hdrs
+                  HTTPS.parseRequest (B8.unpack loc)
+                rp' <- redirectOk rp req'
+                pure (rp', req'))
+
         HTTPS.Status 200 _ -> do
           bss <- HTTPS.brConsume $ HTTPS.responseBody res
           pure (Right res { HTTPS.responseBody = LB.fromChunks bss })
