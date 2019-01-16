@@ -7,8 +7,11 @@
 [build.branches-*]
   git = "refs/heads/topic/*"
 
-[build.purescript-0-9-*]
-  git = "refs/heads/purescript-0.9*"
+[build.purescript-0-9-dist-*]
+  git = "refs/heads/purescript-0.9"
+
+[build.purescript-0-9-branches-*]
+  git = "refs/heads/purescript-0.9/*"
 
 [build.all-*]
   git = "refs/heads/**"
