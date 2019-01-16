@@ -129,6 +129,7 @@ httpsFetch ::
   -> HTTPS.Request
   -> EitherT HTTPSError IO (HTTPS.Response LB.ByteString)
 httpsFetch att mgr rt rp req = do
+  liftIO . IO.hPutStrLn IO.stdout . ("fetching URI: " <>) . show . HTTPS.getUri $ req
   e <- liftIO . tryIO . HTTPS.withResponse req {
     -- Throw no exceptions on bad response code
       HTTPS.checkStatus = (\_ _ _ -> Nothing)
