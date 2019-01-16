@@ -1,291 +1,291 @@
 [boris]
   version = 1
 
-[build.dist-7-10-core]
+[build.purescript-0-9-dist-7-10-core]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-core"]
     ]
 
-[build.dist-7-10-build]
+[build.purescript-0-9-dist-7-10-build]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-build"]
     ]
 
-[build.dist-7-10-cli]
+[build.purescript-0-9-dist-7-10-cli]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-cli"]
     ]
 
-[build.dist-7-10-config-toml]
+[build.purescript-0-9-dist-7-10-config-toml]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-config-toml"]
     ]
 
-[build.dist-7-10-fetch]
+[build.purescript-0-9-dist-7-10-fetch]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-fetch"]
     ]
 
-[build.dist-7-10-machinator]
+[build.purescript-0-9-dist-7-10-machinator]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-machinator"]
     ]
 
-[build.dist-7-10-http]
+[build.purescript-0-9-dist-7-10-http]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-http"]
     ]
 
-[build.dist-7-10-js]
+[build.purescript-0-9-dist-7-10-js]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-js"]
     ]
 
-[build.dist-7-10-process]
+[build.purescript-0-9-dist-7-10-process]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-process"]
     ]
 
-[build.dist-7-10-projector]
+[build.purescript-0-9-dist-7-10-projector]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-projector"]
     ]
 
-[build.dist-7-10-sass]
+[build.purescript-0-9-dist-7-10-sass]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-sass"]
     ]
 
-[build.dist-7-10-site]
+[build.purescript-0-9-dist-7-10-site]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-site"]
     ]
 
-[build.dist-7-10-runtime]
+[build.purescript-0-9-dist-7-10-runtime]
   command = [
       ["bin/master", "build", "dist-7-10", "-C", "loom-runtime"]
     ]
 
-[build.branches-7-10-core]
+[build.purescript-0-9-branches-7-10-core]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-core"]
     ]
 
-[build.branches-7-10-build]
+[build.purescript-0-9-branches-7-10-build]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-build"]
     ]
 
-[build.dist-7-10-purescript]
+[build.purescript-0-9-dist-7-10-purescript]
   command = [
       ["master", "build", "dist-7-10", "-C", "loom-purescript"]
     ]
 
-[build.branches-7-10-cli]
+[build.purescript-0-9-branches-7-10-cli]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-cli"]
     ]
 
-[build.branches-7-10-config-toml]
+[build.purescript-0-9-branches-7-10-config-toml]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-config-toml"]
     ]
 
-[build.branches-7-10-fetch]
+[build.purescript-0-9-branches-7-10-fetch]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-fetch"]
     ]
 
-[build.branches-7-10-machinator]
+[build.purescript-0-9-branches-7-10-machinator]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-machinator"]
     ]
 
-[build.branches-7-10-http]
+[build.purescript-0-9-branches-7-10-http]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-http"]
     ]
 
-[build.branches-7-10-js]
+[build.purescript-0-9-branches-7-10-js]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-js"]
     ]
 
-[build.branches-7-10-process]
+[build.purescript-0-9-branches-7-10-process]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-process"]
     ]
 
-[build.branches-7-10-projector]
+[build.purescript-0-9-branches-7-10-projector]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-projector"]
     ]
 
-[build.branches-7-10-sass]
+[build.purescript-0-9-branches-7-10-sass]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-sass"]
     ]
 
-[build.branches-7-10-site]
+[build.purescript-0-9-branches-7-10-site]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-site"]
     ]
 
-[build.branches-7-10-runtime]
+[build.purescript-0-9-branches-7-10-runtime]
   command = [
       ["bin/master", "build", "branches-7-10", "-C", "loom-runtime"]
     ]
 
-[build.branches-7-10-purescript]
+[build.purescript-0-9-branches-7-10-purescript]
   command = [
       ["master", "build", "branches-7-10", "-C", "loom-purescript"]
     ]
 
-[build.dist-8-0-core]
+[build.purescript-0-9-dist-8-0-core]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-core"]
     ]
 
-[build.dist-8-0-build]
+[build.purescript-0-9-dist-8-0-build]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-build"]
     ]
 
-[build.dist-8-0-cli]
+[build.purescript-0-9-dist-8-0-cli]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-cli"]
     ]
 
-[build.dist-8-0-config-toml]
+[build.purescript-0-9-dist-8-0-config-toml]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-config-toml"]
     ]
 
-[build.dist-8-0-fetch]
+[build.purescript-0-9-dist-8-0-fetch]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-fetch"]
     ]
 
-[build.dist-8-0-machinator]
+[build.purescript-0-9-dist-8-0-machinator]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-machinator"]
     ]
 
-[build.dist-8-0-http]
+[build.purescript-0-9-dist-8-0-http]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-http"]
     ]
 
-[build.dist-8-0-js]
+[build.purescript-0-9-dist-8-0-js]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-js"]
     ]
 
-[build.dist-8-0-process]
+[build.purescript-0-9-dist-8-0-process]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-process"]
     ]
 
-[build.dist-8-0-projector]
+[build.purescript-0-9-dist-8-0-projector]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-projector"]
     ]
 
-[build.dist-8-0-sass]
+[build.purescript-0-9-dist-8-0-sass]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-sass"]
     ]
 
-[build.dist-8-0-site]
+[build.purescript-0-9-dist-8-0-site]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-site"]
     ]
 
-[build.dist-8-0-runtime]
+[build.purescript-0-9-dist-8-0-runtime]
   command = [
       ["bin/master", "build", "dist-8-0", "-C", "loom-runtime"]
     ]
 
-[build.branches-8-0-core]
+[build.purescript-0-9-branches-8-0-core]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-core"]
     ]
 
-[build.branches-8-0-build]
+[build.purescript-0-9-branches-8-0-build]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-build"]
     ]
 
-[build.dist-8-0-purescript]
+[build.purescript-0-9-dist-8-0-purescript]
   command = [
       ["master", "build", "dist-8-0", "-C", "loom-purescript"]
     ]
 
-[build.branches-8-0-cli]
+[build.purescript-0-9-branches-8-0-cli]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-cli"]
     ]
 
-[build.branches-8-0-config-toml]
+[build.purescript-0-9-branches-8-0-config-toml]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-config-toml"]
     ]
 
-[build.branches-8-0-fetch]
+[build.purescript-0-9-branches-8-0-fetch]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-fetch"]
     ]
 
-[build.branches-8-0-machinator]
+[build.purescript-0-9-branches-8-0-machinator]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-machinator"]
     ]
 
-[build.branches-8-0-http]
+[build.purescript-0-9-branches-8-0-http]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-http"]
     ]
 
-[build.branches-8-0-js]
+[build.purescript-0-9-branches-8-0-js]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-js"]
     ]
 
-[build.branches-8-0-process]
+[build.purescript-0-9-branches-8-0-process]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-process"]
     ]
 
-[build.branches-8-0-projector]
+[build.purescript-0-9-branches-8-0-projector]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-projector"]
     ]
 
-[build.branches-8-0-sass]
+[build.purescript-0-9-branches-8-0-sass]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-sass"]
     ]
 
-[build.branches-8-0-site]
+[build.purescript-0-9-branches-8-0-site]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-site"]
     ]
 
-[build.branches-8-0-runtime]
+[build.purescript-0-9-branches-8-0-runtime]
   command = [
       ["bin/master", "build", "branches-8-0", "-C", "loom-runtime"]
     ]
 
-[build.branches-8-0-purescript]
+[build.purescript-0-9-branches-8-0-purescript]
   command = [
       ["master", "build", "branches-8-0", "-C", "loom-purescript"]
     ]
 
-[build.dist-validate]
+[build.purescript-0-9-dist-validate]
   command = [["validate-respect"]]
 
-[build.all-rebased]
+[build.purescript-0-9-all-rebased]
   command = [["rebased"]]
 
-[build.all-submodules]
+[build.purescript-0-9-all-submodules]
   command = [["dangling-refs"]]
